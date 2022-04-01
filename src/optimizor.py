@@ -25,7 +25,7 @@ import time
 import pickle
 
 import sys
-sys.path.insert(0,'/Users/evsi8432/Documents/Research/CarHHMM-DFT/Repository/Code')
+#sys.path.insert(0,'/Users/evsi8432/Documents/Research/CarHHMM-DFT/Repository/Code')
 import Preprocessor
 import Parameters
 import HHMM
@@ -135,8 +135,8 @@ class optimizor:
         self.initialize_grads()
 
         # do a forward and backward pass of the data
-        self.fwd_pass(self.data)
-        self.bwd_pass(self.data)
+        self.fwd_pass()
+        self.bwd_pass()
 
         # get the initial gradients
         for t in range(self.T):
@@ -154,7 +154,7 @@ class optimizor:
     def initialize_step_size(self,min_group_size=None):
 
         if min_group_size is None:
-            min_group_size = max(int(0.1*self.T),3)
+            min_group_size = max(int(0.01*self.T),3)
 
         self.step_size = np.infty
         t = self.T-1
@@ -163,7 +163,7 @@ class optimizor:
         for feature in self.d_log_like_d_theta[t][0]:
 
             # set the parameter bounds for that feature
-            feature_data = [data[s][feature] for s in range(self.T)]
+            feature_data = [self.data[s][feature] for s in range(self.T)]
             sorted_feature_data = np.sort(feature_data)
 
             # get range of mu
@@ -171,16 +171,16 @@ class optimizor:
             max_mu = sorted_feature_data[-1]
             self.param_bounds[feature]["mu"] = [min_mu,max_mu]
 
-            # get range of sig
-            min_sig = min(sorted_feature_data[min_group_size:] - \
-                          sorted_feature_data[:-min_group_size])
-            max_sig = np.std(feature_data)
-            self.param_bounds[feature]["sig"] = [min_sig,max_sig]
+            # get range of log_sig
+            min_log_sig = np.log(min(sorted_feature_data[min_group_size:] - \
+                                 sorted_feature_data[:-min_group_size]))
+            max_log_sig = np.log(np.std(feature_data))
+            self.param_bounds[feature]["log_sig"] = [min_log_sig,max_log_sig]
 
             # never make the step size larger than 10% of the range of any parameter
             mu_ss = 0.1*min(abs((max_mu-min_mu)/self.d_log_like_d_theta[t][0][feature]["mu"]))
-            sig_ss = 0.1*min(abs((max_sig-min_sig)/self.d_log_like_d_theta[t][0][feature]["sig"]))
-            param_ss = min(mu_ss,sig_ss)
+            log_sig_ss = 0.1*min(abs((max_log_sig-min_log_sig)/self.d_log_like_d_theta[t][0][feature]["log_sig"]))
+            param_ss = min(mu_ss,log_sig_ss)
 
             if param_ss < self.step_size:
                 self.step_size = np.copy(param_ss)
@@ -217,15 +217,15 @@ class optimizor:
 
                         if k == 0:
                             self.d_log_like_d_theta[t][0][feature]['mu'] = np.zeros(self.K[0])
-                            self.d_log_like_d_theta[t][0][feature]['sig'] = np.zeros(self.K[0])
+                            self.d_log_like_d_theta[t][0][feature]['log_sig'] = np.zeros(self.K[0])
                             self.d_log_like_d_theta[t][0][feature]['corr'] = np.zeros(self.K[0])
 
                         self.d_log_alpha_d_theta[t][k][0][feature]['mu'] = np.zeros(self.K[0])
-                        self.d_log_alpha_d_theta[t][k][0][feature]['sig'] = np.zeros(self.K[0])
+                        self.d_log_alpha_d_theta[t][k][0][feature]['log_sig'] = np.zeros(self.K[0])
                         self.d_log_alpha_d_theta[t][k][0][feature]['corr'] = np.zeros(self.K[0])
 
                         self.d_log_beta_d_theta[t][k][0][feature]['mu'] = np.zeros(self.K[0])
-                        self.d_log_beta_d_theta[t][k][0][feature]['sig'] = np.zeros(self.K[0])
+                        self.d_log_beta_d_theta[t][k][0][feature]['log_sig'] = np.zeros(self.K[0])
                         self.d_log_beta_d_theta[t][k][0][feature]['corr'] = np.zeros(self.K[0])
 
                     else:
@@ -258,14 +258,15 @@ class optimizor:
             if dist == 'normal':
 
                 mu = self.theta[0][feature]['mu']
-                sig = self.theta[0][feature]['sig']
+                log_sig = self.theta[0][feature]['log_sig']
+                sig = np.exp(log_sig)
 
                 log_f += norm.logpdf(y[feature],
                                      loc=mu,
                                      scale=sig)
 
-                grad_log_f[0][feature] = {"mu": ((y[feature]-mu)/sig)/sig,
-                                          "sig": (((y[feature]-mu)/sig)**2 - 1)/sig}
+                grad_log_f[0][feature] = {'mu': (y[feature]-mu)/(sig**2),
+                                          'log_sig': ((y[feature]-mu)/sig)**2 - 1}
 
             else:
                 print("unidentified emission distribution %s for %s"%(dist,feature))
@@ -416,14 +417,14 @@ class optimizor:
 
         return
 
-    def fwd_pass(self,data):
+    def fwd_pass(self):
 
         for t in range(self.T):
             self.fwd_step(t)
 
         return
 
-    def bwd_pass(self,data):
+    def bwd_pass(self):
 
         for t in reversed(range(self.T)):
             self.bwd_step(t)
@@ -435,7 +436,7 @@ class optimizor:
         if t is None:
             t = self.T - 1
 
-        return logsumexp(self.log_alphas[:,t] + self.log_betas[:,t])
+        return np.copy(logsumexp(self.log_alphas[:,t] + self.log_betas[:,t]))
 
     def grad_log_likelihood(self,t=None):
 
@@ -471,22 +472,24 @@ class optimizor:
         alpha = self.step_size / np.sqrt(max(self.step_num-decay_ind,1))
 
         # update eta
-        delta = alpha * np.copy(self.d_log_like_d_eta[t])
-        self.eta[0] += delta
+        #delta = alpha * np.copy(self.d_log_like_d_eta[t])
+        #print("change in eta: ", delta)
+        #self.eta[0] += delta
 
         # make sure |eta| < 15
-        self.eta[0] = np.clip(self.eta[0], -10, 10)
-        np.fill_diagonal(self.eta[0],0)
+        #self.eta[0] = np.clip(self.eta[0], -10, 10)
+        #np.fill_diagonal(self.eta[0],0)
 
         # update Gamma
-        self.Gamma = eta_2_Gamma(self.eta)
+        #self.Gamma = eta_2_Gamma(self.eta)
 
         # update theta
         for feature in self.theta[0]:
-            for param in ['mu','sig']:
+            for param in ['mu']:#,'log_sig']:
 
                 # update parameter
                 delta = alpha * np.copy(self.d_log_like_d_theta[t][0][feature][param])
+                #print("change in theta feature %s %s" % (feature,param), delta)
                 self.theta[0][feature][param] += delta
 
                 # make sure we are in realistic range
@@ -510,12 +513,37 @@ class optimizor:
         while epoch_num < num_epochs:
             for _ in range(h):
 
+                # get prev_t for trace purposes
+                prev_t = t
+
+                #print("epoch num: ", epoch_num)
+                #print("t: ", t)
+                #print("direction: ", direction)
+                #print("")
+
                 # move forward one step
                 if direction == "forward":
+
+                    #print("pre alphas: ", self.log_alphas[:,t])
+                    #print("pre betas: ", self.log_betas[:,t])
+                    #print("pre log-likelihood: ", self.log_likelihood(t))
+                    #print("")
+
                     self.fwd_step(t)
+
+                    #print("post alphas: ", self.log_alphas[:,t])
+                    #print("post betas: ", self.log_betas[:,t])
+                    #print("post log-likelihood: ", self.log_likelihood(t))
+                    #print("")
+
                     t += 1
 
                     if t == self.T:
+
+                        # print results
+                        print("finished epoch num: ", epoch_num)
+                        print("last direction: ", direction)
+                        print("log-likelihood: ", self.log_likelihood(prev_t))
 
                         # change direction to backward
                         direction = "backward"
@@ -525,10 +553,27 @@ class optimizor:
 
                 # move backward one step
                 elif direction == "backward":
+
+                    #print("pre alphas: ", self.log_alphas[:,t])
+                    #print("pre betas: ", self.log_betas[:,t])
+                    #print("pre log-likelihood: ", self.log_likelihood(t))
+                    #print("")
+
                     self.bwd_step(t)
+
+                    #print("post alphas: ", self.log_alphas[:,t])
+                    #print("post betas: ", self.log_betas[:,t])
+                    #print("post log-likelihood: ", self.log_likelihood(t))
+                    #print("")
+
                     t += -1
 
                     if t == -1:
+
+                        # print results
+                        print("finished epoch num: ", epoch_num)
+                        print("last direction: ", direction)
+                        print("log-likelihood: ", self.log_likelihood(prev_t))
 
                         # change direction to forward
                         direction = "forward"
@@ -540,19 +585,26 @@ class optimizor:
                         self.fwd_step(t)
 
             # update the paramters
+            #print("updating parameters")
             self.update_params(t,decay_ind=decay_ind)
-            self.log_like_trace.append(self.log_likelihood(t))
+
+            if direction == "forward":
+                self.log_like_trace.append(self.log_likelihood(prev_t))
+            else:
+                self.log_like_trace.append(self.log_likelihood(prev_t))
 
             self.theta_trace.append(deepcopy(self.theta))
             self.eta_trace.append(deepcopy(self.eta))
 
-            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[t]))
-            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[t]))
+            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[prev_t]))
+            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[prev_t]))
 
             # update the step
 
             # print log-likelihood
-            print("epoch num: ", epoch_num)
+            #print("epoch num: ", epoch_num)
+            #print("t: ", t)
+            #print("direction: ", direction)
             #print(epoch_num)
             #print("")
             #print("t:")
@@ -564,21 +616,17 @@ class optimizor:
             #print("eta:")
             #print(self.eta)
             #print("")
-            #print("alphas:")
-            #print(self.log_alphas[:,t])
-            #print("")
-            #print("betas:")
-            #print(self.log_betas[:,t])
-            #print("")
-            print("log-likelihood: ", self.log_likelihood(t))
+            #print("alphas: ", self.log_alphas[:,t])
+            #print("betas: ", self.log_betas[:,t])
+            #print("log-likelihood: ", self.log_likelihood(t))
             #print(self.log_likelihood(t))
             #print("")
             #print("grad log_liklihood:")
             #print(self.d_log_like_d_theta[t])
             #print(self.d_log_like_d_eta[t])
             #print("")
-            print("alpha: ", self.step_size / np.sqrt(max(self.step_num-decay_ind,1)))
+            #print("step size: ", self.step_size / np.sqrt(max(self.step_num-decay_ind,1)))
 
-            print("")
+            #print("")
 
         return

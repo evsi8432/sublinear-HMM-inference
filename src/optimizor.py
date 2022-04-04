@@ -499,7 +499,7 @@ class optimizor:
 
         return
 
-    def train_HHMM(self,num_epochs,h=None,decay_ind=0):
+    def train_HHMM(self,num_epochs,h=None,random_t=True,decay_ind=0):
 
         # set h
         if h is None:
@@ -509,12 +509,22 @@ class optimizor:
         epoch_num = 0
         direction = "forward"
         t = 0
+        update_t = 0
 
         while epoch_num < num_epochs:
-            for _ in range(h):
 
-                # get prev_t for trace purposes
-                prev_t = t
+            if direction == "forward":
+                self.log_like_trace.append(self.log_likelihood(update_t))
+            else:
+                self.log_like_trace.append(self.log_likelihood(update_t))
+
+            self.theta_trace.append(deepcopy(self.theta))
+            self.eta_trace.append(deepcopy(self.eta))
+
+            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[update_t]))
+            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[update_t]))
+
+            for _ in range(h):
 
                 #print("epoch num: ", epoch_num)
                 #print("t: ", t)
@@ -529,7 +539,13 @@ class optimizor:
                     #print("pre log-likelihood: ", self.log_likelihood(t))
                     #print("")
 
-                    self.fwd_step(t)
+                    if random_t:
+                        update_t = np.random.choice(self.T)
+                        self.fwd_step(update_t)
+                        self.bwd_step(update_t)
+                    else:
+                        update_t = t
+                        self.fwd_step(update_t)
 
                     #print("post alphas: ", self.log_alphas[:,t])
                     #print("post betas: ", self.log_betas[:,t])
@@ -543,7 +559,7 @@ class optimizor:
                         # print results
                         print("finished epoch num: ", epoch_num)
                         print("last direction: ", direction)
-                        print("log-likelihood: ", self.log_likelihood(prev_t))
+                        print("log-likelihood: ", self.log_likelihood(update_t))
 
                         # change direction to backward
                         direction = "backward"
@@ -559,7 +575,13 @@ class optimizor:
                     #print("pre log-likelihood: ", self.log_likelihood(t))
                     #print("")
 
-                    self.bwd_step(t)
+                    if random_t:
+                        update_t = np.random.choice(self.T)
+                        self.fwd_step(update_t)
+                        self.bwd_step(update_t)
+                    else:
+                        update_t = t
+                        self.bwd_step(update_t)
 
                     #print("post alphas: ", self.log_alphas[:,t])
                     #print("post betas: ", self.log_betas[:,t])
@@ -573,7 +595,7 @@ class optimizor:
                         # print results
                         print("finished epoch num: ", epoch_num)
                         print("last direction: ", direction)
-                        print("log-likelihood: ", self.log_likelihood(prev_t))
+                        print("log-likelihood: ", self.log_likelihood(update_t))
 
                         # change direction to forward
                         direction = "forward"
@@ -582,51 +604,22 @@ class optimizor:
                         t += 1
 
                         # finish off with forward step to complete likelihood
-                        self.fwd_step(t)
+                        if not random_t:
+                            self.fwd_step(t)
 
             # update the paramters
-            #print("updating parameters")
-            self.update_params(t,decay_ind=decay_ind)
+            self.update_params(update_t,decay_ind=decay_ind)
 
-            if direction == "forward":
-                self.log_like_trace.append(self.log_likelihood(prev_t))
-            else:
-                self.log_like_trace.append(self.log_likelihood(prev_t))
+        # record final values
+        if direction == "forward":
+            self.log_like_trace.append(self.log_likelihood(update_t))
+        else:
+            self.log_like_trace.append(self.log_likelihood(update_t))
 
-            self.theta_trace.append(deepcopy(self.theta))
-            self.eta_trace.append(deepcopy(self.eta))
+        self.theta_trace.append(deepcopy(self.theta))
+        self.eta_trace.append(deepcopy(self.eta))
 
-            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[prev_t]))
-            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[prev_t]))
-
-            # update the step
-
-            # print log-likelihood
-            #print("epoch num: ", epoch_num)
-            #print("t: ", t)
-            #print("direction: ", direction)
-            #print(epoch_num)
-            #print("")
-            #print("t:")
-            #print(t)
-            #print("")
-            #print("theta:")
-            #print(self.theta)
-            #print("")
-            #print("eta:")
-            #print(self.eta)
-            #print("")
-            #print("alphas: ", self.log_alphas[:,t])
-            #print("betas: ", self.log_betas[:,t])
-            #print("log-likelihood: ", self.log_likelihood(t))
-            #print(self.log_likelihood(t))
-            #print("")
-            #print("grad log_liklihood:")
-            #print(self.d_log_like_d_theta[t])
-            #print(self.d_log_like_d_eta[t])
-            #print("")
-            #print("step size: ", self.step_size / np.sqrt(max(self.step_num-decay_ind,1)))
-
-            #print("")
+        self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[update_t]))
+        self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[update_t]))
 
         return

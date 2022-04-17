@@ -25,7 +25,6 @@ import time
 import pickle
 
 import sys
-#sys.path.insert(0,'/Users/evsi8432/Documents/Research/CarHHMM-DFT/Repository/Code')
 import Preprocessor
 import Parameters
 import HHMM
@@ -119,10 +118,20 @@ class optimizor:
         self.log_alphas = np.zeros((self.K[0],self.T))
         self.log_betas = np.zeros((self.K[0],self.T))
 
+        # p_X_t and p_XX_tp1
+        self.p_X_t = np.zeros((self.K[0],self.T))
+        self.P_XX_tp1 = np.zeros((self.K[0],self.K[0],self.T-1))
+
         # gradients wrt theta
         self.d_log_alpha_d_theta = [[deepcopy(hhmm.theta) for _ in range(self.K[0])] for _ in range(self.T)]
         self.d_log_beta_d_theta =  [[deepcopy(hhmm.theta) for _ in range(self.K[0])] for _ in range(self.T)]
+
+        self.E_grad_log_f = [deepcopy(hhmm.theta) for _ in range(self.T)]
+        self.E_grad_log_f_tilde = [deepcopy(hhmm.theta) for _ in range(self.T)]
         self.d_log_like_d_theta = [deepcopy(hhmm.theta) for _ in range(self.T)]
+        self.d_log_like_d_theta_total = deepcopy(hhmm.theta)
+        self.d_log_like_d_theta_tilde = deepcopy(hhmm.theta)
+
         self.grad_theta_trace = []
 
         # gradients wrt eta
@@ -135,8 +144,7 @@ class optimizor:
         self.initialize_grads()
 
         # do a forward and backward pass of the data
-        self.fwd_pass()
-        self.bwd_pass()
+        self.update_tilde()
 
         # get the initial gradients
         for t in range(self.T):
@@ -216,9 +224,17 @@ class optimizor:
                     if dist['f'] == 'normal' and not dist['corr']:
 
                         if k == 0:
+                            if t == 0:
+                                self.d_log_like_d_theta_total[0][feature]['mu'] = np.zeros(self.K[0])
+                                self.d_log_like_d_theta_total[0][feature]['log_sig'] = np.zeros(self.K[0])
+                                self.d_log_like_d_theta_total[0][feature]['corr'] = np.zeros(self.K[0])
                             self.d_log_like_d_theta[t][0][feature]['mu'] = np.zeros(self.K[0])
                             self.d_log_like_d_theta[t][0][feature]['log_sig'] = np.zeros(self.K[0])
                             self.d_log_like_d_theta[t][0][feature]['corr'] = np.zeros(self.K[0])
+
+                            self.E_grad_log_f[t][0][feature]['mu'] = np.zeros(self.K[0])
+                            self.E_grad_log_f[t][0][feature]['log_sig'] = np.zeros(self.K[0])
+                            self.E_grad_log_f[t][0][feature]['corr'] = np.zeros(self.K[0])
 
                         self.d_log_alpha_d_theta[t][k][0][feature]['mu'] = np.zeros(self.K[0])
                         self.d_log_alpha_d_theta[t][k][0][feature]['log_sig'] = np.zeros(self.K[0])
@@ -286,10 +302,24 @@ class optimizor:
             # update log_alpha
             self.log_alphas[:,t] = np.log(self.delta) + log_f
 
-            # update d_log_alpha_t/d_theta
-            for k in range(self.K[0]):
-                for feature in grad_log_f[0]:
-                    for param in grad_log_f[0][feature]:
+            # get probability of each hidden state
+            p_X = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
+
+            # update d_log_alpha_t/d_theta and E_grad_log_f
+            for feature in grad_log_f[0]:
+                for param in grad_log_f[0][feature]:
+                    for k in range(self.K[0]):
+
+                        # update total gradient with new value
+                        self.d_log_like_d_theta_total[0][feature][param][k] += \
+                            p_X[k] * grad_log_f[0][feature][param][k]
+                        self.d_log_like_d_theta_total[0][feature][param][k] -= \
+                            np.copy(self.E_grad_log_f[t][0][feature][param][k])
+
+                        # update E_grad_log_f
+                        self.E_grad_log_f[t][0][feature][param][k] = p_X[k] * grad_log_f[0][feature][param][k]
+
+                        # update d_log_alpha/d_theta
                         self.d_log_alpha_d_theta[t][k][0][feature][param][k] = grad_log_f[0][feature][param][k]
 
             # update d_log_alpha_t/d_eta
@@ -299,6 +329,9 @@ class optimizor:
 
         # now deal with t != 0
         self.log_alphas[:,t] = logdotexp(self.log_alphas[:,t-1],self.Gamma[0]) + log_f
+
+        # get probability of each hidden state
+        p_X = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
 
         # create matrix of P(X_{t-1} = i | X_{t} = j , Y_{1:t+1})
         xi = np.zeros((self.K[0],self.K[0]))
@@ -314,12 +347,18 @@ class optimizor:
             for feature in grad_log_f[0]:
                 for param in grad_log_f[0][feature]:
 
-                    # get d_log_fj/d_theta_j
-                    d_log_fj_d_theta_k = np.zeros(self.K[0])
-                    d_log_fj_d_theta_k[k] = grad_log_f[0][feature][param][k]
+                    # update total gradient with new value
+                    self.d_log_like_d_theta_total[0][feature][param][k] += \
+                        p_X[k] * grad_log_f[0][feature][param][k]
+                    self.d_log_like_d_theta_total[0][feature][param][k] -= \
+                        np.copy(self.E_grad_log_f[t][0][feature][param][k])
 
+                    # update E_grad_log_f
+                    self.E_grad_log_f[t][0][feature][param][k] = p_X[k] * grad_log_f[0][feature][param][k]
+
+                    # update d_log_alpha/d_theta
                     for j in range(self.K[0]): # alpha_j
-                        self.d_log_alpha_d_theta[t][j][0][feature][param][k] = d_log_fj_d_theta_k[j]
+                        self.d_log_alpha_d_theta[t][j][0][feature][param][k] = (j == k) * grad_log_f[0][feature][param][j]
                         for i in range(self.K[0]):
                             self.d_log_alpha_d_theta[t][j][0][feature][param][k] += \
                             xi[i,j]*self.d_log_alpha_d_theta[t-1][i][0][feature][param][k]
@@ -352,10 +391,12 @@ class optimizor:
             # update log_beta
             self.log_betas[:,t] = np.zeros(self.K[0])
 
-            # update d_log_alpha_t/d_theta
+            # update d_log_beta_t/d_theta
             for k in range(self.K[0]):
                 for feature in self.d_log_beta_d_theta[t][k][0]:
                     for param in self.d_log_beta_d_theta[t][k][0][feature]:
+
+                        # update d_log_beta / d_theta
                         self.d_log_beta_d_theta[t][k][0][feature][param][k] = 0
 
             # update d_log_beta_t/d_eta
@@ -364,38 +405,61 @@ class optimizor:
             return
 
         # get log_f, grad_log_f
-        log_f,grad_log_f = self.log_f(t+1)
+        log_f_t,grad_log_f_t = self.log_f(t)
+        log_f_tp1,grad_log_f_tp1 = self.log_f(t+1)
 
         # get log_beta
-        self.log_betas[:,t] = logdotexp(self.log_betas[:,t+1] + log_f,
+        self.log_betas[:,t] = logdotexp(self.log_betas[:,t+1] + log_f_tp1,
                                         np.transpose(self.Gamma[0]))
+
+        # get probability of each hidden state
+        p_X_t = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
+        p_X_tp1 = np.exp(self.log_alphas[:,t+1] + self.log_betas[:,t+1] - self.log_likelihood(t+1))
 
         # create matrix of P(X_{t+1} = j | X_{t} = i , Y_{t+1:T})
         xi = np.zeros((self.K[0],self.K[0]))
         for i in range(self.K[0]):
             for j in range(self.K[0]):
-                xi[i,j] =   np.log(self.Gamma[0][i,j]) + log_f[j] + self.log_betas[j,t+1]
+                xi[i,j] =   np.log(self.Gamma[0][i,j]) + log_f_tp1[j] + self.log_betas[j,t+1]
                 xi[i,j] += -self.log_betas[i,t]
 
         xi = np.exp(xi)
 
         # update d_log_beta_t/d_theta
         for k in range(self.K[0]): # parameter k
-            for feature in grad_log_f[0]:
-                for param in grad_log_f[0][feature]:
+            for feature in grad_log_f_tp1[0]:
+                for param in grad_log_f_tp1[0][feature]:
+
+                    # update total gradient with new value
+                    self.d_log_like_d_theta_total[0][feature][param][k] += \
+                        p_X_t[k] * grad_log_f_t[0][feature][param][k]
+                    self.d_log_like_d_theta_total[0][feature][param][k] -= \
+                        np.copy(self.E_grad_log_f[t][0][feature][param][k])
+
+                    self.d_log_like_d_theta_total[0][feature][param][k] += \
+                        p_X_tp1[k] * grad_log_f_tp1[0][feature][param][k]
+                    self.d_log_like_d_theta_total[0][feature][param][k] -= \
+                        np.copy(self.E_grad_log_f[t+1][0][feature][param][k])
+
+                    # update E_grad_log_f
+                    self.E_grad_log_f[t][0][feature][param][k] = p_X_t[k] * grad_log_f_t[0][feature][param][k]
+                    self.E_grad_log_f[t+1][0][feature][param][k] = p_X_tp1[k] * grad_log_f_tp1[0][feature][param][k]
+
+                    # update d_log_beta / d_theta
                     for i in range(self.K[0]): # beta_i
 
                         self.d_log_beta_d_theta[t][i][0][feature][param][k] = 0
 
                         # get d_log_fj/d_theta_k
                         d_log_fj_d_theta_k = np.zeros(self.K[0])
-                        d_log_fj_d_theta_k[k] =  grad_log_f[0][feature][param][k]
+                        d_log_fj_d_theta_k[k] =  grad_log_f_tp1[0][feature][param][k]
 
                         for j in range(self.K[0]):
 
                             self.d_log_beta_d_theta[t][i][0][feature][param][k] += \
                             xi[i,j]*(self.d_log_beta_d_theta[t+1][j][0][feature][param][k] + \
                                      d_log_fj_d_theta_k[j])
+
 
         # get d_log_Gamma_ij/d_eta_kl
         d_log_Gamma_d_eta = np.zeros((self.K[0],self.K[0],self.K[0],self.K[0]))
@@ -431,12 +495,54 @@ class optimizor:
 
         return
 
+    def update_tilde(self):
+
+        # first refresh alpha and beta
+        self.fwd_pass()
+        self.bwd_pass()
+
+        # refresh grad log_like
+        for feature in self.d_log_like_d_theta_tilde[0]:
+            for param in self.d_log_like_d_theta_tilde[0][feature]:
+                self.d_log_like_d_theta_tilde[0][feature][param] = np.zeros(self.K[0])
+
+        # now, save the expected value of each gradient
+        for t in range(self.T):
+
+            log_f,grad_log_f = self.log_f(t)
+            p_X = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
+
+            # update d_log_alpha_t/d_theta and E_grad_log_f
+            for feature in grad_log_f[0]:
+                for param in grad_log_f[0][feature]:
+                    self.E_grad_log_f_tilde[t][0][feature][param] = p_X * grad_log_f[0][feature][param]
+                    self.d_log_like_d_theta_tilde[0][feature][param] += self.E_grad_log_f[t][0][feature][param]
+
+        return
+
+    def p_X(self,t):
+        return np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
+
+    def p_XX(self,t):
+
+        log_f = self.log_f(t)[0]
+
+        p_XX = np.zeros((self.K[0],self.K[0]))
+        for i in range(self.K[0]):
+            for j in range(self.K[0]):
+                p_XX[i,j] = self.log_alphas[i,t] \
+                            + np.log(self.Gamma[0][i,j]) \
+                            + log_f[j] \
+                            + self.log_betas[j,t+1]
+
+        return np.exp(p_XX - logsumexp(p_XX))
+
     def log_likelihood(self,t=None):
 
         if t is None:
             t = self.T - 1
 
-        return np.copy(logsumexp(self.log_alphas[:,t] + self.log_betas[:,t]))
+        return logsumexp(self.log_alphas[:,t] + self.log_betas[:,t])
 
     def grad_log_likelihood(self,t=None):
 
@@ -456,17 +562,51 @@ class optimizor:
                              for i in range(self.K[0])])
 
 
-        # update derivative with respect to eta
+        # get derivative with respect to eta
         self.d_log_like_d_eta[t] = np.zeros((self.K[0],self.K[0]))
         for i in range(self.K[0]):
             self.d_log_like_d_eta[t] += p_X[i]*(self.d_log_alpha_d_eta[t][i] + self.d_log_beta_d_eta[t][i])
 
         return
 
-    def update_params(self,t,decay_ind=0):
+    def update_params_EM(self):
+
+        ### E step ###
+        self.fwd_pass()
+        self.bwd_pass()
+
+        ### M step ###
+
+        # find probabilities of hidden states and pairs
+        p_X =  np.array([self.p_X(t)  for t in range(self.T)])
+        p_XX = np.array([self.p_XX(t) for t in range(self.T-1)])
+
+        # update Gamma
+        #self.Gamma[0] = np.sum(p_XX,axis=0) / np.sum(p_X[:-1],axis=0)
+        #self.eta[0] = Gamma_2_eta(self.Gamma)
+
+        # update theta
+        for feature in self.theta[0]:
+
+            # get denominator
+            denom = np.sum(p_X,axis=0)
+
+            # update log-sig
+            #num = np.sum(np.array([p_X[t]*(self.data[t][feature]-self.theta[0][feature]["mu"])**2 for t in range(self.T)]),axis=0)
+            #var = num / denom
+            #self.theta[0][feature]["log_sig"] = np.log(np.sqrt(var))
+
+            # update mu
+            num = np.sum(np.array([p_X[t]*self.data[t][feature] for t in range(self.T)]),axis=0)
+            self.theta[0][feature]["mu"] = num / denom
+
+        return
+
+    def update_params(self,t,decay_ind=0,method="IGD"):
 
         # update gradient of log_likelihood
-        self.grad_log_likelihood(t=t)
+        if method == "IGD":
+            self.grad_log_likelihood(t=t)
 
         # find step size
         alpha = self.step_size / np.sqrt(max(self.step_num-decay_ind,1))
@@ -485,10 +625,18 @@ class optimizor:
 
         # update theta
         for feature in self.theta[0]:
-            for param in ['mu']:#,'log_sig']:
+            for param in ['mu','log_sig']:
 
                 # update parameter
-                delta = alpha * np.copy(self.d_log_like_d_theta[t][0][feature][param])
+                if method == "IGD":
+                    delta = alpha * self.d_log_like_d_theta[t][0][feature][param]
+                elif method == "SAG":
+                    delta = alpha * self.d_log_like_d_theta_total[0][feature][param]
+                elif method == "SVRG":
+                    delta = alpha * (self.T * self.E_grad_log_f[t][0][feature][param] \
+                                   - self.T * self.E_grad_log_f_tilde[t][0][feature][param] \
+                                   + self.d_log_like_d_theta_tilde[0][feature][param])
+
                 #print("change in theta feature %s %s" % (feature,param), delta)
                 self.theta[0][feature][param] += delta
 
@@ -499,127 +647,122 @@ class optimizor:
 
         return
 
-    def train_HHMM(self,num_epochs,h=None,random_t=True,decay_ind=0):
+    def train_HHMM(self,num_epochs,decay_ind=np.infty,num_trains=1,random_t=False,h=None,m=None,method="IGD"):
 
-        # set h
-        if h is None:
-            h = self.T
+        # check that the method makes sense
+        if method not in ["IGD","SAG","SVRG","EM"]:
+            print("method %s not recognized" % method)
+            return
 
         # initialize important info
+        if h is None:
+            h = 1
+
+        if m is None:
+            m = 5*self.T
+
         epoch_num = 0
-        direction = "forward"
         t = 0
-        update_t = 0
+        train_ind = 0
+
+        if num_trains == 1:
+            train_locs = np.array([0])
+            directions = ["forward"]
+        else:
+            train_locs = np.random.choice(self.T-1,num_trains)
+            directions = [np.random.choice(["forward","backward"]) for _ in range(num_trains)]
 
         while epoch_num < num_epochs:
 
-            if direction == "forward":
-                self.log_like_trace.append(self.log_likelihood(update_t))
-            else:
-                self.log_like_trace.append(self.log_likelihood(update_t))
-
+            self.log_like_trace.append(self.log_likelihood(t=train_locs[train_ind]))
             self.theta_trace.append(deepcopy(self.theta))
             self.eta_trace.append(deepcopy(self.eta))
 
-            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[update_t]))
-            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[update_t]))
+            if method in ["SAG","SVRG"]:
+                self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta_total))
+                self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[train_locs[train_ind]]))
+            elif method in ["EM","IGD"]:
+                self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[train_locs[train_ind]]))
+                self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[train_locs[train_ind]]))
 
             for _ in range(h):
 
-                #print("epoch num: ", epoch_num)
-                #print("t: ", t)
-                #print("direction: ", direction)
-                #print("")
+                if method == "EM":
+                    epoch_num += 1
+                    break
+
+                # update the iteration number
+                t += 1
+
+                # get the direction and update index
+                train_ind = np.random.choice(num_trains)
+                if random_t:
+                    direction = np.random.choice(["forward","backward"])
+                else:
+                    direction = directions[train_ind]
 
                 # move forward one step
                 if direction == "forward":
 
-                    #print("pre alphas: ", self.log_alphas[:,t])
-                    #print("pre betas: ", self.log_betas[:,t])
-                    #print("pre log-likelihood: ", self.log_likelihood(t))
-                    #print("")
-
                     if random_t:
-                        update_t = np.random.choice(self.T)
-                        self.fwd_step(update_t)
-                        self.bwd_step(update_t)
+                        train_locs[train_ind] = np.random.choice(self.T)
                     else:
-                        update_t = t
-                        self.fwd_step(update_t)
+                        train_locs[train_ind] += 1
 
-                    #print("post alphas: ", self.log_alphas[:,t])
-                    #print("post betas: ", self.log_betas[:,t])
-                    #print("post log-likelihood: ", self.log_likelihood(t))
-                    #print("")
+                    self.fwd_step(train_locs[train_ind])
 
-                    t += 1
-
-                    if t == self.T:
-
-                        # print results
-                        print("finished epoch num: ", epoch_num)
-                        print("last direction: ", direction)
-                        print("log-likelihood: ", self.log_likelihood(update_t))
-
-                        # change direction to backward
-                        direction = "backward"
-                        epoch_num += 1
-                        self.step_num += 1
-                        t += -1
+                    # change direction to backward when needed
+                    if train_locs[train_ind] == self.T-1:
+                        self.bwd_step(train_locs[train_ind])
+                        directions[train_ind] = "backward"
 
                 # move backward one step
                 elif direction == "backward":
 
-                    #print("pre alphas: ", self.log_alphas[:,t])
-                    #print("pre betas: ", self.log_betas[:,t])
-                    #print("pre log-likelihood: ", self.log_likelihood(t))
-                    #print("")
-
                     if random_t:
-                        update_t = np.random.choice(self.T)
-                        self.fwd_step(update_t)
-                        self.bwd_step(update_t)
+                        train_locs[train_ind] = np.random.choice(self.T)
                     else:
-                        update_t = t
-                        self.bwd_step(update_t)
+                        train_locs[train_ind] += -1
 
-                    #print("post alphas: ", self.log_alphas[:,t])
-                    #print("post betas: ", self.log_betas[:,t])
-                    #print("post log-likelihood: ", self.log_likelihood(t))
-                    #print("")
+                    self.bwd_step(train_locs[train_ind])
 
-                    t += -1
+                    # change direction to forward when needed
+                    if train_locs[train_ind] == 0:
+                        self.fwd_step(train_locs[train_ind])
+                        directions[train_ind] = "forward"
 
-                    if t == -1:
+                # print results if we have reached the end of an epoch:
+                if t % (self.T-1) == 0:
 
-                        # print results
-                        print("finished epoch num: ", epoch_num)
-                        print("last direction: ", direction)
-                        print("log-likelihood: ", self.log_likelihood(update_t))
+                    print("finished epoch_num: ", epoch_num)
+                    print("train locations: ", train_locs)
+                    print("log-likelihood: ", self.log_likelihood(t=train_locs[train_ind]))
+                    print("")
 
-                        # change direction to forward
-                        direction = "forward"
-                        epoch_num += 1
-                        self.step_num += 1
-                        t += 1
+                    epoch_num += 1
 
-                        # finish off with forward step to complete likelihood
-                        if not random_t:
-                            self.fwd_step(t)
+                # update the grad_tilde if we are doing SVRG
+                if t % m == 0 and method == "SVRG":
+                    self.update_tilde()
+                    epoch_num += 1
 
             # update the paramters
-            self.update_params(update_t,decay_ind=decay_ind)
+            if method == "EM":
+                self.update_params_EM()
+            else:
+                for train_loc in train_locs:
+                    self.update_params(train_loc,decay_ind=decay_ind,method=method)
 
         # record final values
-        if direction == "forward":
-            self.log_like_trace.append(self.log_likelihood(update_t))
-        else:
-            self.log_like_trace.append(self.log_likelihood(update_t))
-
+        self.log_like_trace.append(self.log_likelihood(t=train_locs[train_ind]))
         self.theta_trace.append(deepcopy(self.theta))
         self.eta_trace.append(deepcopy(self.eta))
 
-        self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[update_t]))
-        self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[update_t]))
+        if method in ["SAG","SVRG"]:
+            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta_total))
+            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[train_locs[train_ind]]))
+        else:
+            self.grad_theta_trace.append(deepcopy(self.d_log_like_d_theta[train_locs[train_ind]]))
+            self.grad_eta_trace.append(deepcopy(self.d_log_like_d_eta[train_locs[train_ind]]))
 
         return

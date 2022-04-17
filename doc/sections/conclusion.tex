@@ -1,0 +1,14 @@
+% !TeX root = ../main.tex
+
+The advent of high-frequency biologging technology has allowed researchers to model animal behaviours in a variety of settings. However, current statistical models and inference methods can fail if these biologging data sets are sampled at exceptionally fine, coarse, or irregular scales.
+
+In this thesis proposal, I have introduced a general, hierarchical framework that can be used to account for fine-scale, non-Markovian behaviour within the structure of an HMM. I use this framework to model the movement of killer whales, but it can be used to describe any high-frequency data set with state-switching behaviour and intricate fine-scale structure. 
+
+I also propose a generalization of an HMM which incorporates rare or preferentially observed labels. I test this framework using a simple simulation study and propose a concrete research direction to test my method using a simulation study and a the killer whale case study.
+
+Parameter estimation for these complex HMMs can be expensive. Therefore, I have introduced inference algorithms which update model parameters without iterating through the entire data set of observations. I detailed how I will used simulated and real-world data to compare my inference algorithms to current state-of-the-art methods.
+
+Finally, I detail the general structure of many continuous-time animal movement models that describe animal behaviour using irregular or coarsely sampled time series. I describe computational issues with fitting these continuous-time methods, and I propose a parallel tempering algorithm for performing parameter inference. I prove a useful result that the rejection rate of my algorithm stays bounded as the time discretization goes to infinity and corroborate this theoretical result empirically using a simulated data set. I propose to test the parallel tempering algorithm using a sparsely-sampled data set of either killer whale or Gentoo penguin position as well as two simulated data sets which are known to exhibit either multi-dimensionality or multi-modality. Finally, I describe concrete evaluation metrics that I will use to compare my method with current state-of-the art techniques.
+
+Many current models for animal movement and behaviour struggle on data sets sampled at very fine, coarse, or irregular time scales. These models either do not adequately describe the underlying movement process or are computationally expensive to fit. In this thesis proposal, I have introduced several animal movement models that can incorporate data on a variety of time scales. I have also introduced inference techniques that limit the computational burden of fitting such models. While I focus on an ecological case study using the kinematic data of a killer whale, researchers from a wide variety of fields can use the techniques I have proposed here to better understand data sets on a variety of scales.
+

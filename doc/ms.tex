@@ -1,0 +1,167 @@
+\documentclass{report}
+\pdfoutput=1
+
+\input{header}
+\input{defs}
+
+\usepackage{appendix}
+
+\title{Models and Inference Methods for Animal Movement and Behaviour on Multiple Scales}
+
+\author{
+  Evan Sidrow \\
+  Department of Statistics\\
+  University of British Columbia\\
+  Vancouver, Canada \\
+  \texttt{evan.sidrow@stat.ubc.ca} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Introduction}
+\input intro/intro.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Multi-scale methods}
+
+This chapter, together with Appendix A, appears verbatim in a special edition of Canadian Journal of Statistics focusing on functional data analysis. It is titled \textit{Modelling multi-scale, state-switching functional data with hidden Markov models} \citep{Sidrow:2021}. 
+
+\section{Abstract}
+\label{sec:abstr_ms}
+\input multi-scale/sections/abstract.tex
+%
+\section{Introduction}
+\label{sec:intro_ms}
+\input multi-scale/sections/intro.tex
+%
+\section{Models and parameter estimation}
+\label{sec:mode_ms}
+\input multi-scale/sections/models.tex
+%
+\section{Case Study}
+\label{sec:case_ms}
+\input multi-scale/sections/results.tex
+%
+\section{Simulation Study}
+\label{sec:sim_ms}
+\input multi-scale/sections/simulation.tex
+%
+\section{Discussion}
+\label{sec:disc_ms}
+\input multi-scale/sections/discussion.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Partially Hidden Markov Models}
+
+\section{Introduction}
+\label{sec:intro_ss}
+\input semi-supervised/sections/intro.tex
+
+\section{Modelling the Probability of Hidden State Observation}
+\label{sec:prob_obs_ss}
+\input semi-supervised/sections/prob_obs.tex
+
+\section{Weighted Likelihood for Sparse Labels}
+\label{sec:w_like_ss}
+\input semi-supervised/sections/w_like.tex
+
+\section{Further Work}
+\label{sec:fut_ss}
+\input semi-supervised/sections/future_work.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Computational Methods for PHMMs}
+
+\section{Introduction}
+\input compute/intro.tex
+
+\section{Induced Independence for HMM Inference}
+\input compute/indep.tex
+
+\section{A Memoization Algorithm for HMM Inference}
+\input compute/memo.tex
+
+\section{Further work}
+\input compute/future_work.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Computational Methods for Continuous Models}
+
+%\section{Saif's notes}
+%\input doc/report/continuous-time/sections/Saif.tex
+
+\section{Introduction}
+\label{sec:intro_ct}
+\input continuous-time/sections/intro.tex
+%
+\section{Background}
+\label{sec:background_ct}
+\input continuous-time/sections/background.tex
+%
+\section{Methods}
+\label{sec:methods_ct}
+\input continuous-time/sections/methods.tex
+
+\section{Preliminary Results}
+\label{sec:results_ct}
+\input continuous-time/sections/results.tex
+%
+%\section{Simulation Study}
+%\label{sec:sim_ct}
+%\input continuous-time/sections/simulation.tex
+%
+\section{Further work}
+\label{sec:futher_ct}
+\input continuous-time/sections/future.tex
+%
+%\section{Discussion}
+%\label{sec:disc_ct}
+%\input continuous-time/sections/discussion.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Conclusion}
+\input conclusion/conclusion.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{ACKNOWLEDGEMENTS}
+The killer whale data were collected under University of British Columbia Animal Care Permit number A19-0053 and Fisheries and Oceans Canada Marine Mammal Scientific License for Whale Research number XMMS 6 2019.
+This research was enabled in part by support provided by WestGrid (www.westgrid.ca) and Compute Canada (www.computecanada.ca).
+I acknowledge the support of the Natural Sciences and Engineering Research Council of Canada (NSERC) as well as the support of Fisheries and Oceans Canada (DFO). 
+Evan Sidrow thanks the University of British Columbia and the Four-Year Doctoral Fellowship program.
+I am grateful to Dr. Joe Watson for his constructive suggestions.
+%
+\newpage
+\bibliography{references}
+%
+
+\begin{appendix}
+
+\chapter{Appendix for Chapter 1}
+\input multi-scale/sections/appendix.tex
+
+%\chapter{Appendix for Chapter 2}
+%\input semi-supervised/sections/appendix.tex
+
+%\chapter{Appendix for Chapter 3}
+%\input compute/sections/appendix.tex
+
+\chapter{Appendix for Chapter 4}
+\input continuous-time/sections/appendix.tex
+
+\end{appendix}
+
+%\includepdf[pages=1-]{CarHHMM_ArXiv_sup.pdf}
+
+\end{document}

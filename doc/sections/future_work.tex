@@ -1,0 +1,30 @@
+% \section{Further work}
+
+%\textcolor{red}{Here I will describe what I will do in the future. I am not sure if I will have time to do any preliminary experiments, but here is an outline of what I will do, either before or after the comprehensive:}
+%
+
+The next step for this research is to implement my proposed methods and compare their performance to current state-of-the art methods. First, I will simulate several data sets from HMMs and PHMMs similar to those from the simulation study of section \ref{sec:prob_obs_ss}. Then, I will use these simulated data sets and the 2020 killer whale data set to estimate the underlying HMM parameters using several different established methods:
+
+\begin{enumerate}
+    \item A traditional direct likelihood maximization similar to the method used in the \textbf{MomentuHMM} package \citep{Blackwell:2016}.
+    \item A stochastic gradient descent approach similar to that of \citet{Ye:2017}.
+    \item The traditional Baum-Welch algorithm \citep{Baum:1970}, and
+    \item An incremental EM algorithm such as \citet{Gotoh:1998} or \citet{Florez:2005}.
+\end{enumerate}
+%
+I will then compare these methods with the ones I have proposed here:
+%
+\begin{enumerate}
+    \item Stochastic gradient descent (when some hidden states are known)
+    \item Stochastic gradient descent with imputed hidden states (when no hidden states are known).
+    \item Direct likelihood maximization with the memoization algorithm.
+    \item Incremental EM with the memoization algorithm.
+\end{enumerate}
+
+To evaluate these algorithms, I will record the required number of passes through the data set and the required computation time before each method converges. In addition, I will plot log-likelihood of the estimated HMM vs the number of full-data passes for each method. Finally, I will initialize each algorithm with a variety of parameter values to investigate how robust each method is to varying initial conditions.
+
+To develop a theoretical justification for the memoization algorithm, I hope to prove a result similar to that of \citet{Neal:1998}, which shows that the EM algorithm also maximizes an objective function slightly different to the log-likelihood of the data. Maximizing this alternative objective function also maximizes the log-likelihood, and the alternative formulation gives theoretical justification for a partial E-step within the EM algorithm. I hope to generalize this result and apply it to my memoization algorithm for HMMs.
+
+Finally, the gradient estimate $\nabla_{\theta,\Gamma}\calL$ from the memoization algorithm is over the raw likelihood rather than the log-likelihood, and estimating gradients of the raw likelihood can be difficult due to numerical instability. I will address this issue by storing logarithms of intermediate values and using the log-sum-exp trick. 
+
+%In particular, \citet{Neal:1998} shows that the EM algorithm maximizes the sum of the log-likelihood  and the negative KL divergence between some distribution $q$ and the conditional distribution of the unobserved data given the observed data and the paramaters $\theta$

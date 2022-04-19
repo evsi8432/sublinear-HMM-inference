@@ -138,6 +138,7 @@ class optimizor:
         self.d_log_alpha_d_eta = [[deepcopy(hhmm.eta) for _ in range(self.K[0])] for _ in range(self.T)]
         self.d_log_beta_d_eta =  [[deepcopy(hhmm.eta) for _ in range(self.K[0])] for _ in range(self.T)]
         self.d_log_like_d_eta = [deepcopy(hhmm.eta) for _ in range(self.T)]
+
         self.grad_eta_trace = []
 
         # initialize gradients
@@ -303,7 +304,7 @@ class optimizor:
             self.log_alphas[:,t] = np.log(self.delta) + log_f
 
             # get probability of each hidden state
-            p_X = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
+            p_X = self.p_X(t)
 
             # update d_log_alpha_t/d_theta and E_grad_log_f
             for feature in grad_log_f[0]:
@@ -330,8 +331,9 @@ class optimizor:
         # now deal with t != 0
         self.log_alphas[:,t] = logdotexp(self.log_alphas[:,t-1],self.Gamma[0]) + log_f
 
-        # get probability of each hidden state
-        p_X = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
+        # get probability of each hidden state (and pair of hidden states)
+        p_X = self.p_X(t)
+        p_XX = self.p_XX(t-1)
 
         # create matrix of P(X_{t-1} = i | X_{t} = j , Y_{1:t+1})
         xi = np.zeros((self.K[0],self.K[0]))
@@ -351,7 +353,7 @@ class optimizor:
                     self.d_log_like_d_theta_total[0][feature][param][k] += \
                         p_X[k] * grad_log_f[0][feature][param][k]
                     self.d_log_like_d_theta_total[0][feature][param][k] -= \
-                        np.copy(self.E_grad_log_f[t][0][feature][param][k])
+                        self.E_grad_log_f[t][0][feature][param][k]
 
                     # update E_grad_log_f
                     self.E_grad_log_f[t][0][feature][param][k] = p_X[k] * grad_log_f[0][feature][param][k]
@@ -368,11 +370,22 @@ class optimizor:
         for i in range(self.K[0]):
             for j in range(self.K[0]):
                 for k in range(self.K[0]):
+
+                    # update d_log_Gamma_d_eta
                     if j == k:
                         d_log_Gamma_d_eta[i,j,i,k] = 1.0-self.Gamma[0][i,k]
                     else:
                         d_log_Gamma_d_eta[i,j,i,k] = -self.Gamma[0][i,k]
 
+                    # update total gradient
+                    self.d_log_like_d_eta_total[i,k] += \
+                        p_XX[i,j] * d_log_Gamma_d_eta[i,j,i,k]
+                    self.d_log_like_d_eta_total[i,k] -= \
+                        self.E_grad_log_Gamma[t][i,j,i,k]
+
+                    # update E_grad_log_Gamma
+                    self.E_grad_log_Gamma[t][i,j,i,k] = \
+                        p_XX[i,j] * d_log_Gamma_d_eta[i,j,i,k]
 
         # update d_log_alpha_t/d_eta
         for j in range(self.K[0]): # alpha_j
@@ -413,8 +426,11 @@ class optimizor:
                                         np.transpose(self.Gamma[0]))
 
         # get probability of each hidden state
-        p_X_t = np.exp(self.log_alphas[:,t] + self.log_betas[:,t] - self.log_likelihood(t))
-        p_X_tp1 = np.exp(self.log_alphas[:,t+1] + self.log_betas[:,t+1] - self.log_likelihood(t+1))
+        p_X_t = self.p_X(t)
+        p_X_tp1 = self.p_X(t+1)
+
+        # get probability of the pair of hidden states
+        p_XX = self.p_XX(t)
 
         # create matrix of P(X_{t+1} = j | X_{t} = i , Y_{t+1:T})
         xi = np.zeros((self.K[0],self.K[0]))
@@ -572,6 +588,7 @@ class optimizor:
     def update_params_EM(self):
 
         ### E step ###
+
         self.fwd_pass()
         self.bwd_pass()
 
@@ -582,8 +599,8 @@ class optimizor:
         p_XX = np.array([self.p_XX(t) for t in range(self.T-1)])
 
         # update Gamma
-        #self.Gamma[0] = np.sum(p_XX,axis=0) / np.sum(p_X[:-1],axis=0)
-        #self.eta[0] = Gamma_2_eta(self.Gamma)
+        self.Gamma[0] = np.sum(p_XX,axis=0) / np.sum(p_X[:-1],axis=0)
+        self.eta[0] = Gamma_2_eta(self.Gamma)
 
         # update theta
         for feature in self.theta[0]:
@@ -592,9 +609,9 @@ class optimizor:
             denom = np.sum(p_X,axis=0)
 
             # update log-sig
-            #num = np.sum(np.array([p_X[t]*(self.data[t][feature]-self.theta[0][feature]["mu"])**2 for t in range(self.T)]),axis=0)
-            #var = num / denom
-            #self.theta[0][feature]["log_sig"] = np.log(np.sqrt(var))
+            num = np.sum(np.array([p_X[t]*(self.data[t][feature]-self.theta[0][feature]["mu"])**2 for t in range(self.T)]),axis=0)
+            var = num / denom
+            self.theta[0][feature]["log_sig"] = np.log(np.sqrt(var))
 
             # update mu
             num = np.sum(np.array([p_X[t]*self.data[t][feature] for t in range(self.T)]),axis=0)
@@ -612,9 +629,14 @@ class optimizor:
         alpha = self.step_size / np.sqrt(max(self.step_num-decay_ind,1))
 
         # update eta
-        #delta = alpha * np.copy(self.d_log_like_d_eta[t])
-        #print("change in eta: ", delta)
-        #self.eta[0] += delta
+        if method == "IGD":
+            delta = alpha * self.self.d_log_like_d_eta[t]
+        elif method == "SAG":
+            delta = alpha * self.d_log_like_d_theta_total[0][feature][param]
+        elif method == "SVRG":
+            delta = alpha * (self.T * self.E_grad_log_f[t][0][feature][param] \
+                           - self.T * self.E_grad_log_f_tilde[t][0][feature][param] \
+                           + self.d_log_like_d_theta_tilde[0][feature][param])
 
         # make sure |eta| < 15
         #self.eta[0] = np.clip(self.eta[0], -10, 10)

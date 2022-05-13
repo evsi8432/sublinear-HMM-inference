@@ -1,0 +1,109 @@
+\subsection{Hidden Markov Models}
+
+HMMs are commonly used to describe time series that exhibit state-switching behaviour. An HMM models an observed sequence of length $T$, $\bfY = \{Y_t\}_{t=1}^T$, together with an unobserved (or  ``hidden") sequence $\bfX = \{X_t\}_{t=1}^T$. The hidden sequence $\bfX$ is Markov chain, and each observation $Y_t$ is a random variable whose distribution depends only on its corresponding hidden state $X_t$. While the sample space of $\bfX$ can be quite general, we assume that $X_t \in \{1,\ldots,N\}$ here. The distribution of $X_1$ is denoted by the row-vector $\delta \in \bbR^N$, where $\delta^{(i)} = \bbP(X_t = i)$. Further, the distribution of $X_t$ for $t > 1$ is denoted by an $N$-by-$N$ transition probability matrix $\Gamma_t$, where $\Gamma_t^{(i,j)} = \bbP(X_t = j \mid X_{t-1} = i)$. We assume that $\bfX$ is time-homogeneous, meaning that $\Gamma_t$ does not change over time (i.e. $\Gamma_t = \Gamma$ for all $t$). 
+
+The distribution of an emission $Y_t$ conditioned on the corresponding hidden state $X_t$ does not depend upon any other observation or hidden state. If $X_t=i$, then we denote the conditional density or probability mass function of $Y_t$ as $f^{(i)}(\cdot ; \theta^{(i)})$ or simply $f^{(i)}(\cdot)$, where $\theta^{(i)}$ is a state-dependent parameter describing the emission distribution. Figure \ref{fig:models} shows an HMM as a graphical model.
+
+Following \citet{Barajas:2017}, we reparameterize the transition probability matrix $\Gamma \in \bbR^{N \times N}$ and initial distribution $\delta \in \bbR^N$ such that all entries are positive and all rows sum to one:
+%
+\begin{equation}
+    \Gamma^{(i,j)}(\eta) = \frac{\exp(\eta^{(i,j)})}{\sum_{k=1}^N \exp(\eta^{(i,k)})}, \qquad \delta^{(i)}(\eta) = \frac{\exp(\eta^{(i)})}{\sum_{k=1}^N \exp(\eta^{(k)})}
+    \label{eqn:reparam}
+\end{equation}
+%
+where $i,j = 1,\ldots,N$ and $\eta^{(i,i)}$ and $\eta^{(1)}$ are set to zero for identifiability. This formulation simplifies likelihood maximization by removing constraints in the optimization problem. One may also incorporate covariates into $\Gamma$ by setting $\eta^{(i,j)}(z_t) = \left(\beta^{(i,j)}\right)^T z_t$, where $z_t$ is a column vector of known covariates and $\beta^{(i,j)}$ is a column vector of unknown regression coefficients. While $\Gamma(\eta)$ and $\delta(\eta)$ are functions of $\eta$, we suppress this notation in future sections and simply write $\Gamma$ and $\delta$ for notational convenience. 
+
+The joint likelihood of some fixed observed data $\bfy$ and given latent states $\bfx$ is
+%
+\begin{equation}
+    p(\bfx,\bfy;\theta,\eta) = \delta^{(x_1)} f^{(x_1)}(y_1; \theta^{(x_1)}) \prod_{t=2}^T \Gamma^{(x_{t-1},x_t)} f^{(x_t)}(y_t; \theta^{(x_t)}).
+    \label{eqn:like}
+\end{equation}
+%
+Alternatively, the marginal likelihood of the observed data $\bfy$ alone is 
+%
+\begin{equation}
+    p(\bfy;\theta,\eta) = \delta P(y_1;\theta) \prod_{t=2}^T \Gamma P(y_t;\theta) \mathbf{1}_N.
+    \label{eqn:like_marginal}
+\end{equation}
+%
+where $\mathbf{1}_N$ is an $N$-dimensional column vector of ones and $P(y_t;\theta)$ is an $N \times N$ diagonal matrix with the $(i,i)^{th}$ entry $f^{(i)}(y_t; \theta^{(i)})$.
+
+\subsection{Notation}
+
+To set up notation, we define the probability density of the observations between times $s$ and $t$ as $p(y_{s:t};\theta,\eta)$. I also define \textit{forward probabilities} $\alpha^{(i)}_t = p(y_{1:t},X_t = i;\theta,\eta)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T$) and \textit{backward probabilities} $\beta^{(i)}_t = p(y_{t+1:T}|X_t = i;\theta,\eta)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T-1$). By convention, $\beta^{(i)}_T = 1$ for $i = 1,\ldots,N$. 
+Both $\alpha_t$ and $\beta_t$ can be defined recursively:
+%
+\begin{align*}
+    \alpha_1^{(i)}(\theta,\eta) &= \delta^{(i)} f^{(i)}(y_1;\theta), & \alpha_t^{(i)}(\theta,\eta) &= \sum_{j=1}^N \alpha_{t-1}^{(j)} \Gamma^{(j,i)}(\eta) f^{(i)}(y_t;\theta), \quad t = 2,\ldots,T.\\
+    %
+    \beta_T^{(i)}(\theta,\eta) &= 1, & \beta_t^{(i)}(\theta,\eta) &= \sum_{j=1}^N \Gamma^{(i,j)} f^{(j)}(y_{t+1};\theta) \beta^{(j)}_{t+1}, \quad t = 1,\ldots,T-1.
+\end{align*}
+
+We denote the probability that $X_t = i$ given all observations $\bfy$ and parameters $\{\theta,\eta\}$ as $\gamma_t^{(i)}(\theta,\eta)$ for $t = 1,\ldots,T$ and $i = 1,\ldots,N$. Further, we denote the probability that $X_{t-1} = i$ and $X_t = j$ given all observations $\bfy$ and parameters $\{\theta,\eta\}$ as $\xi_t^{(i,j)}(\theta,\eta)$ for $t = 2,\ldots,T$ and $i,j = 1,\ldots,N$:
+%
+\begin{gather*}
+    \gamma_t^{(i)}(\theta,\eta) = p(X_t = i \mid \bfy ~;~ \theta,\eta), \\ \xi_t^{(i,j)}(\theta,\eta) = p(X_{t-1} = i, X_t = j \mid \bfy ~;~ \theta,\eta). \nonumber
+\end{gather*}
+%
+Note that $\gamma_t$ and $\xi_t$ can be calculated from $\alpha_{t-1}$, $\alpha_t$, and $\beta_t$:
+%
+\begin{gather}
+    \gamma_{t}^{(i)}\big(\theta,\eta\big) = \frac{\alpha_{t}^{(i)} ~ \beta_{t}^{(i)}}{\sum_{i'} \alpha_{t}^{(i')} ~ \beta_{t}^{(i')}}, \label{eqn:gamma} \\
+    %
+    \xi_{t}^{(i,j)}\big(\theta, \eta) = \frac{\alpha_{t-1}^{(i)} ~ \Gamma^{(i,j)} ~ f^{(j)}(y_{t} ~ ; ~\theta) ~ \beta_{t}^{(j)}}{\sum_{i',j'} ~ \alpha_{t-1}^{(i')} ~ \Gamma^{(i',j')}(\eta) ~ f^{(j')}(y_{t} ~ ; ~\theta) ~ \beta_{t}^{(j')}} \label{eqn:xi},
+\end{gather}
+
+\subsection{The Baum-Welch Algorithm}
+
+The Baum-Welch algorithm is a specific instance of the EM algorithm adapted to HMMs and is used to estimate the parameters of the HMM. Suppose some data $\bfy$ is observed as output of an HMM with unknown latent states $\bfX$ and unknown parameters $\{\theta,\eta\}$. The Baum-welch algorithm updates the parameters at step $k+1$ by maximizing the expected value of the joint log-likelihood $\log p(\bfy,\bfX; \theta,\eta)$ when $\bfX$ has density $p(\bfX | \bfy;\theta[k],\eta[k])$:
+%
+\begin{equation}
+    \left\{\theta[k+1],\eta[k+1]\right\} = \argmax_{\theta,\eta} \bbE_{p(\bfX | \bfy;\theta[k],\eta[k])} \left[\log p(\bfy,\bfX;\theta,\eta)\right].
+    \label{eqn:BW_update}
+\end{equation}
+%
+we can decompose the RHS of Equation (\ref{eqn:BW_update}) above into three convenient terms:
+\begin{align*}
+    \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])}\left[\log p(\bfy,\bfX;\theta,\eta) \right] &= \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])} \left[\log \delta^{(X_1)} + \sum_{t=1}^T \log f^{(X_t)}(y_t;\theta) + \sum_{t=2}^{T} \log \Gamma^{(X_{t-1},X_{t})} \right] \\
+    %
+    &= \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])} \Big[\log \delta_{X_1}\Big] \\ & \qquad + \sum_{t = 1}^T \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])} \left[ \log f^{(X_t)}(y_t;\theta)\right] \\ & \qquad + \sum_{t=2}^{T} \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])} \left[ \log \Gamma^{(X_{t-1},X_{t})} \right] \\
+    %
+    &= \sum_{i=1}^N \gamma^{(i)}_1(\theta[k],\eta[k]) \log \delta^{(i)} \\ & \qquad + \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_t(\theta[k],\eta[k]) \log f^{(i)}(y_t;\theta) \\
+    & \qquad + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\theta[k],\eta[k]) \log \Gamma^{(i,j)}.
+\end{align*}
+
+Each of the three terms on the RHS of the equation above only depend upon $\delta$, $\theta$, and $\Gamma$, respectively. As a result, the maximization problem can be divided into three separate sub-problems:
+%
+\begin{gather}
+    \delta[k+1] = \argmax_{\delta} \sum_{i=1}^N \gamma^{(i)}_1(\theta[k],\eta[k]) \log \delta^{(i)} \\
+    %
+    \theta[k+1] = \argmax_{\theta} \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_t(\theta[k],\eta[k]) \log f^{(i)}(y_t;\theta) \\
+    %
+    \Gamma[k+1] = \argmax_{\Gamma} \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\theta[k],\eta[k]) \log \Gamma^{(i,j)}
+\end{gather}
+%
+In many simple scenarios the maximization problems above have closed-form solutions. For example, if $\Gamma$ does not depend upon any covariates and $f^{(i)}(y_t;\theta)$ is a normal or Poisson probability density function with respect to $y_t$, then the solutions to the maximization problem above are given in Section 4.2 of \citet{Zucchini:2016}. However, in many other situations (e.g. if $\Gamma$ or $f^{(i)}$ depend upon covariates), the maximization problem above is not necessarily straightforward. In this situation standard numerical maximization techniques are required for the EM algorithm.
+
+\subsection{Direct likelihood maximization}
+
+An alternative way to perform inference over HMMs is to directly maximize the marginal likelihood from Equation (\ref{eqn:like_marginal}). Using the Fisher identity of the gradient for incomplete data models \citep{Fisher:1925}, the gradient of Equation (\ref{eqn:like_marginal}) can be written as
+%
+\begin{equation}
+    \nabla_{\theta,\eta} \log p(\bfy;\theta,\eta) = \bbE_{p(\bfX \mid \bfy;\theta,\eta)}\left[ \nabla_{\theta,\eta} \log p(\bfy,\bfX;\theta,\eta) \right].
+    \label{eqn:fisher_id}
+\end{equation}
+%
+Similarly to the EM algorithm, we can split the gradient of the log-likelihood into separate terms that each depend on only $\theta$ or $\eta$:
+%
+\begin{gather}
+    \nabla_{\theta} \log p(\bfy;\theta,\eta) = \sum_{t=1}^T \sum_{i=1}^N \gamma_t^{(i)}(\theta,\eta) \nabla_{\theta} \log f^{(i)}(y_t; \theta) \label{eqn:theta_update_gd} \\
+    %
+    \nabla_{\eta} \log p(\bfy;\theta,\eta) = \sum_{i=1}^N \gamma_1^{(i)}(\theta,\eta) \nabla_{\eta} \log \delta^{(i)} + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\theta,\eta) \nabla_{\eta} \log \Gamma^{(i,j)}, \label{eqn:eta_update_gd}
+\end{gather}
+%
+There is a clear connection between the Baum-Welch update from Equation (\ref{eqn:BW_update}) and the gradient of Equation (\ref{eqn:fisher_id}) above. In particular, one recovers gradient descent by performing one gradient step within the M-step of the Baum-Welch algorithm rather than solving the entire maximization problem. This connection leads to a natural question: if taking one gradient step within the M- step is equivalent to gradient descent, and solving the M- step entirely results in the Baum-Welch algorithm, then are there other ways to perform the M-step in the EM algorithm with desirable properties? To answer this question, we first review some stochastic optimization techniques.
+
+\section{Stochastic Optimization}
+
+REVIEW SAG, SAGA, and SVRG here.

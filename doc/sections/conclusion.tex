@@ -1,5 +1,14 @@
 % !TeX root = ../main.tex
 
+Questions:
+
+\begin{itemize}
+    \item right now it looks like a constant step size is slow for eta vs theta. Why?
+    \item should I use second order optimization methods?
+    \item how long should I do a partial E step for?
+\end{itemize}
+
+\iffalse
 The advent of high-frequency biologging technology has allowed researchers to model animal behaviours in a variety of settings. However, current statistical models and inference methods can fail if these biologging data sets are sampled at exceptionally fine, coarse, or irregular scales.
 
 In this thesis proposal, I have introduced a general, hierarchical framework that can be used to account for fine-scale, non-Markovian behaviour within the structure of an HMM. I use this framework to model the movement of killer whales, but it can be used to describe any high-frequency data set with state-switching behaviour and intricate fine-scale structure. 
@@ -12,3 +21,4 @@ Finally, I detail the general structure of many continuous-time animal movement 
 
 Many current models for animal movement and behaviour struggle on data sets sampled at very fine, coarse, or irregular time scales. These models either do not adequately describe the underlying movement process or are computationally expensive to fit. In this thesis proposal, I have introduced several animal movement models that can incorporate data on a variety of time scales. I have also introduced inference techniques that limit the computational burden of fitting such models. While I focus on an ecological case study using the kinematic data of a killer whale, researchers from a wide variety of fields can use the techniques I have proposed here to better understand data sets on a variety of scales.
 
+\fi

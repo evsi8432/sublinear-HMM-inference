@@ -1,11 +1,13 @@
-
 \subsection{Stochastic Optimization in the EM algorithm}
 
-We now have the background necessary to build a new optimization technique for HMMs. The Robbins-Monro algorithm above can be seen as adding randomness to the E- step of the EM algorithm, and then taking one gradient step in the M-step using the noisy Q-function. This algorithm is useful if the size of the state-space $N$ is very large (or infinite), since it is infeasible to exactly calculate $\gamma$ and $\xi$ (i.e. perform the E- step of the EM algorithm) in those cases. 
+We now have the background necessary to build a new optimization technique for HMMs. 
 
-However, we are interested in the case where the length of the observations sequence $T$ is very large. In this case, it is expensive to draw samples from $\bfx \sim p(\bfx | \bfy ; \hat \theta_k, \hat \Gamma_k)$ \textit{and} evaluate the gradient $\nabla_{\theta,\eta} \log p(\bfy,\bfx;\theta,\eta)$, even if $\bfx$ is drawn using an MCMC technique. In other words, both the E- step and the M- step are expensive.
+%The Robbins-Monro algorithm above can be seen as adding randomness to the E- step of the EM algorithm, and then taking one gradient step in the M-step using the noisy Q-function. This algorithm is useful if the size of the state-space $N$ is very large (or infinite), since it is infeasible to exactly calculate $\gamma$ and $\xi$ (i.e. perform the E- step of the EM algorithm) in those cases. 
 
-In this case, we can apply stochastic gradient descent to the M-step of the EM algorithm. To this end, we rewrite the M-step of the Baum-Welch algorithm in terms of sums over the time indices $t$:
+Note that if length of the observations sequence $T$ is very large, %it is expensive to draw samples from $\bfx \sim p(\bfx | \bfy ; \hat \theta_k, \hat \Gamma_k)$ \textit{and} evaluate the gradient $\nabla_{\theta,\eta} \log p(\bfy,\bfx;\theta,\eta)$, even if $\bfx$ is drawn using an MCMC technique. In other words, 
+both the E- step and the M- step of the EM algorithm are expensive. The E- step is expensive because $\alpha_t$ and $\beta_t$ must be calculated for $t = 1,\ldots,T$ and the M-step is expensive because numerical maximization of equations (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_Gamma}) require taking a gradient of a sum of $T$ terms.
+
+To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step in the EM algorithm, where $\gamma_t$ and $\xi_t$ are updated only for a subset of $t \in \{1,\ldots,T\}$ before updating the parameters $\eta$ and $\theta$ at each step. To help with the expensive M-step, we can apply variance reduced stochastic optimization techniques. To this end, we rewrite the M-step of the Baum-Welch algorithm in terms of sums over the time indices $t$:
 
 \begin{align}
     \theta[k+1] &= \argmin_{\theta} \sum_{t=1}^T F_t^{(k)}(\theta), \qquad F_t^{(k)}(\theta) = \sum_{i=1}^N \gamma^{(i)}_t(\theta[k], \eta[k]) \log f^{(i)}(y_t;\theta) \label{eqn:F} \\ \nonumber \\

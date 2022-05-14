@@ -63,7 +63,7 @@ The Baum-Welch algorithm is a specific instance of the EM algorithm adapted to H
     \label{eqn:BW_update}
 \end{equation}
 %
-we can decompose the RHS of Equation (\ref{eqn:BW_update}) above into three convenient terms:
+we can combine the RHS of Equation (\ref{eqn:BW_update}) with Equation (\ref{eqn:like}) to separate the expected value into three convenient terms:
 \begin{align*}
     \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])}\left[\log p(\bfy,\bfX;\theta,\eta) \right] &= \bbE_{p(\bfX \mid \bfy;\theta[k],\eta[k])} \left[\log \delta^{(X_1)} + \sum_{t=1}^T \log f^{(X_t)}(y_t;\theta) + \sum_{t=2}^{T} \log \Gamma^{(X_{t-1},X_{t})} \right] \\
     %
@@ -76,14 +76,14 @@ we can decompose the RHS of Equation (\ref{eqn:BW_update}) above into three conv
 Each of the three terms on the RHS of the equation above only depend upon $\delta$, $\theta$, and $\Gamma$, respectively. As a result, the maximization problem can be divided into three separate sub-problems:
 %
 \begin{gather}
-    \delta[k+1] = \argmax_{\delta} \sum_{i=1}^N \gamma^{(i)}_1(\theta[k],\eta[k]) \log \delta^{(i)} \\
+    \delta[k+1] = \argmax_{\delta} \sum_{i=1}^N \gamma^{(i)}_1(\theta[k],\eta[k]) \log \delta^{(i)} \label{eqn:EM_update_delta} \\
     %
-    \theta[k+1] = \argmax_{\theta} \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_t(\theta[k],\eta[k]) \log f^{(i)}(y_t;\theta) \\
+    \theta[k+1] = \argmax_{\theta} \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_t(\theta[k],\eta[k]) \log f^{(i)}(y_t;\theta) \label{eqn:EM_update_theta} \\
     %
-    \Gamma[k+1] = \argmax_{\Gamma} \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\theta[k],\eta[k]) \log \Gamma^{(i,j)}
+    \Gamma[k+1] = \argmax_{\Gamma} \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\theta[k],\eta[k]) \log \Gamma^{(i,j)} \label{eqn:EM_update_Gamma}
 \end{gather}
 %
-In many simple scenarios the maximization problems above have closed-form solutions. For example, if $\Gamma$ does not depend upon any covariates and $f^{(i)}(y_t;\theta)$ is a normal or Poisson probability density function with respect to $y_t$, then the solutions to the maximization problem above are given in Section 4.2 of \citet{Zucchini:2016}. However, in many other situations (e.g. if $\Gamma$ or $f^{(i)}$ depend upon covariates), the maximization problem above is not necessarily straightforward. In this situation standard numerical maximization techniques are required for the EM algorithm.
+In many simple scenarios the maximization problems above have closed-form solutions. For example, if $\Gamma$ does not depend upon any covariates and $f^{(i)}(y_t;\theta)$ is a normal or Poisson probability density function with respect to $y_t$, then the solutions are given in Section 4.2 of \citet{Zucchini:2016}. However, in many other situations (e.g. if $\Gamma$ or $f^{(i)}$ depend upon covariates), the maximization problem above is not necessarily straightforward. In this situation standard numerical maximization techniques are often employed.
 
 \subsection{Direct likelihood maximization}
 
@@ -102,8 +102,83 @@ Similarly to the EM algorithm, we can split the gradient of the log-likelihood i
     \nabla_{\eta} \log p(\bfy;\theta,\eta) = \sum_{i=1}^N \gamma_1^{(i)}(\theta,\eta) \nabla_{\eta} \log \delta^{(i)} + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\theta,\eta) \nabla_{\eta} \log \Gamma^{(i,j)}, \label{eqn:eta_update_gd}
 \end{gather}
 %
-There is a clear connection between the Baum-Welch update from Equation (\ref{eqn:BW_update}) and the gradient of Equation (\ref{eqn:fisher_id}) above. In particular, one recovers gradient descent by performing one gradient step within the M-step of the Baum-Welch algorithm rather than solving the entire maximization problem. This connection leads to a natural question: if taking one gradient step within the M- step is equivalent to gradient descent, and solving the M- step entirely results in the Baum-Welch algorithm, then are there other ways to perform the M-step in the EM algorithm with desirable properties? To answer this question, we first review some stochastic optimization techniques.
+There is a clear connection between the Baum-Welch update from Equation (\ref{eqn:BW_update}) and the gradient given by Equation (\ref{eqn:fisher_id}). In particular, one recovers gradient descent by performing one gradient step within the M-step of the Baum-Welch algorithm rather than solving the entire maximization problem. This connection leads to a natural question: if taking one gradient step within the M- step is equivalent to gradient descent, and solving the M- step entirely results in the Baum-Welch algorithm, then are there other ways to perform the M-step in the EM algorithm with desirable properties? To answer this question, we first review some stochastic optimization techniques.
 
-\section{Stochastic Optimization}
+\subsection{Stochastic Optimization}
 
-REVIEW SAG, SAGA, and SVRG here.
+Stochastic optimization techniques are useful to solve optimization problems of the following form:
+%
+\begin{equation*}
+    \min P(z), \qquad P(z) = \frac{1}{T}\sum_{t = 1}^T P_t(z).
+\end{equation*}
+%
+One standard method to solve this problem is gradient ascent, which updates $z$ at step $m$ using the following update rule:
+%
+\begin{equation*}
+    z[m+1] = z[m] - \alpha \nabla P(z[m]) =  z[m] - \frac{\alpha}{T} \sum_{t=1}^T \nabla P_t(z[m])
+\end{equation*}
+%
+However, this update requires evaluating a gradient for all $t = 1,\ldots,T$, which can be prohibitive if $T$ is large. Alternatively, \citet{Robbins:1951} introduce stochastic gradient ascent, which updates $z$ using an unbiased estimate of the full gradient:
+%
+\begin{equation*}
+    z[m+1] = z[m] - \alpha \nabla P_{t_m}(z[m])
+\end{equation*}
+%
+for some $t_m \in \{1,\ldots,T\}$ selected uniformly at random at step $m$. While stochastic gradient ascent reduces the amount of time between updates, the gradient estimates can have high variance, require that the step-size $\alpha$ decays over time ensure convergence, and have slower convergence rates compared to full gradient descent \citep{Schmidt:2017}.
+
+Recent variance-reduced stochastic optimization techniques such as SAG \citep{Schmidt:2017}, SVRG \citep{Johnson:2013}, and SAGA \citep{Defazio:2014} enjoy the speed of stochastic gradient descent as well as the convergence rates of full gradient descent. These three algorithms are similar in spirit. They all involve storing a table of gradient \textit{estimates} $\widehat \nabla P_t$ that are calculated from previous values of $z$ and approximate the true gradient at a given value of $z$. Then, this gradient estimate can be combined with stochastic gradient ascent to reduce the variance of future gradient estimates. Note that there are many other variance-reduced stochastic optimization techniques, but we focus on these three for brevity. 
+
+We begin by outlining an general algorithm which describes all three techniques, and then comment on the differences between them:
+
+\begin{enumerate}
+    \item Require an initial value ($z[0]$) and a step size ($\alpha$). If using SVRG, also require a number of iterations per gradient estimate update ($M$).
+    %
+    \item Initialize a table of gradient estimates $\widehat \nabla P_t \leftarrow \nabla P_t (z[0])$ for each $t = 1,\ldots,T$. If using SVRG, also initialize a ``snapshot" $\tilde z \leftarrow z[0]$.
+    %
+    \item While not converged:
+    \begin{enumerate}
+        \item Pick $t^* \in \{1,\ldots,T\}$ uniformly at random.
+        %
+        \item Calculate $z[m+1]$ depending upon the algorithm:
+        \begin{enumerate}
+            \item If using SAG:
+            \begin{equation}
+                z[m+1] = z[m] - \alpha \left[\frac{\nabla P_{t^*}(z[m]) - \widehat \nabla P_{t^*}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_{t} \right] 
+                \label{eqn:SAG_update}
+            \end{equation}
+            \item If using SVRG or SAGA:
+            \begin{equation}
+                z[m+1] = z[m] - \alpha \left[\nabla P_{t^*}(z[m]) - \widehat \nabla P_{t^*} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_{t} \right]
+                \label{eqn:SAGA_update}
+            \end{equation}
+        \end{enumerate}
+        %
+        \item Update the gradient estimate depending upon the algorithm:
+        \begin{enumerate}
+            \item If using SAG or SAGA, update the gradient estimate at index $t^*$:
+            \begin{equation}
+                \widehat \nabla P_{t^*} \leftarrow \nabla P_{t^*}(z[m])
+            \end{equation}
+            %
+            \item If using SVRG and $m \equiv 0 \mod M$, then set $\tilde z \leftarrow z[m]$. Then, for $t = 1,\ldots,T$:
+            \begin{equation}
+                \widehat \nabla P_{t} \leftarrow \nabla P_{t}(\tilde z)
+            \end{equation}
+        \end{enumerate}
+        \item Set $m \leftarrow m+1$ and return to step 3.
+    \end{enumerate}
+\end{enumerate}
+
+SAG is the simplest and most intuitive of the three algorithms. At each step, it simply updates the table of gradient values at some random index $t^*$, and then uses the table average to update $z$. However, note that the table average alone represents a biased estimate of the gradient. This can slow down convergence and makes theoretical analysis of SAG difficult.
+
+SVRG and SAGA fix this issue by changing the update rule from (\ref{eqn:SAG_update}) to (\ref{eqn:SAGA_update}). Taking the expected value of the RHS of (\ref{eqn:SAGA_update}) shows that it represents an unbiased estimate of the gradient:
+%
+\begin{align*}
+    \bbE\left[\nabla P_{t^*}(z[m]) - \widehat \nabla P_{t^*} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_{t} \right] &= \frac{1}{T} \sum_{t=1}^T \nabla P_{t}(z[m]) - \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_{t} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_{t} \\
+    %
+    &= \frac{1}{T} \sum_{t=1}^T \nabla P_{t^*}(z[m]) = \nabla P(z[m])
+\end{align*}
+%
+SVRG and SAGA differ in that SAGA updates $\widehat \nabla P$ incrementally at each iteration (like SAG), while SVRG updates the full gradient estimate $\widehat \nabla P$ once every $M$ iterations for some user-defined $M$. \citet{Johnson:2013} suggest $M = 2T$ for convex problems and $M = 5T$ for non-convex problems. Importantly, SVRG does not explicitly require gradients to be stored at each time step. Instead, only the table average needs to be stored, and $\widehat \nabla P_{t^*} = \nabla P_{t^*}(\tilde z)$ can be recalculated for each update of $z$. 
+
+the choice between SVRG vs SAGA represents a trade-off between computational time and storage capacity. SVRG does not require that users store gradient estimates $\nabla P_{t^*}(\tilde z)$, reducing its storage cost compared to SAGA. However, recalculating $\nabla P_{t^*}(\tilde z)$ means that SVRG requires twice as many gradient evaluations per iteration compared to SAG and SAGA. In addition, since the table average is updated less often in SVRG compared to SAGA, the average gradient estimate is more out-of-date for SVRG compared to SAGA. This can modestly reduce the computational efficiency of SVRG compared to SAGA.

@@ -1,13 +1,6 @@
 \subsection{Stochastic Optimization in the EM algorithm}
 
-We now have the background necessary to build a new optimization technique for HMMs. 
-
-%The Robbins-Monro algorithm above can be seen as adding randomness to the E- step of the EM algorithm, and then taking one gradient step in the M-step using the noisy Q-function. This algorithm is useful if the size of the state-space $N$ is very large (or infinite), since it is infeasible to exactly calculate $\gamma$ and $\xi$ (i.e. perform the E- step of the EM algorithm) in those cases. 
-
-Note that if length of the observations sequence $T$ is very large, %it is expensive to draw samples from $\bfx \sim p(\bfx | \bfy ; \hat \theta_k, \hat \Gamma_k)$ \textit{and} evaluate the gradient $\nabla_{\theta,\eta} \log p(\bfy,\bfx;\theta,\eta)$, even if $\bfx$ is drawn using an MCMC technique. In other words, 
-both the E- step and the M- step of the EM algorithm are expensive. The E- step is expensive because $\alpha_t$ and $\beta_t$ must be calculated for $t = 1,\ldots,T$ and the M-step is expensive because numerical maximization of equations (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_Gamma}) require taking a gradient of a sum of $T$ terms.
-
-To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step in the EM algorithm, where $\gamma_t$ and $\xi_t$ are updated only for a subset of $t \in \{1,\ldots,T\}$ before updating the parameters $\eta$ and $\theta$ at each step. To help with the expensive M-step, we can apply variance reduced stochastic optimization techniques. To this end, we rewrite the M-step of the Baum-Welch algorithm in terms of sums over the time indices $t$:
+We now have the background necessary to build a new optimization technique for HMMs. The M-step of the Baum-Welch algorithm can be written in terms of sums over the time indices $t$:
 
 \begin{align}
     \theta[k+1] &= \argmin_{\theta} \sum_{t=1}^T F_t^{(k)}(\theta), \qquad F_t^{(k)}(\theta) = \sum_{i=1}^N \gamma^{(i)}_t(\theta[k], \eta[k]) \log f^{(i)}(y_t;\theta) \label{eqn:F} \\ \nonumber \\
@@ -21,57 +14,59 @@ To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step i
     \label{eqn:G}
 \end{align}
 
-Optimization problems over objective functions that can be written as a sum are natural candidates for variance-reduced stochastic optimization techniques such as SAG \citep{Schmidt:2017}, SVRG \citep{Johnson:2013}, and SAGA \citep{Defazio:2014}. These three algorithms are similar in spirit; all involve storing the gradients of $G_t^{(k)}$ and $F_t^{(k)}$ from previous parameter values and using these previous gradient values to reduce the variance of future gradient estimates. Suppose that we are at step $k$ of the Baum-Welch algorithm. We can use variance-reduced stochastic optimization to perform the M-step using the following algorithm:
+%The Robbins-Monro algorithm above can be seen as adding randomness to the E- step of the EM algorithm, and then taking one gradient step in the M-step using the noisy Q-function. This algorithm is useful if the size of the state-space $N$ is very large (or infinite), since it is infeasible to exactly calculate $\gamma$ and $\xi$ (i.e. perform the E- step of the EM algorithm) in those cases. 
+
+Note that if length of the observations sequence $T$ is very large, %it is expensive to draw samples from $\bfx \sim p(\bfx | \bfy ; \hat \theta_k, \hat \Gamma_k)$ \textit{and} evaluate the gradient $\nabla_{\theta,\eta} \log p(\bfy,\bfx;\theta,\eta)$, even if $\bfx$ is drawn using an MCMC technique. In other words, 
+both the E- step and the M- step of the EM algorithm are expensive. The E-step is expensive because $\gamma_t$ must be calculated for $t = 1,\ldots,T$, while the M-step is expensive because numerical maximization of equations (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_Gamma}) require taking a gradient of $T$ terms.
+
+To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step in the EM algorithm, where $\gamma_t$ and $\xi_t$ are updated only for a subset of $t \in \{1,\ldots,T\}$ before updating the parameters $\eta$ and $\theta$ at each step. To help with the expensive M-step, we can apply variance-reduced stochastic optimization techniques. To this end, we introduce the following EM-algorithm with a variance-reduced stochastic M-step:
 
 \begin{enumerate}
+    \item Initialize $\theta[0]$, $\eta[0]$, and $k \leftarrow 0$.
     \item Define $F_t^{(k)}$ and $G_t^{(k)}$ for $t = 1, \ldots, T$ according to equations (\ref{eqn:F}) and (\ref{eqn:G}).
     %
     \item Initialize a table of gradient estimates $\widehat \nabla_\theta F_t^{(k)}$ and $\widehat \nabla_\eta G_t^{(k)}$ for each $t = 1,\ldots,T$:
     \begin{itemize}
-        \item $\widehat \nabla_\theta F_{t^*}^{(k)} \leftarrow \nabla_\theta F_{t}^{(k)}(\theta[k+1,0])$ for $t = 1,\ldots,T$,
+        \item $\widehat \nabla_\theta F_{t_m}^{(k)} \leftarrow \nabla_\theta F_{t}^{(k)}(\theta[k])$ for $t = 1,\ldots,T$,
         %
-        \item $\widehat \nabla_\eta G_{t^*}^{(k)} \leftarrow \nabla_\eta G_{t}^{(k)}(\theta[k+1,0])$ for $t = 1,\ldots,T$.
+        \item $\widehat \nabla_\eta G_{t_m}^{(k)} \leftarrow \nabla_\eta G_{t}^{(k)}(\theta[k])$ for $t = 1,\ldots,T$.
     \end{itemize}
     %
-    \item Initialize $\theta[k+1,0] \leftarrow \theta[k]$ and $\eta[k+1,0] \leftarrow \eta[k]$.
+    \item Initialize $\theta[k,0] \leftarrow \theta[k]$ and $\eta[k,0] \leftarrow \eta[k]$.
     %
-    \item For $\ell = 0,\ldots,L-1$:
+    \item For $m = 0,\ldots,M-1$:
     \begin{enumerate}
-        \item Pick $t^* \in \{1,\ldots,T\}$ uniformly at random.
+        \item Pick $t_m \in \{1,\ldots,T\}$ uniformly at random.
         %
-        \item Calculate $\theta[k+1,\ell+1]$ and $\eta[k+1,\ell+1]$ depending upon the algorithm:
+        \item Calculate $\theta[k,m+1]$ and $\eta[k,m+1]$ depending upon the algorithm:
         \begin{enumerate}
             \item If using SAG:
             \begin{gather}
-                \theta[k+1,\ell+1] = \theta[k+1,\ell] - \alpha^{\theta}_k \left[\frac{\nabla_\theta F_{t^*}^{(k)}(\theta[k+1,\ell]) - \widehat \nabla_\theta F_{t^*}^{(k)}}{n} + \frac{1}{n} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_{t} \right] \\
+                \theta[k,m+1] = \theta[k,m] - \lambda^{\theta} \left[\frac{\nabla_\theta F_{t_m}^{(k)}(\theta[k,m]) - \widehat \nabla_\theta F_{t_m}^{(k)}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_{t} \right] \\
                 %
-                \eta[k+1,\ell+1] = \eta[k+1,\ell] - \alpha^{\eta}_k \left[\frac{\nabla_\eta G_{t^*}^{(k)}(\eta[k+1,\ell]) - \widehat \nabla_\eta G_{t^*}^{(k)}}{n} + \frac{1}{n} \sum_{t=1}^T \widehat \nabla_\eta G^{(k)}_{t} \right]
+                \eta[k,m+1] = \eta[k,m] - \lambda^{\eta} \left[\frac{\nabla_\eta G_{t_m}^{(k)}(\eta[k,m]) - \widehat \nabla_\eta G_{t_m}^{(k)}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\eta G^{(k)}_{t} \right]
             \end{gather}
             \item If using SVRG or SAGA:
             \begin{gather}
-                \theta[k+1,\ell+1] = \theta[k+1,\ell] - \alpha^{\theta}_k \left[\nabla_\theta F_{t^*}^{(k)}(\theta[k+1,\ell]) - \widehat \nabla_\theta F_{t^*}^{(k)} + \frac{1}{n} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_{t} \right] \\
+                \theta[k,m+1] = \theta[k,m] - \lambda^{\theta} \left[\nabla_\theta F_{t_m}^{(k)}(\theta[k,m]) - \widehat \nabla_\theta F_{t_m}^{(k)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_{t} \right] \\
                 %
-                \eta[k+1,\ell+1] = \eta[k+1,\ell] - \alpha^{\eta}_k \left[\nabla_\eta G_{t^*}^{(k)}(\eta[k+1,\ell]) - \widehat \nabla_\eta G_{t^*}^{(k)} + \frac{1}{n} \sum_{t=1}^T \widehat \nabla_\eta G^{(k)}_{t} \right]
+                \eta[k,m+1] = \eta[k,m] - \lambda^{\eta} \left[\nabla_\eta G_{t_m}^{(k)}(\eta[k,m]) - \widehat \nabla_\eta G_{t_m}^{(k)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\eta G^{(k)}_{t} \right]
             \end{gather}
         \end{enumerate}
         %
-        \item If using SAG or SAGA, update the gradients at location $t^*$ in the table:
+        \item If using SAG or SAGA, update the gradients at location $t_m$ in the table:
         \begin{itemize}
-            \item $\widehat \nabla_\theta F_{t^*}^{(k)} \leftarrow \nabla_\theta F_{t^*}^{(k)}(\theta[k+1,\ell])$,
+            \item $\widehat \nabla_\theta F_{t_m}^{(k)} \leftarrow \nabla_\theta F_{t_m}^{(k)}(\theta[k,m])$,
             %
-            \item $\widehat \nabla_\eta G_{t^*}^{(k)} \leftarrow \nabla_\eta G_{t^*}^{(k)}(\theta[k+1,\ell])$.
+            \item $\widehat \nabla_\eta G_{t_m}^{(k)} \leftarrow \nabla_\eta G_{t_m}^{(k)}(\theta[k,m])$.
         \end{itemize}
     \end{enumerate}
-    \item If $\log p(\bfy ; \theta[k+1],\eta[k+1]) > \log p(\bfy ; \theta[k],\eta[k])$:
-    \begin{enumerate}
-        \item Set $\theta[k+1] = \theta[k+1,L]$ and $\eta[k+1] = \eta[k+1,L]$
-    \end{enumerate}
-    \item Otherwise:
-    \begin{enumerate}
-        \item Set $\theta[k+1] = \theta[k]$ and $\eta[k+1] = \eta[k]$.
-        %\item Set $\alpha^\theta_{k+1} = \alpha^\theta_{k} / 2$, and $\alpha^\eta_{k+1} = \alpha^\eta_{k} / 2$
-    \end{enumerate} 
-    \item Set $k \leftarrow k+1$ and return to step 1.
+    %
+    \item If $F^{(k)}(\theta[k,M]) > F^{(k)}(\theta[k])$, set $\theta[k+1] = \theta[k,M]$. Otherwise, set $\theta[k+1] = \theta[k]$.
+    %
+    \item If $G^{(k)}(\eta[k,M]) > G^{(k)}(\eta[k])$, set $\eta[k+1] = \eta[k,M]$. Otherwise, set $\eta[k+1] = \eta[k]$
+    %
+    \item Set $k \leftarrow k+1$ and return to step 2.
 \end{enumerate}
 
 The algorithm above is a specific instance of the Generalized EM algorithm \citep{Dempster:1977}. More formally:
@@ -81,32 +76,32 @@ The algorithm above is a specific instance of the Generalized EM algorithm \cite
 \end{lemma}
 %
 \begin{proof}
-Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for both $F$ and $G$. Then, SVRG convergences geometrically in expectation for $F^{(k)}$ and $G^{(k)}$. Let $\theta^*[k+1] = \argmin_\theta F^{(k)}(\theta)$ and $\eta^*[k+1] = \argmin_\eta G^{(k)}(\eta)$ By Theorem 1 of \citet{Johnson:2013}: 
+Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for both $F$ and $G$. Then, SVRG convergences geometrically in expectation for $F^{(k)}$ and $G^{(k)}$. Let $\theta^*[k+1] = \argmin_\theta F^{(k)}(\theta)$ and $\eta^*[k+1] = \argmin_\eta G^{(k)}(\eta)$ By Theorem 1 of \citet{Johnson:2013}, if $M$ is sufficiently large and $\lambda$ sufficiently small, we have: 
 %
 \begin{align*}
-    \bbE\left[F^{(k)}(\theta[k+1,L]) - F^{(k)}(\theta^*[k+1])\right] \leq \alpha \left(F^{(k)}(\theta[k]) - F^{(k)}(\theta^*[k+1])\right) \\
+    \bbE\left[F^{(k)}(\theta[k,M]) - F^{(k)}(\theta^*[k+1])\right] \leq \alpha \left(F^{(k)}(\theta[k]) - F^{(k)}(\theta^*[k+1])\right) \\
     %
-    \bbE\left[G^{(k)}(\eta[k+1,L]) - G^{(k)}(\eta^*[k+1])\right] \leq \alpha \left(G^{(k)}(\theta[k]) - G^{(k)}(\theta^*[k+1])\right)
+    \bbE\left[G^{(k)}(\eta[k,M]) - G^{(k)}(\eta^*[k+1])\right] \leq \alpha \left(G^{(k)}(\theta[k]) - G^{(k)}(\theta^*[k+1])\right)
 \end{align*}
 %
 for some $\alpha < 1$ (see Theorem 1 in \citet{Johnson:2013} for more details). Using Markov's inequality, we have:
 \begin{align*}
-    \bbP\left[F^{(k)}(\theta[k+1,L]) < F^{(k)}(\theta[k])\right] \geq 1-\alpha, \\
+    \bbP\left[F^{(k)}(\theta[k,M]) < F^{(k)}(\theta[k])\right] \geq 1-\alpha, \\
     %
-    \bbP\left[G^{(k)}(\eta[k+1,L]) < G^{(k)}(\eta[k])\right] \geq 1-\alpha
+    \bbP\left[G^{(k)}(\eta[k,M]) < G^{(k)}(\eta[k])\right] \geq 1-\alpha
 \end{align*}
 Therefore, if the step size is set such that $\alpha < 1$, then with probability 1, the M-step of the algorithm above will terminate in finite time with parameters that increase the log-likelihood.
 
 Further, since the algorithm is a Generalized EM algorithm, then $\log p(\bfy ; \theta[k+1],\eta[k+1])$ convergences to some $\log p^*$ by Theorem 1 of \citep{Wu:1983}.
 \end{proof}
 
-Each of these algorithms have advantages and disadvantages. SAG is the most intuitive of the three algorithms and corresponds to randomly updating one component of the gradient from the sums in Equations (\ref{eqn:F}) and (\ref{eqn:G}) before taking a gradient step. However, the gradient estimates are biased. The proof of convergence for SAG is also complicated.
+%Each of these algorithms have advantages and disadvantages. SAG is the most intuitive of the three algorithms and corresponds to randomly updating one component of the gradient from the sums in Equations (\ref{eqn:F}) and (\ref{eqn:G}) before taking a gradient step. However, the gradient estimates are biased. The proof of convergence for SAG is also complicated.
 
-SVRG is convenient because it produces unbiased estimates of the gradient. In addition, it also does not rely on any values of $\phi_t$ or $\zeta_t$, so SVRG has a significantly lower storage cost compared to SAG and SAGA. In addition, formal analysis of SVRG is much easier than SAG due to the fact the gradients are unbiased and the table average does not change at every parameter update. However, SVRG involves two gradients evaluations at every parameter update rather than only one as in SAG and SAGA. In addition, it requires the entire gradient to be calculated each epoch.
+%SVRG is convenient because it produces unbiased estimates of the gradient. In addition, it also does not rely on any values of $\phi_t$ or $\zeta_t$, so SVRG has a significantly lower storage cost compared to SAG and SAGA. In addition, formal analysis of SVRG is much easier than SAG due to the fact the gradients are unbiased and the table average does not change at every parameter update. However, SVRG involves two gradients evaluations at every parameter update rather than only one as in SAG and SAGA. In addition, it requires the entire gradient to be calculated each epoch.
 
-Finally, SAGA has the best theoretical guarantees of convergence rate of the three algorithms. Like SVRG, it also has unbiased gradient estimates. However, its advantages over SVRG are modest and it requires gradients to be stored for all $t = 1,\ldots,T$.
+%Finally, SAGA has the best theoretical guarantees of convergence rate of the three algorithms. Like SVRG, it also has unbiased gradient estimates. However, its advantages over SVRG are modest and it requires gradients to be stored for all $t = 1,\ldots,T$.
 
-Interestingly, many drawbacks of well-known stochastic optimization provide no additional problems when used within an EM algorithm. In particular, SVRG occasionally requires a full gradient evaluation, which is not desirable for a large dataset. However, the E-step of an EM algorithm requires a full pass of the data set \textit{anyway}, so the additional burden of calculating a full gradient after each E-step is minimal. Likewise, SAG and SAGA involve storing gradient estimates at each data point $t$, which is storage-intensive. However, the EM algorithm also requires storing the weights $\gamma_t^{(i)}(\theta, \eta)$ and $\xi_t^{(i,j)}(\theta, \eta)$ as a part of the E-step, so storing gradient estimates in addition to these weights is a minimal additional burden.
+Interestingly, many drawbacks of SVRG and SAGA disappear when used within an EM algorithm. In particular, SVRG occasionally requires a full gradient evaluation, which is not desirable for a large dataset. However, the E-step of an EM algorithm requires a full pass of the data set \textit{anyway}, so the additional burden of calculating a full gradient after each E-step is minimal. Likewise, SAGA involves storing gradient estimates at each data point $t$, which is storage-intensive. However, the EM algorithm also requires storing the weights $\gamma_t^{(i)}(\theta, \eta)$ and $\xi_t^{(i,j)}(\theta, \eta)$ as a part of the E-step, so storing gradient estimates in addition to these weights can be a minimal additional burden (depending upon the number of parameters).
 
 %The algorithm above applies even if the state-space of $\bfx$ is not discrete as long as it is possible to sample from $p(\bfx | \bfy ; \theta, \Gamma)$. \citet{Gu:1998} extend the algorithm above to apply even if it is not possible to sample from $p(\bfx | \bfy ; \theta, \Gamma)$ by drawing $\bfx$ from a Markov Chain with $p(\bfx | \bfy ; \theta, \Gamma)$ as its stationary distribution. \citet{Gu:1998} also extend this algorithm to general incomplete data models and prove that such an algorithm converges almost surely (under certain regularity conditions).
 
@@ -114,12 +109,69 @@ Interestingly, many drawbacks of well-known stochastic optimization provide no a
 
 \subsection{Mixing E- and M- steps}
 
-If $\{\eta,\theta\}$ is updated using a gradient estimate based on a random time index $t$, it seems natural to update $\xi(t ~;~ \theta,\eta$ and $\gamma(t ~;~ \theta,\eta)$ at the same time. Such an algorithm looks as follows:
+If $\{\eta,\theta\}$ is updated using a gradient estimate based on a random time index $t_m$, it is natural to update $G^{(k,m)}$ and $F^{(k,m)}$ via $\xi_{t_m}(\theta[k,m],\eta[k,m])$ and $\gamma_{t_m}(\theta[k,m],\eta[k,m])$ at the same time. Such an algorithm looks as follows:
 
-While this extension is natural, it greatly complicates the convergence analysis since the E- and M- steps of the EM algorithm are no longer neatly separated. As a result, this algorithm cannot be seen as a specific instance of the generalized EM. Preliminary results indicate that this approach is feasible in practice, but future work involves convergence analysis.
+\begin{enumerate}
+    \item Initialize $k \leftarrow 0$ and $\theta[k,0]$, $\eta[k,0]$.
+    \item Define $F_t^{(k,0)}$ and $G_t^{(k,0)}$ for $t = 1, \ldots, T$ according to equations (\ref{eqn:F}) and (\ref{eqn:G}).
+    %
+    \item Initialize a table of gradient estimates $\widehat \nabla_\theta F_t^{(k,0)}$ and $\widehat \nabla_\eta G_t^{(k,0)}$ for each $t = 1,\ldots,T$:
+    \begin{itemize}
+        \item $\widehat \nabla_\theta F_{t_m}^{(k,0)} \leftarrow \nabla_\theta F_{t}^{(k,0)}(\theta[k,0])$ for $t = 1,\ldots,T$,
+        %
+        \item $\widehat \nabla_\eta G_{t_m}^{(k,0)} \leftarrow \nabla_\eta G_{t}^{(k,0)}(\theta[k,0])$ for $t = 1,\ldots,T$.
+    \end{itemize}
+    %
+    \item For $m = 0,\ldots,M-1$:
+    \begin{enumerate}
+        \item Pick $t_m \in \{1,\ldots,T\}$ uniformly at random.
+        %
+        \item Calculate $F^{(k,m+1)}$ and $G^{(k,m+1)}$ by updating the $\gamma_{t_m}$ and $\xi_{t_m}$ at index $t_m$:
+        \begin{itemize}
+            \item $\alpha^{(i)}_{t_m} \leftarrow \sum_j \alpha_{t_m-1}^{(j)} \Gamma^{(j,i)}[k,m] f^{(i)}(y_t;\theta[k,m])$
+            \item $\beta^{(i)}_{t_m} \leftarrow \sum_j \Gamma^{(i,j)}[k,m] f^{(j)}(y_{t+1};\theta[k,m]) \beta_{t_m+1}^{(j)}$
+            \item Update $\gamma_{t_m}$ according to Equation (\ref{eqn:gamma}).
+            \item Update $\xi_{t_m}$ according to Equation (\ref{eqn:xi}).
+            \item Define $F^{(k,m+1)}$ and $G^{(k,m+1)}$ using Equations (\ref{eqn:F}) and (\ref{eqn:G}) and the new values of $\xi_{t_m}$ and $\gamma_{t_m}$.
+        \end{itemize}
+        %
+        \item Calculate $\theta[k,m+1]$ and $\eta[k,m+1]$ depending upon the algorithm:
+        \begin{enumerate}
+            \item If using SAG:
+            \begin{gather}
+                \theta[k,m+1] = \theta[k,m] - \lambda^{\theta} \left[\frac{\nabla_\theta F_{t_m}^{(k,m+1)}(\theta[k,m]) - \widehat \nabla_\theta F_{t_m}^{(k,m)}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k,m)}_{t} \right] \\
+                %
+                \eta[k,m+1] = \eta[k,m] - \lambda^{\eta} \left[\frac{\nabla_\eta G_{t_m}^{(k,m+1)}(\eta[k,m]) - \widehat \nabla_\eta G_{t_m}^{(k,m)}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\eta G^{(k,m)}_{t} \right]
+            \end{gather}
+            \item If using SVRG or SAGA:
+            \begin{gather}
+                \theta[k,m+1] = \theta[k,m] - \lambda^{\theta} \left[\nabla_\theta F_{t_m}^{(k,m+1)}(\theta[k,m]) - \widehat \nabla_\theta F_{t_m}^{(k,m)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k,m)}_{t} \right] \\
+                %
+                \eta[k,m+1] = \eta[k,m] - \lambda^{\eta} \left[\nabla_\eta G_{t_m}^{(k,m+1)}(\eta[k,m]) - \widehat \nabla_\eta G_{t_m}^{(k,m)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\eta G^{(k,m)}_{t} \right]
+            \end{gather}
+        \end{enumerate}
+        %
+        \item If using SAG or SAGA, update the gradients at location $t_m$ in the table:
+        \begin{itemize}
+            \item $\widehat \nabla_\theta F_{t_m}^{(k,m+1)} \leftarrow \nabla_\theta F_{t_m}^{(k,m+1)}(\theta[k,m])$,
+            %
+            \item $\widehat \nabla_\eta G_{t_m}^{(k,m+1)} \leftarrow \nabla_\eta G_{t_m}^{(k,m+1)}(\eta[k,m])$.
+        \end{itemize}
+        \item Leave all other gradient estimates unchanged, so for all $t = 1,\ldots,T$:
+        \begin{itemize}
+            \item $\widehat \nabla_\theta F_{t}^{(k,m+1)} \leftarrow \widehat \nabla_\theta F_{t}^{(k,m)}$ if $t \neq t_m$ or using SVRG,
+            %
+            \item $\widehat \nabla_\eta G_{t}^{(k,m+1)} \leftarrow \widehat \nabla_\eta G_{t}^{(k,m)}$ if $t \neq t_m$ or using SVRG.
+        \end{itemize}
+    \end{enumerate}
+    \item Set $k \leftarrow k+1$ and return to step 2.
+\end{enumerate}
 
-Note that if the observed data is independent, then it is straightforward to apply variance-reduced stochastic gradient descent to the log-likelihood, since the log-likelihood of each data point contributes one term to a sum that makes up the log-likelihood. However, the log-likelihood of an HMM cannot be written as a tractable sum, so stochastic gradient descent is not feasible for the raw likelihood. 
+While this extension is natural, it greatly complicates the convergence analysis since the E- and M- steps of the EM algorithm are no longer neatly separated. As a result, this algorithm cannot be seen as a specific instance of a generalized EM algorithm. Preliminary results indicate that this approach is feasible in practice, but future work involves convergence analysis.
 
-Importantly, the algorithm above is equivalent to standard variance-reduced stochastic gradient descent algorithms for independent data. This is because updating $\xi_{t^*}$ and $\gamma_{t^*}$, followed by $\nabla_{\theta} F^{(k-1)}_{t^*}(\theta;\xi_{t^*},\gamma_{t^*})$ and $\nabla_{\eta} G^{(k-1)}_{t^*}(\eta;\xi_{t^*},\gamma_{t^*})$ before taking a gradient step is equivalent to simply evaluating the gradient at data point $t^*$ for independent data by the Fisher identity for the gradient.
+%Note that if the observed data is independent, then it is straightforward to apply variance-reduced stochastic gradient descent to the log-likelihood, since the log-likelihood of each data point contributes one term to a sum that makes up the log-likelihood. However, the log-likelihood of an HMM cannot be written as a tractable sum, so stochastic gradient descent is not feasible for the raw likelihood. 
 
-Note that there is a problem for SVRG when changing the weights $\gamma$ and $\xi$ as we go. In particular, note that we have to re-evaluate the gradients at the old parameters to get unbiased estimates of the gradient. However, if the weights are changing as we do the M step, then we have to re-evaluate the old weights to do SVRG. BUT, notice that calculating those weights requires that we either store them or iterate through the whole data set :(. We could update the table average as we update the weights, but then we would have to know the OLD value of those weights to update the full gradient effectively. The only real saving grace we have here is that if we have the new weights, then saving the old weights is not as bad a saving the old gradients, which we would have to do for SAGA.
+The algorithm above is equivalent to standard variance-reduced stochastic gradient descent algorithms for independent data. This is because updating $\xi_{t_m}$ and $\gamma_{t_m}$, followed by $\nabla_{\theta} F_{t_m}(\theta;\xi_{t_m},\gamma_{t_m})$ and $\nabla_{\eta} G_{t_m}(\eta;\xi_{t_m},\gamma_{t_m})$ before taking a gradient step is equivalent to simply evaluating the gradient at data point $t_m$ for independent data by the Fisher identity for the gradient.
+
+Note that we have to save both the old set of weights and the new set of weights for SVRG if we use a mixed E- and M-step. Also, if we are using SAG or SAGA, we can simply set $M = \infty$ and never fully refresh the gradient.
+%Note that there is a problem for SVRG when changing the weights $\gamma$ and $\xi$ as we go. In particular, note that we have to re-evaluate the gradients at the old parameters to get unbiased estimates of the gradient. However, if the weights are changing as we do the M step, then we have to re-evaluate the old weights to do SVRG. BUT, notice that calculating those weights requires that we either store them or iterate through the whole data set :(. We could update the table average as we update the weights, but then we would have to know the OLD value of those weights to update the full gradient effectively. The only real saving grace we have here is that if we have the new weights, then saving the old weights is not as bad a saving the old gradients, which we would have to do for SAGA.

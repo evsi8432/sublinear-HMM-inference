@@ -35,15 +35,19 @@ The first experiment was to test the performance of the algorithm for a rapidly 
     \delta = \begin{pmatrix} 0.33 & 0.33 & 0.33 \end{pmatrix}.
 \end{equation*}
 %
-Figure (\ref{fig:exp1_ll}) displays the log-likelihood of the MLE parameters minus the log-likelihood at each epoch.
+Figure (\ref{fig:exp1_ll}) displays the log-likelihood of the MLE parameters minus the log-likelihood at each epoch. 
+
+SAGA without a partial E-step performs similarly to the EM algorithm in a per-epoch basis because SAGA is successfully converging for the M-step when $M = T$. However, it does not perform as well as the EM algorithm on a per-time basis because the M-step is significantly slower when using SAGA vs the closed-form solution. This behaviour is expected, and SAGA has a significant advantage over the EM algorithm in that it only requires gradients rather than sufficient statistics.
+
+Implementing a partial E-step shows that SAGA can outperform the EM algorithm when the parameter estimates are far from the optimal solutions and when the underlying HMM does not mix rapidly. This is likely because the weights of the $F$ and $G$ are very inaccurate at first, and updating them early in the optimization procedure yields a significant speed-up. In addition, if the Markov chain is rapidly mixing, then updates to $\gamma_{t_m}$ and $\xi_{t_m}$ at a single data point are more accurate. Future work may involve performing the partial-E step for many weights at once sequentially, depending upon the mixing time of the current estimate of $\eta[k]$.
 
 \begin{figure}
     \centering
-    \includegraphics{}
-    \caption{Caption}
-    \label{fig:my_label}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_exp_1.png}
+    \includegraphics[width=3in]{../plt/log-like_v_time_exp_1.png}
+    \caption{Optimally gap between the log-likelihood and optimal log-likelihood for the estimated parameters of the HMM from experiment 1 (rapid mixing). The figure on the left shows the optimality gap vs number of effective passes through the data set, while the figure on the right shows the optimality gap vs true computation time on a 2019 MacBook Pro. One epoch represents one full E-step, or one full M-step for variance reduced stochastic gradient methods. The y-axis is on a log-scale.}
+    \label{fig:exp1_ll}
 \end{figure}
-
 
 \subsection{Experiment two: slow mixing}
 
@@ -60,3 +64,12 @@ The second experiment was to test the performance of the algorithm for a slowly 
     \delta = \begin{pmatrix} 0.33 & 0.33 & 0.33 \end{pmatrix}
 \end{equation*}
 %
+Figure (\ref{fig:exp2_ll}) displays the log-likelihood of the MLE parameters minus the log-likelihood at each epoch.
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_exp_2.png}
+    \includegraphics[width=3in]{../plt/log-like_v_time_exp_2.png}
+    \caption{Optimally gap between the log-likelihood and optimal log-likelihood for the estimated parameters of the HMM from experiment 2 (slow mixing). The figure on the left shows the optimality gap vs number of effective passes through the data set, while the figure on the right shows the optimality gap vs true computation time on a 2019 MacBook Pro. One epoch represents one full E-step, or one full M-step for variance reduced stochastic gradient methods. The y-axis is on a log-scale.}
+    \label{fig:exp2_ll}
+\end{figure}

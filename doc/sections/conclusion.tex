@@ -6,7 +6,10 @@ Questions:
     \item right now it looks like a constant step size is slow for eta vs theta. Why?
     \item should I use second order optimization methods?
     \item how long should I do a partial E step for? or how large should batch sizes be? Perhaps I should take the inverse of one minus the largest diagonal element of $\Gamma$ : $\max_i \frac{1}{1-\Gamma_{ii}}$
-    \item I should probably use $||\sum_{n=m-m^*}^{m} \nabla P_{t_n}(z[n]) - \widehat \nabla P_{t_n} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_t||$ to see if we should terminate, since that is my gradient estimate (Note that that expression is imprecise). In addition, we can assume that the gradient estimate is normally distributed with some unknown variance $\sigma^2$, so if the mean is less than the estimated variance then we can terminate. (use some sort of chi squared test and use power analysis)
+    \item I should probably use $||\sum_{n=m-m^*}^{m} \nabla P_{t_n}(z[n]) - \widehat \nabla P_{t_n} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_t||$ to see if we should terminate, since that is my gradient estimate (Note that that expression is imprecise). In addition, we can assume that the gradient estimate is normally distributed with some unknown variance $\sigma^2$, so if the mean is less than the estimated variance then we can terminate. (use a non-central F-distribution for each dimension, add the statistics up).
+    \item Use an adaptive step size of some sort with the lieklhiood after each epoch. Also, if the step size is too big, different components of $\eta$ show oscillatory behaviour (why?)
+    \item How do I select a step size? We could use a line-search like in \citep{Schmidt:2017} to select step size, but also could we just use an adaptive $L$ for each function?  
+    \item How do present my results? Calculating the true objective function at each point in kinda a lot (???) Maybe I just record the likelihood at the end of each epoch.
 \end{itemize}
 
 \iffalse

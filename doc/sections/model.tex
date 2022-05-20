@@ -109,7 +109,18 @@ Interestingly, many drawbacks of SVRG and SAGA disappear when used within an EM 
 
 \subsection{Mixing E- and M- steps}
 
-If $\{\eta,\theta\}$ is updated using a gradient estimate based on a random time index $t_m$, it is natural to update $G^{(k,m)}$ and $F^{(k,m)}$ via $\xi_{t_m}(\theta[k,m],\eta[k,m])$ and $\gamma_{t_m}(\theta[k,m],\eta[k,m])$ at the same time. Such an algorithm looks as follows:
+\citet{Neal:1998} show that the EM algorithm can be thought of as maximizing some auxiliary function with respect to both the parameters $\{\eta,\theta\}$ as well as some auxiliary distribution $\tilde p (\bf X; \gamma;\xi)$, where $\gamma$ and $\xi$ are seen as parameters that define a distribution rather than functions of the parameters $\{\eta,\theta\}$. In particular:
+
+\begin{itemize}
+    \item This auxiliary function is maximized for a given parameter value $\{\theta,\eta\}$ when $\tilde p(\bfX; \gamma ; \xi) = p(\bfX \mid \bfy; \theta,\eta)$.
+    \item This auxiliary function is maximized for a given distribution $\tilde p(\bfX; \gamma ; \xi)$ when $\{\theta,\eta\}$ is given by:
+    \begin{equation}
+        \left\{\theta,\eta\right\} = \argmax_{\theta',\eta'} \bbE_{\tilde p(\bfX ; \gamma, \xi)} \left[\log p(\bfy,\bfX;\theta',\eta')\right].
+    \end{equation}
+    \item This auxiliary function is maximized when the parameters $\{\theta^*,\eta^*\}$ maximize the likelihood and the auxiliary distribution $\tilde p(\bfX; \gamma;\xi) = p(\bfX \mid \bfy; \theta^*,\eta^*)$.
+\end{itemize}
+
+Under this formulation, EM algorithm is jointly maximizing $\theta, \eta, \gamma$, and $\xi$ with respect to this auxiliary distribution. Then, if the parameters $\{\theta, \eta\}$ are updated using a gradient estimate based on a random time index $t_m$, it is natural to update $G^{(k,m)}$ and $F^{(k,m)}$ via $\xi_{t_m}$ and $\gamma_{t_m}$ at the same time. Such an algorithm looks as follows:
 
 \begin{enumerate}
     \item Initialize $k \leftarrow 0$ and $\theta[k,0]$, $\eta[k,0]$.

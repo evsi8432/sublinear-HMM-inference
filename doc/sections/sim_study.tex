@@ -1,0 +1,62 @@
+To test these three algorithms, we ran two simulation studies in which we simulated a total of $T = 10^{5}$ observations from an HMM with $N = 3$ hidden states. For both simulation studies, we used the same distribution for $Y | X = i$ for $i = 1,2,3$. In particular, $Y_t | X_t = i$ follows a normal distribution with mean $\mu^{(i)}$, and standard deviation $\sigma^{(i)}$, where
+%
+\begin{equation*}
+    \mu^{(1)} = 0, \quad \sigma^{(1)} = e^{-1}, \qquad
+    \mu^{(2)} = 1, \quad \sigma^{(2)} = e^{1}, \qquad
+    \mu^{(3)} = 2, \quad \sigma^{(3)} = e^{0}.
+\end{equation*}
+%
+The transition probability matrices changed between the two experiments (see the subsequent subsections for details).
+
+We initialized $\eta[0]$ for all algorithms such that the transition probability matrix $\Gamma[0]$ was equal to the true $\Gamma$ associated with the data generation process. We initialized the parameters $\theta[0]$ as follows:
+%
+\begin{equation*}
+    \mu^{(1)}[0] = -1.0, \quad \sigma^{(1)}[0] = e^{0}, \qquad
+    \mu^{(2)}[0] = 1.1, \quad \sigma^{(2)}[0] = e^{0}, \qquad
+    \mu^{(3)}[0] = 2.1, \quad \sigma^{(3)}[0] = e^{0}.
+\end{equation*}
+%
+We set the step size to be $\lambda^\theta = \lambda^\eta = 0.01$. 
+
+If the 2-norm of the average estimated gradient $||\frac{1}{T}\sum_{t=1}^T \widehat \nabla F^{(k,m)}_t + \widehat \nabla G^{(k,m)}_t||$ ever fell below a tolerance of $10^{-8}$, we terminated the M-step of algorithm and moved on to the E-step. Likewise, if the relative change of the log-likelihood after one full E- and M- step of the EM algorithm ever fell below a tolerance of $10^{-10}$, we terminated the algorithm altogether. We found the ground truth MLEs by running the traditional EM algorithm until the relative change in the log-likelihood was on the order of machine precision $10^{-15}$.
+
+\subsection{Experiment one: slow mixing}
+
+The first experiment was to test the performance of the algorithm for a rapidly mixing HMM. As such, we used the following transition probabilities:
+%
+\begin{equation*}
+    \Gamma = 
+    \begin{pmatrix} 
+        0.9 & 0.05 & 0.05 \\
+        0.05 & 0.9 & 0.05 \\
+        0.05 & 0.05 & 0.9
+    \end{pmatrix},
+    \qquad
+    \delta = \begin{pmatrix} 0.33 & 0.33 & 0.33 \end{pmatrix}.
+\end{equation*}
+%
+Figure (\ref{fig:exp1_ll}) displays the log-likelihood of the MLE parameters minus the log-likelihood at each epoch.
+
+\begin{figure}
+    \centering
+    \includegraphics{}
+    \caption{Caption}
+    \label{fig:my_label}
+\end{figure}
+
+
+\subsection{Experiment two: slow mixing}
+
+The second experiment was to test the performance of the algorithm for a slowly mixing HMM. As such, we used the following transition probabilities:
+%
+\begin{equation*}
+    \Gamma = 
+    \begin{pmatrix} 
+        0.99 & 0.005 & 0.005 \\
+        0.005 & 0.99 & 0.005 \\
+        0.005 & 0.005 & 0.99
+    \end{pmatrix},
+    \qquad
+    \delta = \begin{pmatrix} 0.33 & 0.33 & 0.33 \end{pmatrix}
+\end{equation*}
+%

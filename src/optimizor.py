@@ -727,13 +727,13 @@ class optimizor:
             self.eta_trace.append(deepcopy(self.eta))
 
             # record likelihood and check for convergence every T iterations
-            if (iter % self.T == (self.T-1)):
+            if (iter % (2*self.T) == (2*self.T-1)):
 
                 # update epoch
                 if partial_E:
                     self.epoch_num += 1.0
                 else:
-                    self.epoch_num += 0.5
+                    self.epoch_num += 1.0
 
                 if record_like:
 
@@ -796,7 +796,7 @@ class optimizor:
             ll = -logsumexp(self.log_alphas[self.T-1])
 
             # record stuff
-            self.epoch_num += 0.5
+            self.epoch_num += 1.0
             self.epoch_trace.append(self.epoch_num)
             self.time_trace.append(time.time() - self.start_time)
             self.log_like_trace.append(-ll / self.T)
@@ -899,7 +899,7 @@ class optimizor:
 
             # record time and epoch from E step
             self.train_time += time.time() - self.start_time
-            self.epoch_num += 0.5
+            self.epoch_num += 1.0
             self.time_trace.append(self.train_time)
             self.epoch_trace.append(self.epoch_num)
 

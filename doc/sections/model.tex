@@ -1,35 +1,37 @@
 \subsection{Stochastic Optimization in the EM algorithm}
 
-We now have the background necessary to build a new optimization technique for HMMs. The M-step of the Baum-Welch algorithm can be written in terms of sums over the time indices $t$:
+We now have the background necessary to construct a variance-reduced optimization technique for HMMs. The M-step of the Baum-Welch algorithm can be written as a minimization problem, where the objective function is a sum of $T$ terms. In particular, $$\theta[k+1] = \argmin_{\theta} F^{(k)}(\theta), \qquad \eta[k+1] = \argmin_{\eta} G^{(k)}(\eta),$$ where:
 
 \begin{align}
-    \theta[k+1] &= \argmin_{\theta} \sum_{t=1}^T F_t^{(k)}(\theta), \qquad F_t^{(k)}(\theta) = \sum_{i=1}^N \gamma^{(i)}_t(\theta[k], \eta[k]) \log f^{(i)}(y_t;\theta) \label{eqn:F} \\ \nonumber \\
+    F^{(k)}(\theta) &= \sum_{t=1}^T F_t^{(k)}(\theta), \qquad F_t^{(k)}(\theta) = - \sum_{i=1}^N \gamma^{(i)}_t(\theta[k], \eta[k]) \log f^{(i)}(y_t;\theta) \label{eqn:F} \\ \nonumber \\
     %
-    \eta[k+1] &= \argmin_{\eta} \sum_{t=1}^{T} G_t^{(k)}(\eta), 
+    G^{(k)}(\eta) &= \sum_{t=1}^{T} G_t^{(k)}(\eta), 
     \qquad G_t^{(k)}(\eta) = 
     \begin{cases}
-        \sum_{i=1}^N \gamma^{(i)}_t(\theta[k],\eta[k]) \log \delta^{(i)}(\eta), & t = 1, \\\\
-        \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t(\theta[k], \eta[k]) \log \Gamma^{(i,j)}(\eta), & t \geq 2
+        - \sum_{i=1}^N \gamma^{(i)}_t(\theta[k],\eta[k]) \log \delta^{(i)}(\eta), & t = 1, \\\\
+        - \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t(\theta[k], \eta[k]) \log \Gamma^{(i,j)}(\eta), & t \geq 2
     \end{cases}
     \label{eqn:G}
 \end{align}
 
 %The Robbins-Monro algorithm above can be seen as adding randomness to the E- step of the EM algorithm, and then taking one gradient step in the M-step using the noisy Q-function. This algorithm is useful if the size of the state-space $N$ is very large (or infinite), since it is infeasible to exactly calculate $\gamma$ and $\xi$ (i.e. perform the E- step of the EM algorithm) in those cases. 
 
-Note that if length of the observations sequence $T$ is very large, %it is expensive to draw samples from $\bfx \sim p(\bfx | \bfy ; \hat \theta_k, \hat \Gamma_k)$ \textit{and} evaluate the gradient $\nabla_{\theta,\eta} \log p(\bfy,\bfx;\theta,\eta)$, even if $\bfx$ is drawn using an MCMC technique. In other words, 
-both the E- step and the M- step of the EM algorithm are expensive. The E-step is expensive because $\gamma_t$ must be calculated for $t = 1,\ldots,T$, while the M-step is expensive because numerical maximization of equations (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_Gamma}) require taking a gradient of $T$ terms.
+Note that $F_t^{(k)}$ and $G_t^{(k)}$ are defined such that the M-step of the EM algorithm is a minimization problem instead of a maximization problem. 
+
+If the length of the observations sequence $T$ is very large, %it is expensive to draw samples from $\bfx \sim p(\bfx | \bfy ; \hat \theta_k, \hat \Gamma_k)$ \textit{and} evaluate the gradient $\nabla_{\theta,\eta} \log p(\bfy,\bfx;\theta,\eta)$, even if $\bfx$ is drawn using an MCMC technique. In other words, 
+both the E- step and the M- step of the EM algorithm are expensive. The E-step is expensive because $\gamma_t$ must be calculated for $t = 1,\ldots,T$, while the M-step is expensive because numerical maximization of equations (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_Gamma}) requires taking a gradient of $T$ terms.
 
 To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step in the EM algorithm, where $\gamma_t$ and $\xi_t$ are updated only for a subset of $t \in \{1,\ldots,T\}$ before updating the parameters $\eta$ and $\theta$ at each step. To help with the expensive M-step, we can apply variance-reduced stochastic optimization techniques. To this end, we introduce the following EM-algorithm with a variance-reduced stochastic M-step:
 
 \begin{enumerate}
     \item Initialize $\theta[0]$, $\eta[0]$, and $k \leftarrow 0$.
-    \item Define $F_t^{(k)}$ and $G_t^{(k)}$ for $t = 1, \ldots, T$ according to equations (\ref{eqn:F}) and (\ref{eqn:G}).
+    \item Define $F_t^{(k)}$ and $G_t^{(k)}$ for $t = 1, \ldots, T$ according to the equations on the right in (\ref{eqn:F}) and (\ref{eqn:G}). This is equivalent to performing the E-step of the EM algorithm.
     %
     \item Initialize a table of gradient estimates $\widehat \nabla_\theta F_t^{(k)}$ and $\widehat \nabla_\eta G_t^{(k)}$ for each $t = 1,\ldots,T$:
     \begin{itemize}
-        \item $\widehat \nabla_\theta F_{t_m}^{(k)} \leftarrow \nabla_\theta F_{t}^{(k)}(\theta[k])$ for $t = 1,\ldots,T$,
+        \item $\widehat \nabla_\theta F_{t}^{(k)} \leftarrow \nabla_\theta F_{t}^{(k)}(\theta[k])$ for $t = 1,\ldots,T$,
         %
-        \item $\widehat \nabla_\eta G_{t_m}^{(k)} \leftarrow \nabla_\eta G_{t}^{(k)}(\theta[k])$ for $t = 1,\ldots,T$.
+        \item $\widehat \nabla_\eta G_{t}^{(k)} \leftarrow \nabla_\eta G_{t}^{(k)}(\theta[k])$ for $t = 1,\ldots,T$.
     \end{itemize}
     %
     \item Initialize $\theta[k,0] \leftarrow \theta[k]$ and $\eta[k,0] \leftarrow \eta[k]$.
@@ -58,7 +60,7 @@ To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step i
         \begin{itemize}
             \item $\widehat \nabla_\theta F_{t_m}^{(k)} \leftarrow \nabla_\theta F_{t_m}^{(k)}(\theta[k,m])$,
             %
-            \item $\widehat \nabla_\eta G_{t_m}^{(k)} \leftarrow \nabla_\eta G_{t_m}^{(k)}(\theta[k,m])$.
+            \item $\widehat \nabla_\eta G_{t_m}^{(k)} \leftarrow \nabla_\eta G_{t_m}^{(k)}(\eta[k,m])$.
         \end{itemize}
     \end{enumerate}
     %
@@ -72,27 +74,35 @@ To help with the expensive E-step, \citet{Neal:1998} describe a partial E-step i
 The algorithm above is a specific instance of the Generalized EM algorithm \citep{Dempster:1977}. More formally:
 
 \begin{lemma}
-    Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for both $F$ and $G$. Then, algorithm (1) is a specific instance of a Generalized EM algorithm and the likelihood $\log p(\bfy ; \theta[k+1],\eta[k+1])$ convergences to some $\log p^*$.
+    Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for both $F^{(k)}$ and $G^{(k)}$. In particular:
+    \begin{enumerate}
+        \item $F_t^{(k)}$ and $G_t^{(k)}$ are Lipschitz-smooth with constants $L_\theta > 0$ or $L_\eta > 0$, respectively: $$F_t^{(k)}(\theta) \leq F_t^{(k)}(\theta') + \nabla_\theta F_t^{(k)}(\theta')^T(\theta-\theta') + \frac{L_\theta}{2} ||\theta - \theta'||,$$ $$G_t^{(k)}(\eta) \leq G_t^{(k)}(\eta') + \nabla_\eta G_t^{(k)}(\eta')^T(\eta-\eta') + \frac{L_\eta}{2} ||\eta - \eta'||,$$
+        \item $F_t^{(k)}$ and $G_t^{(k)}$ are $\gamma_\theta$- or $\gamma_\eta$- strongly convex:
+        $$F_t^{(k)}(\theta) \geq F_t^{(k)}(\theta') + \nabla_\theta F_t^{(k)}(\theta')^T(\theta-\theta') + \frac{\gamma_\theta}{2} ||\theta - \theta'||^2,$$ $$G_t^{(k)}(\eta) \geq G_t^{(k)}(\eta') + \nabla_\eta G_t^{(k)}(\eta')^T(\eta-\eta') + \frac{\gamma_\eta}{2} ||\eta - \eta'||^2,$$
+        \item The step sizes $\lambda^{\theta}$ and $\lambda^{\eta}$ are set such that $$\alpha^{\theta} = \frac{1}{\gamma^{\theta} \lambda^{\theta}(1-2L^{\theta}\lambda^{\theta})M} + \frac{2L^{\theta}\lambda^{\theta}}{1-(2L^{\theta}\lambda^{\theta})} < 1,$$
+        $$\alpha^{\eta} = \frac{1}{\gamma^{\eta} \lambda^{\eta}(1-2L^{\eta}\lambda^{\eta})M} + \frac{2L^{\eta}\lambda^{\eta}}{1-(2L^{\eta}\lambda^{\eta})} < 1.$$
+    \end{enumerate}
+    Then, algorithm (1) is a specific instance of a Generalized EM algorithm and the likelihood $\log p(\bfy ; \theta[k+1],\eta[k+1])$ convergences to some $\log p^*$.
 \end{lemma}
 %
 \begin{proof}
-Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for both $F$ and $G$. Then, SVRG convergences geometrically in expectation for $F^{(k)}$ and $G^{(k)}$. Let $\theta^*[k+1] = \argmin_\theta F^{(k)}(\theta)$ and $\eta^*[k+1] = \argmin_\eta G^{(k)}(\eta)$ By Theorem 1 of \citet{Johnson:2013}, if $M$ is sufficiently large and $\lambda$ sufficiently small, we have: 
+If the conditions (1)--(3) above hold for both $F^{(k)}$ and $G^{(k)}$ for all $k$. Suppose that we are at step $k$ of the algorithm above. Let $\theta^*[k+1] = \argmin_\theta F^{(k)}(\theta)$ and $\eta^*[k+1] = \argmin_\eta G^{(k)}(\eta)$. Further, treat the value of $\theta[k]$ and $\eta[k]$ as fixed. By Theorem 1 of \citet{Johnson:2013}, if $M$ is sufficiently large and $\lambda$ sufficiently small, we have: 
 %
 \begin{align*}
-    \bbE\left[F^{(k)}(\theta[k,M]) - F^{(k)}(\theta^*[k+1])\right] \leq \alpha \left(F^{(k)}(\theta[k]) - F^{(k)}(\theta^*[k+1])\right) \\
+    \bbE\left[F^{(k)}(\theta[k,M]) - F^{(k)}(\theta^*[k+1])\right] \leq \alpha^{(\theta)} \left(F^{(k)}(\theta[k]) - F^{(k)}(\theta^*[k+1])\right), \\
     %
-    \bbE\left[G^{(k)}(\eta[k,M]) - G^{(k)}(\eta^*[k+1])\right] \leq \alpha \left(G^{(k)}(\theta[k]) - G^{(k)}(\theta^*[k+1])\right)
+    \bbE\left[G^{(k)}(\eta[k,M]) - G^{(k)}(\eta^*[k+1])\right] \leq \alpha^{(\eta)} \left(G^{(k)}(\eta[k]) - G^{(k)}(\eta^*[k+1])\right)
 \end{align*}
 %
 for some $\alpha < 1$ (see Theorem 1 in \citet{Johnson:2013} for more details). Using Markov's inequality, we have:
 \begin{align*}
-    \bbP\left[F^{(k)}(\theta[k,M]) < F^{(k)}(\theta[k])\right] \geq 1-\alpha, \\
+    \bbP\left[F^{(k)}(\theta[k,M]) < F^{(k)}(\theta[k])\right] \geq 1-\alpha^{(\theta)}, \\
     %
-    \bbP\left[G^{(k)}(\eta[k,M]) < G^{(k)}(\eta[k])\right] \geq 1-\alpha
+    \bbP\left[G^{(k)}(\eta[k,M]) < G^{(k)}(\eta[k])\right] \geq 1-\alpha^{(\eta)}.
 \end{align*}
-Therefore, if the step size is set such that $\alpha < 1$, then with probability 1, the M-step of the algorithm above will terminate in finite time with parameters that increase the log-likelihood.
+Further, since the expectations from \citet{Johnson:2013} are conditioned on the previous time step, running two steps of SVRG are independent events as long as they start from the same fixed point. Therefore, the probabilities above correspond to independent events. Then, so long as $\alpha^{(\theta)},\alpha^{(\eta)} < 1$, then with probability 1, the M-step of the algorithm above will terminate in finite time with parameters that decrease either $F^{(k)}$ or $G^{(k)}$ (or both) and therefore increase the log-likelihood.
 
-Further, since the algorithm is a Generalized EM algorithm, then $\log p(\bfy ; \theta[k+1],\eta[k+1])$ convergences to some $\log p^*$ by Theorem 1 of \citep{Wu:1983}.
+Further, since the algorithm is a Generalized EM algorithm, then $\log p(\bfy ; \theta[k],\eta[k])$ convergences to some $\log p^*$ as $k \to \infty$ by Theorem 1 of \citep{Wu:1983}.
 \end{proof}
 
 %Each of these algorithms have advantages and disadvantages. SAG is the most intuitive of the three algorithms and corresponds to randomly updating one component of the gradient from the sums in Equations (\ref{eqn:F}) and (\ref{eqn:G}) before taking a gradient step. However, the gradient estimates are biased. The proof of convergence for SAG is also complicated.
@@ -101,7 +111,7 @@ Further, since the algorithm is a Generalized EM algorithm, then $\log p(\bfy ; 
 
 %Finally, SAGA has the best theoretical guarantees of convergence rate of the three algorithms. Like SVRG, it also has unbiased gradient estimates. However, its advantages over SVRG are modest and it requires gradients to be stored for all $t = 1,\ldots,T$.
 
-Interestingly, many drawbacks of SVRG and SAGA disappear when used within an EM algorithm. In particular, SVRG occasionally requires a full gradient evaluation, which is not desirable for a large dataset. However, the E-step of an EM algorithm requires a full pass of the data set \textit{anyway}, so the additional burden of calculating a full gradient after each E-step is minimal. Likewise, SAGA involves storing gradient estimates at each data point $t$, which is storage-intensive. However, the EM algorithm also requires storing the weights $\gamma_t^{(i)}(\theta, \eta)$ and $\xi_t^{(i,j)}(\theta, \eta)$ as a part of the E-step, so storing gradient estimates in addition to these weights can be a minimal additional burden (depending upon the number of parameters).
+Interestingly, many drawbacks of SVRG and SAGA disappear when used within an EM algorithm. In particular, SVRG occasionally requires a full gradient evaluation, which is not desirable for a large data set. However, the E-step of an EM algorithm requires a full pass of the data set \textit{anyway}, so the additional burden of calculating a full gradient after each E-step is minimal. Likewise, SAGA involves storing gradient estimates at each data point $t$, which is storage-intensive. However, the EM algorithm also requires storing the weights $\gamma_t^{(i)}(\theta, \eta)$ and $\xi_t^{(i,j)}(\theta, \eta)$ as a part of the E-step, so storing gradient estimates in addition to these weights can be a minimal additional burden (depending upon the number of parameters).
 
 %The algorithm above applies even if the state-space of $\bfx$ is not discrete as long as it is possible to sample from $p(\bfx | \bfy ; \theta, \Gamma)$. \citet{Gu:1998} extend the algorithm above to apply even if it is not possible to sample from $p(\bfx | \bfy ; \theta, \Gamma)$ by drawing $\bfx$ from a Markov Chain with $p(\bfx | \bfy ; \theta, \Gamma)$ as its stationary distribution. \citet{Gu:1998} also extend this algorithm to general incomplete data models and prove that such an algorithm converges almost surely (under certain regularity conditions).
 
@@ -109,10 +119,14 @@ Interestingly, many drawbacks of SVRG and SAGA disappear when used within an EM 
 
 \subsection{Mixing E- and M- steps}
 
-\citet{Neal:1998} show that the EM algorithm can be thought of as maximizing some auxiliary function with respect to both the parameters $\{\eta,\theta\}$ as well as some auxiliary distribution $\tilde p (\bf X; \gamma;\xi)$, where $\gamma$ and $\xi$ are seen as parameters that define a distribution rather than functions of the parameters $\{\eta,\theta\}$. In particular:
+\citet{Neal:1998} show that the EM algorithm can be thought of as maximizing some auxiliary function $H$ with respect to both the parameters $\{\eta,\theta\}$ as well as some auxiliary distribution $\tilde p (\bf X; \gamma;\xi)$. In this context, $\gamma$ and $\xi$ are parameters that define the auxiliary distribution $\tilde p$ rather than functions of the parameters $\{\eta,\theta\}$. In particular:
+
+\begin{equation*}
+    hello
+\end{equation*}
 
 \begin{itemize}
-    \item This auxiliary function is maximized for a given parameter value $\{\theta,\eta\}$ when $\tilde p(\bfX; \gamma ; \xi) = p(\bfX \mid \bfy; \theta,\eta)$.
+    \item This auxiliary function is maximized with respect to $\xi$ and $\gamma$ for a fixed parameter value $\{\theta,\eta\}$ when $\tilde p(\bfX; \gamma ; \xi) = p(\bfX \mid \bfy; \theta,\eta)$.
     \item This auxiliary function is maximized for a given distribution $\tilde p(\bfX; \gamma ; \xi)$ when $\{\theta,\eta\}$ is given by:
     \begin{equation}
         \left\{\theta,\eta\right\} = \argmax_{\theta',\eta'} \bbE_{\tilde p(\bfX ; \gamma, \xi)} \left[\log p(\bfy,\bfX;\theta',\eta')\right].
@@ -168,6 +182,7 @@ Under this formulation, EM algorithm is jointly maximizing $\theta, \eta, \gamma
             %
             \item $\widehat \nabla_\eta G_{t_m}^{(k,m+1)} \leftarrow \nabla_\eta G_{t_m}^{(k,m+1)}(\eta[k,m])$.
         \end{itemize}
+        This updated table average results in a better update rule in step 5(b).
         \item Leave all other gradient estimates unchanged, so for all $t = 1,\ldots,T$:
         \begin{itemize}
             \item $\widehat \nabla_\theta F_{t}^{(k,m+1)} \leftarrow \widehat \nabla_\theta F_{t}^{(k,m)}$ if $t \neq t_m$ or using SVRG,

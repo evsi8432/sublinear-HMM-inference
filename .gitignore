@@ -17,6 +17,9 @@ ref/*
 !ref/*.bib
 !ref/*.md
 
+## any data
+dat/*
+
 ## ipython checkpoints
 Code/.ipynb_checkpoints/*
 

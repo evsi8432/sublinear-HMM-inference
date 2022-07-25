@@ -101,6 +101,7 @@ class optimizor:
         # thetas and etas
         self.theta = deepcopy(hhmm.theta)
         self.eta = deepcopy(hhmm.eta)
+        self.eta0 = [np.zeros(self.K[0]),[np.zeros(self.K[1]) for _ in range(self.K[0])]]
         self.Gamma = eta_2_Gamma(self.eta)
 
         self.theta_tilde = deepcopy(hhmm.theta)
@@ -161,6 +162,14 @@ class optimizor:
         self.step_size = None
         self.param_bounds = {feature: {} for feature in hhmm.theta[0]}
         self.initialize_step_size()
+
+        # Lipshitz constants
+        if self.step_size != 0:
+            self.L_theta = 1.0/(3.0*self.step_size)
+            self.L_eta = 1.0/(3.0*self.step_size)
+        else:
+            self.L_theta = np.infty
+            self.L_eta = np.infty
 
         return
 
@@ -297,26 +306,99 @@ class optimizor:
         # return the result
         return log_f,grad_log_f
 
-    def log_Gamma(self,t,eta=None):
+    def log_Gamma(self,t,eta=None,eta0=None):
 
         if eta is None:
             eta = self.eta
 
-        Gamma = eta_2_Gamma(eta)[0]
-        log_Gamma = np.log(Gamma)
+        if eta0 is None:
+            eta0 = self.eta0
 
-        grad_log_Gamma = np.zeros((self.K[0],self.K[0],self.K[0],self.K[0]))
+        # get fine and coarse scale Gammas
+        Gammas = eta_2_Gamma(eta)
+        log_coarse_Gamma = np.log(Gammas[0])
+        log_fine_Gammas = [np.log(fine_Gamma) for fine_Gamma in Gammas[1]]
+
+        # get the fine-scale Gammas
+        fine_deltas = [np.exp(eta0i) / np.sum(np.exp(eta0i)) for eta0i in eta0]
+        log_fine_deltas = [eta0i - np.logsumexp(eta0i) for eta0i in eta0]
+
+        # construct Gamma
+        K_total = self.K[0] * self.K[1]
+        log_Gamma = np.zeros((K_total,K_total))
+
+        for i in range(self.K[0]):
+            for j in range(self.K[0]):
+
+                # coarse-scale Gamma
+                log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                          (self.K[1]*j):(self.K[1]*(j+1))] += log_coarse_Gamma[i,j]
+
+                # fine-scale Gamma or delta
+                if i == j:
+                    log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                              (self.K[1]*j):(self.K[1]*(j+1))] += log_fine_Gammas[j]
+                else:
+                    log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                              (self.K[1]*j):(self.K[1]*(j+1))] += np.tile(log_fine_deltas[j],[self.K[1],1])
+
+        grad_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
+                          [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])],
+                          [np.zeros((self.K[1],self.K[1])) for _ in range(self.K[0])]]
+
+        # grad from coarse_Gamma
         for i in range(self.K[0]):
             for j in range(self.K[0]):
                 for l in range(self.K[0]):
                     if i == l:
                         pass
                     elif j == l:
-                        grad_log_Gamma[i,j,i,l] = 1.0-Gamma[i,l]
+                        grad_log_Gamma[0][i,j,i,l] = 1.0-Gammas[0][i,l]
                     else:
-                        grad_log_Gamma[i,j,i,l] = -Gamma[i,l]
+                        grad_log_Gamma[0][i,j,i,l] = -Gammas[0][i,l]
+
+        # grad from fine_Gamma
+        for n in range(self.K[0]):
+            for i in range(self.K[1]):
+                for j in range(self.K[1]):
+                    for l in range(self.K[1]):
+                        if i == l:
+                            pass
+                        elif j == l:
+                            grad_log_Gamma[1][n][i,j,i,l] = 1.0-Gammas[1][n][i,l]
+                        else:
+                            grad_log_Gamma[1][n][i,j,i,l] = -Gammas[1][n][i,l]
+
+        # grad from fine_delta
+        for n in range(self.K[0]):
+            for i in range(self.K[1]):
+                for j in range(self.K[1]):
+                    if i == j:
+                        grad_log_Gamma[2][n][i,j] = 1.0-fine_deltas[n][j]
+                    else:
+                        grad_log_Gamma[2][n][i,j] = -fine_deltas[n][j]
 
         return log_Gamma,grad_log_Gamma
+
+    def log_delta(self,eta0=None):
+
+        if eta0 is None:
+            eta0 = self.eta0
+
+        # get delta
+        delta = np.exp(eta0[0]) / np.sum(eta0[0])
+        log_delta = np.log(delta) - np.log(np.sum(delta))
+
+        # get grad_log_delta
+        grad_log_delta = np.zeros((self.K[0],self.K[0]))
+        for i in range(self.K[1]):
+            for j in range(self.K[1]):
+                if i == j:
+                    grad_log_delta[i,j] = 1.0-delta[j]
+                else:
+                    grad_log_delta[i,j] = -delta[j]
+
+        return log_delta,grad_log_delta
 
     def update_alpha(self,t):
 
@@ -473,7 +555,68 @@ class optimizor:
 
         return E_grad
 
-    def E_step(self):
+    def check_L_eta(self,t):
+
+        # get gradient and its norm
+        if t == 1:
+            grad_G_t = 0#np.zeros(self.K[0])
+        else:
+            grad_G_t = self.get_E_grad_log_Gamma(t-1)
+
+        grad_G_t_norm2 = np.sum(grad_G_t**2)
+
+        # get new value of eta
+        eta0 = deepcopy(self.eta)
+        eta0[0] += grad_G_t / self.L_eta
+
+        # Evaluate G for eta and eta0
+        if t == 1:
+            G_t = 0
+            G_t0 = 0
+        else:
+            G_t  = -np.sum(self.p_Xt_Xtp1[t-1] * self.log_Gamma(t,eta=self.eta)[0])
+            G_t0 = -np.sum(self.p_Xt_Xtp1[t-1] * self.log_Gamma(t,eta=eta0)[0])
+
+        # check inequality
+        if grad_G_t_norm2 < 1e-8:
+            pass
+        elif G_t0 > G_t - grad_G_t_norm2 / (2*self.L_eta):
+            self.L_eta *= 2
+        else:
+            self.L_eta *= 2**(-1/self.T)
+
+        return
+
+    def check_L_theta(self,t):
+
+        # get the gradients at the given time points
+        grad_F_t = self.get_E_grad_log_f(t)
+
+        # initialize gradient norms
+        grad_F_t_norm2 = 0
+
+        # get new theta and gradient norm
+        theta0 = deepcopy(self.theta)
+        for feature in grad_F_t[0]:
+            for param in grad_F_t[0][feature]:
+                theta0[0][feature][param] += grad_F_t[0][feature][param] / self.L_theta
+                grad_F_t_norm2 += np.sum(grad_F_t[0][feature][param]**2)
+
+        # evaluate F for theta and theta0
+        F_t  = -np.sum(self.p_Xt[t] * self.log_f(t,theta=self.theta)[0])
+        F_t0 = -np.sum(self.p_Xt[t] * self.log_f(t,theta=theta0)[0])
+
+        # check for inequality
+        if grad_F_t_norm2 < 1e-8:
+            pass
+        elif F_t0 > F_t - grad_F_t_norm2 / (2*self.L_theta):
+            self.L_theta *= 2
+        else:
+            self.L_theta *= 2**(-1/self.T)
+
+        return
+
+    def E_step(self,update_tilde=True):
 
         # update log_alphas
         for t in range(self.T):
@@ -507,15 +650,16 @@ class optimizor:
                 self.grad_eta_log_like += self.E_grad_log_Gamma[t]
 
         # record gradients, weights, and parameters for SVRG
-        self.grad_theta_log_like_tilde = deepcopy(self.grad_theta_log_like)
-        self.grad_eta_log_like_tilde = deepcopy(self.grad_eta_log_like)
+        if update_tilde:
+            self.grad_theta_log_like_tilde = deepcopy(self.grad_theta_log_like)
+            self.grad_eta_log_like_tilde = deepcopy(self.grad_eta_log_like)
 
-        self.p_Xt_tilde = deepcopy(self.p_Xt)
-        self.p_Xt_Xtp1_tilde = deepcopy(self.p_Xt_Xtp1)
+            self.p_Xt_tilde = deepcopy(self.p_Xt)
+            self.p_Xt_Xtp1_tilde = deepcopy(self.p_Xt_Xtp1)
 
-        self.theta_tilde = deepcopy(self.theta)
-        self.eta_tilde = deepcopy(self.eta)
-        self.Gamma_tilde = eta_2_Gamma(self.eta_tilde)
+            self.theta_tilde = deepcopy(self.theta)
+            self.eta_tilde = deepcopy(self.eta)
+            self.Gamma_tilde = eta_2_Gamma(self.eta_tilde)
 
         return
 
@@ -525,10 +669,20 @@ class optimizor:
             max_iters = self.T
 
         if alpha_theta is None:
-            alpha_theta = self.step_size
+            if self.L_theta != 0:
+                alpha_theta = 1.0/(3.0*self.L_theta)
+            else:
+                alpha_theta = np.infty
+        else:
+            self.L_theta = 1.0/(3.0*alpha_theta)
 
         if alpha_eta is None:
-            alpha_eta = self.step_size
+            if self.L_eta != 0:
+                alpha_eta = 1.0/(3.0*self.L_eta)
+            else:
+                alpha_eta = np.infty
+        else:
+            self.L_eta = 1.0/(3.0*alpha_eta)
 
         # update parameters
         if method == "EM":
@@ -623,8 +777,6 @@ class optimizor:
                 if not partial_E:
                     break
 
-
-
             elif method == "SGD":
 
                 # update step size
@@ -696,6 +848,13 @@ class optimizor:
             else:
                 raise("method %s not recognized" % method)
 
+            # check the Lipshitz constants
+            self.check_L_theta(t)
+            alpha_theta = 1.0/(3.0*self.L_theta)
+
+            self.check_L_eta(t)
+            alpha_eta = 1.0/(3.0*self.L_eta)
+
             # clip values
             self.eta[0] = np.clip(self.eta[0],-10,10)
             for feature in self.theta[0]:
@@ -760,7 +919,7 @@ class optimizor:
 
         return
 
-    def direct_maximization(self,num_epochs=None,method="Nelder-Mead",tol=1e-5):
+    def direct_maximization(self,num_epochs=None,method="CG",tol=1e-5):
 
         options = {'maxiter':num_epochs,'disp':True}
 
@@ -791,16 +950,35 @@ class optimizor:
             self.Gamma = eta_2_Gamma(self.eta)
 
             # calculate likelihood
-            for t in range(self.T):
-                self.update_alpha(t)
-            ll = -logsumexp(self.log_alphas[self.T-1])
+            self.E_step(update_tilde=False)
+
+            # get likelihood
+            ll = logsumexp(self.log_alphas[self.T-1])
+
+            # get the gradient using Fischer
+            grad_ll = np.zeros_like(x)
+            ind = 0
+
+            # update theta
+            for feature in self.theta[0]:
+                for param in ['mu','log_sig']:
+                    for k in range(self.K[0]):
+                        grad_ll[ind] = -self.grad_theta_log_like[0][feature][param][k]
+                        ind += 1
+
+            # update eta
+            for i in range(self.K[0]):
+                for j in range(self.K[0]):
+                    if i != j:
+                        grad_ll[ind] = -self.grad_eta_log_like[i,j]
+                        ind += 1
 
             # record stuff
             self.epoch_num += 1.0
             self.epoch_trace.append(self.epoch_num)
             self.time_trace.append(time.time() - self.start_time)
-            self.log_like_trace.append(-ll / self.T)
-            print(-ll)
+            self.log_like_trace.append(ll / self.T)
+            print(ll)
             self.theta_trace.append(deepcopy(self.theta))
             self.eta_trace.append(deepcopy(self.eta))
 
@@ -808,7 +986,7 @@ class optimizor:
             self.theta = theta_backup
             self.eta = eta_backup
 
-            return ll
+            return (-ll,grad_ll)
 
         # initialize x0
         x0 = []
@@ -826,7 +1004,9 @@ class optimizor:
                     x0.append(self.eta[0][i,j])
 
         # fit x
-        res = minimize(loss_fn, x0, method=method, tol=tol, options=options)
+        res = minimize(loss_fn, x0,
+                       method=method, tol=tol,
+                       options=options, jac=True)
         x = res["x"]
 
         ind = 0
@@ -860,7 +1040,7 @@ class optimizor:
             alpha_eta = self.step_size
 
         # check that the method makes sense
-        if method not in ["EM","BFGS","Nelder-Mead",
+        if method not in ["EM","BFGS","Nelder-Mead","CG",
                           "GD","SGD","SAG","SVRG","SAGA"]:
             print("method %s not recognized" % method)
             return
@@ -871,7 +1051,7 @@ class optimizor:
         self.start_time = time.time()
 
         # do direct likelihood maximization
-        if method in ["Nelder-Mead","BFGS"]:
+        if method in ["Nelder-Mead","BFGS","CG"]:
             res = self.direct_maximization(num_epochs=num_epochs,
                                            method=method,tol=tol)
             print(res)
@@ -924,12 +1104,15 @@ class optimizor:
             print("starting M-step...")
             self.M_step(max_iters=max_iters,
                         method=method,
-                        alpha_theta=alpha_theta,
-                        alpha_eta=alpha_eta,
+                        #alpha_theta=alpha_theta,
+                        #alpha_eta=alpha_eta,
                         partial_E=partial_E,
                         tol=grad_tol,
                         record_like=record_like)
             print("...done")
+            print("")
+            print("L_theta: ",self.L_theta)
+            print("L_eta: ",self.L_eta)
             print("")
 
 

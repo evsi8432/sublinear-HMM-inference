@@ -20,6 +20,12 @@ ref/*
 ## any data
 dat/*
 
+## all parameters
+params/*
+
+## any plots
+plt/*
+
 ## ipython checkpoints
 Code/.ipynb_checkpoints/*
 

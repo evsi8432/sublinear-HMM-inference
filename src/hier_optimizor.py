@@ -1249,8 +1249,8 @@ class optimizor:
             self.Gamma = eta_2_Gamma(self.eta)
 
             # record trace
-            self.theta_trace.append(deepcopy(self.theta))
-            self.eta_trace.append(deepcopy(self.eta))
+            #self.theta_trace.append(deepcopy(self.theta))
+            #self.eta_trace.append(deepcopy(self.eta))
 
             # record likelihood and check for convergence every T iterations
             if (iter % (2*self.T) == (2*self.T-1)):

@@ -43,22 +43,38 @@ from optimizor import eta0_2_delta
 from optimizor import eta_2_Gamma
 from optimizor import logdotexp
 
+# parse command-line args
 experiment = int(sys.argv[1])
-rand_seed = int(sys.argv[2])
+T = int(sys.argv[2])
+max_time = 3600*float(sys.argv[3])
+id = int(sys.argv[4])
 
+# set method
+if id % 5 == 4:
+    method = "control"
+    partial_E = 0
+elif id % 5 == 3:
+    method = "BFGS"
+    partial_E = 0
+else:
+    method = "SAGA"
+    partial_E = float(id % 5) / 2.0
+
+rand_seed = int(id / 5)
 random.seed(rand_seed)
 np.random.seed(rand_seed)
+
+print("experiment: %d" % experiment)
+print("method: %s" % method)
+print("partial E_step: %.1f" % partial_E)
+print("random seed: %d" % rand_seed)
+print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
 num_epochs = 100
 tol = 1e-8
 grad_tol = 1e-16
 
-# optimization parameters
-methods = ["SAGA","BFGS"]
-# methods = ["EM","SGD","SAG","SVRG","SAGA","GD","BFGS","Nelder-Mead"]
-
-# pick optimization settings
 step_sizes = {"EM"  : [None,None],
               "CG"  : [None,None],
               "BFGS": [None,None],
@@ -68,20 +84,24 @@ step_sizes = {"EM"  : [None,None],
               "SVRG": [0.01,0.01],
               "SAGA": [0.01,0.01]}
 
-# Select parameters for data generating process
+jump_every = 1
 
+### checks on optimization parameters ###
+if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
+    raise("partial_E not consistent with method")
+
+### features of data ###
 if experiment == 1:
 
     features = [{},
-            {'Y'      : {'f'           : 'normal',
-                         'lower_bound' : None,
-                         'upper_bound' : None},
-             'Y_star' : {'f'           : 'normal',
-                         'lower_bound' : None,
-                         'upper_bound' : None}}]
+                {'Y'      : {'f'           : 'normal',
+                             'lower_bound' : None,
+                             'upper_bound' : None},
+                 'Y_star' : {'f'           : 'normal',
+                             'lower_bound' : None,
+                             'upper_bound' : None}}]
 
     K = [2,2]
-    T = 1000
 
     jump_every = 1
 
@@ -118,7 +138,6 @@ elif experiment == 2:
                              'upper_bound' : None}}]
 
     K = [1,3]
-    T = 1000
 
     jump_every = 1
 
@@ -136,154 +155,136 @@ elif experiment == 2:
     mus =  {'Y' : np.array([1.0,2.0,3.0])}
     sigs = {'Y' : np.exp(np.array([-1.0,-1.0,-1.0]))}
 
-### GENERATE DATA ###
-X = np.zeros(T,dtype=int)
-data = []
+### load in data ###
+data_fname = "../dat/data_Y_exp-%d_T-%d" % (experiment,T)
+with open(data_fname,"rb") as f:
+    data = pickle.load(f)
 
-for t in range(T):
+# pick intial parameters
+optim = optimizor.optimizor(data,features,K)
+optim.param_bounds[1]["Y"]["mu"] = [-100,100]
+optim.param_bounds[1]["Y"]["log_sig"] = [-5,5]
+if experiment == 1:
+    optim.param_bounds[1]["Y_star"]["mu"] = [-100,100]
+    optim.param_bounds[1]["Y_star"]["log_sig"] = [-5,5]
 
-    if t == 0:
-        X[t] = np.random.choice(K[0]*K[1],p=delta_full)
-    else:
-        X[t] = np.random.choice(K[0]*K[1],p=Gamma_full[X[t-1]])
+if method == "control":
+    optim.step_size = step_sizes["SAGA"]
+    if not (step_sizes["SAGA"][0] is None):
+        optim.L_theta = 1.0 / step_sizes["SAGA"][0]
+        optim.L_eta = 1.0 / step_sizes["SAGA"][1]
+else:
+    optim.step_size = step_sizes[method]
+    if not (step_sizes[method][0] is None):
+        optim.L_theta = 1.0 / step_sizes[method][0]
+        optim.L_eta = 1.0 / step_sizes[method][1]
 
-    data.append({'Y'      : mus['Y'][X[t]] + sigs['Y'][X[t]]*np.random.normal(),
-                 'Y_star' : mus['Y_star'][X[t]] + sigs['Y_star'][X[t]]*np.random.normal()})
-
-
-### TRAIN HMM ###
-optims = {}
-times = {}
-
-# pick initial theta, eta, and eta01
-init_optim = optimizor.optimizor(data,features,K)
-theta = deepcopy(init_optim.theta)
-eta0 = deepcopy(init_optim.eta0)
-eta = deepcopy(init_optim.eta)
-del init_optim
-
-for method in methods:
-
-    for partial_E in [0,0.5,1]:
-
-        if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
-            continue
-
-        print(method,partial_E)
-        print("")
-
-        optims[(method,partial_E)] = optimizor.optimizor(data,features,K)
-        optims[(method,partial_E)].step_size = step_sizes[method]
-        optims[(method,partial_E)].param_bounds[1]["Y"]["mu"] = [-100,100]
-        optims[(method,partial_E)].param_bounds[1]["Y"]["log_sig"] = [-5,5]
-        optims[(method,partial_E)].param_bounds[1]["Y_star"]["mu"] = [-100,100]
-        optims[(method,partial_E)].param_bounds[1]["Y_star"]["log_sig"] = [-5,5]
-        optims[(method,partial_E)].jump_every = jump_every
-
-        # set parameters
-        optims[(method,partial_E)].theta = deepcopy(theta)
-        optims[(method,partial_E)].eta0 = deepcopy(eta0)
-        optims[(method,partial_E)].eta = deepcopy(eta)
-
-
-        if not (step_sizes[method][0] is None):
-            optims[(method,partial_E)].L_theta = 1.0 / step_sizes[method][0]
-            optims[(method,partial_E)].L_eta = 1.0 / step_sizes[method][1]
-
-        if partial_E == 0:
-            optims[(method,partial_E)].train_HHMM(num_epochs=num_epochs,
-                                                  method=method,
-                                                  max_iters=T,
-                                                  partial_E=False,
-                                                  alpha_theta=step_sizes[method][0],
-                                                  alpha_eta=step_sizes[method][1],
-                                                  tol=tol,
-                                                  grad_tol=grad_tol,
-                                                  record_like=True)
-        elif partial_E == 0.5:
-            if method in ["SGD","SAG","SVRG","SAGA"]:
-                optims[(method,partial_E)].train_HHMM(num_epochs=num_epochs,
-                                                      method=method,
-                                                      max_iters=T,
-                                                      partial_E=True,
-                                                      alpha_theta=step_sizes[method][0],
-                                                      alpha_eta=step_sizes[method][1],
-                                                      tol=tol,
-                                                      grad_tol=grad_tol,
-                                                      record_like=True)
-        elif partial_E == 1:
-            if method in ["SGD","SAG","SVRG","SAGA"]:
-                optims[(method,partial_E)].train_HHMM(num_epochs=num_epochs,
-                                                      method=method,
-                                                      max_iters=10*T,
-                                                      partial_E=True,
-                                                      alpha_theta=step_sizes[method][0],
-                                                      alpha_eta=step_sizes[method][1],
-                                                      tol=tol,
-                                                      grad_tol=grad_tol,
-                                                      record_like=True)
-
-
+# print initial parameters
+print("initial theta:")
+print(optim.theta)
+print("")
+print("initial eta0:")
+print(optim.eta0)
+print("")
+print("initial eta:")
+print(optim.eta)
+print("")
 
 # get optimal value via SAGA:
-optims["control"] = optimizor.optimizor(data,features,K)
-optims["control"].step_size = step_sizes["SAGA"]
-optims["control"].param_bounds[1]["Y"]["mu"] = [-100,100]
-optims["control"].param_bounds[1]["Y"]["log_sig"] = [-5,5]
-optims["control"].param_bounds[1]["Y_star"]["mu"] = [-100,100]
-optims["control"].param_bounds[1]["Y_star"]["log_sig"] = [-5,5]
+if method == "control":
+    if experiment == 1:
+        optim.theta = [{},
+                        [{'Y'      : {'mu': np.array([1.0,1.0]),
+                                     'log_sig': np.array([-1.0,-1.0])},
+                          'Y_star' : {'mu': np.array([1.0,2.0]),
+                                     'log_sig': np.array([-1.0,-1.0])}},
+                         {'Y'      : {'mu': np.array([2.0,2.0]),
+                                     'log_sig': np.array([-1.0,-1.0])},
+                          'Y_star' : {'mu': np.array([1.0,2.0]),
+                                     'log_sig': np.array([-1.0,-1.0])}}]]
 
-if experiment == 1:
-    optims["control"].theta = [{},
-                                [{'Y'      : {'mu': np.array([1.0,1.0]),
-                                             'log_sig': np.array([-1.0,-1.0])},
-                                  'Y_star' : {'mu': np.array([1.0,2.0]),
-                                             'log_sig': np.array([-1.0,-1.0])}},
-                                 {'Y'      : {'mu': np.array([2.0,2.0]),
-                                             'log_sig': np.array([-1.0,-1.0])},
-                                  'Y_star' : {'mu': np.array([1.0,2.0]),
-                                             'log_sig': np.array([-1.0,-1.0])}}]]
+        optim.Gamma = [np.array([[0.99,0.01],
+                                  [0.01,0.99]]),
+                        [np.array([[0.75,0.25],
+                                   [0.25,0.75]]),
+                         np.array([[0.25,0.75],
+                                   [0.75,0.25]])]]
 
-    optims["control"].Gamma = [np.array([[0.99,0.01],
-                                          [0.01,0.99]]),
-                                [np.array([[0.75,0.25],
-                                           [0.25,0.75]]),
-                                 np.array([[0.25,0.75],
-                                           [0.75,0.25]])]]
+        optim.delta = [np.array([0.5,0.5]),
+                         [np.array([0.5,0.5]),
+                          np.array([0.5,0.5])]]
 
-    optims["control"].delta = [np.array([0.5,0.5]),
-                                 [np.array([0.5,0.5]),
-                                  np.array([0.5,0.5])]]
-    optims["control"].eta0 = delta_2_eta0(optims["control"].delta)
-    optims["control"].eta = Gamma_2_eta(optims["control"].Gamma)
+        optim.eta0 = delta_2_eta0(optim.delta)
+        optim.eta = Gamma_2_eta(optim.Gamma)
 
-elif experiment == 2:
-    optims["control"].theta = [{},
-                                [{'Y': {'mu': np.array([1.0,2.0,3.0]),
-                                        'log_sig': np.array([-1.0,-1.0,-1.0])}}]]
+    elif experiment == 2:
+        optim.theta = [{},
+                        [{'Y': {'mu': np.array([1.0,2.0,3.0]),
+                                'log_sig': np.array([-1.0,-1.0,-1.0])}}]]
 
-    optims["control"].Gamma = [np.array([[1.0]]),
-                                 [np.array([[0.99,0.005,0.005],
-                                            [0.005,0.99,0.005],
-                                            [0.005,0.005,0.99]])]]
+        optim.Gamma = [np.array([[1.0]]),
+                                     [np.array([[0.99,0.005,0.005],
+                                                [0.005,0.99,0.005],
+                                                [0.005,0.005,0.99]])]]
 
-    optims["control"].delta = [np.array([1.0]),
-                                 [np.array([0.3,0.3,0.4])]]
+        optim.delta = [np.array([1.0]),
+                                     [np.array([0.3,0.3,0.4])]]
 
-    optims["control"].eta0 = delta_2_eta0(optims["control"].delta)
-    optims["control"].eta = Gamma_2_eta(optims["control"].Gamma)
+        optim.eta0 = delta_2_eta0(optim.delta)
+        optim.eta = Gamma_2_eta(optim.Gamma)
 
-optims["control"].train_HHMM(num_epochs=200,
-                             method="SAGA",
-                             max_iters=T,
-                             partial_E=True,
-                             alpha_theta=step_sizes[method][0],
-                             alpha_eta=step_sizes[method][1],
-                             tol=1e-4*tol,
-                             grad_tol=1e-4*grad_tol,
-                             record_like=True)
+    optim.train_HHMM(num_epochs=200,
+                     max_time=max_time,
+                     method="SAGA",
+                     max_iters=T,
+                     partial_E=True,
+                     alpha_theta=step_sizes["SAGA"][0],
+                     alpha_eta=step_sizes["SAGA"][1],
+                     tol=1e-4*tol,
+                     grad_tol=1e-4*grad_tol,
+                     record_like=True)
+
+elif partial_E == 0:
+    optim.train_HHMM(num_epochs=num_epochs,
+                      max_time=max_time,
+                      method=method,
+                      max_iters=T,
+                      partial_E=False,
+                      alpha_theta=step_sizes[method][0],
+                      alpha_eta=step_sizes[method][1],
+                      tol=tol,
+                      grad_tol=grad_tol,
+                      record_like=True)
+
+elif partial_E == 0.5:
+    if method in ["SGD","SAG","SVRG","SAGA"]:
+        optim.train_HHMM(num_epochs=num_epochs,
+                          max_time=max_time,
+                          method=method,
+                          max_iters=T,
+                          partial_E=True,
+                          alpha_theta=step_sizes[method][0],
+                          alpha_eta=step_sizes[method][1],
+                          tol=tol,
+                          grad_tol=grad_tol,
+                          record_like=True)
+
+elif partial_E == 1:
+    if method in ["SGD","SAG","SVRG","SAGA"]:
+        optim.train_HHMM(num_epochs=num_epochs,
+                          max_time=max_time,
+                          method=method,
+                          max_iters=10*T,
+                          partial_E=True,
+                          alpha_theta=step_sizes[method][0],
+                          alpha_eta=step_sizes[method][1],
+                          tol=tol,
+                          grad_tol=grad_tol,
+                          record_like=True)
+
 
 # save file
-fname = "../params/experiment_%d_%d" % (experiment,rand_seed)
+optim.data = data_fname
+fname = "../params/experiment_%d_%d_%s_%.1f_%d" % (experiment,T,method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
-    pickle.dump(optims, f)
+    pickle.dump(optim, f)

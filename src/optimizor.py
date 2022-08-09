@@ -149,8 +149,6 @@ class optimizor:
         # p_Xt and p_Xtm1_Xt
         self.p_Xt = np.zeros((self.T,self.K_total))
         self.p_Xtm1_Xt = np.zeros((self.T,self.K_total,self.K_total))
-        self.p_Xt_tilde = np.zeros((self.T,self.K_total))
-        self.p_Xtm1_Xt_tilde = np.zeros((self.T,self.K_total,self.K_total))
 
         # gradients wrt theta
         self.grad_theta_t = [deepcopy(self.theta) for _ in range(self.T)]
@@ -1175,7 +1173,7 @@ class optimizor:
 
             return
 
-        if False:#method == "GD":
+        if method == "GD":
 
             # update eta0
             delta = alpha_eta * self.grad_eta0[0]
@@ -1210,15 +1208,14 @@ class optimizor:
 
         for iter in range(max_iters):
 
-            # for GD:
             if method == "GD":
 
                 self.E_step(update_probs=False)
-                print(self.grad_eta)
-                print(self.grad_eta0)
-                print(np.sum([self.p_Xt[t] * self.get_log_f(t)[0] for t in range(self.T)]))
-                print(np.sum([self.p_Xtm1_Xt[t] * self.get_log_Gamma()[0] for t in range(1,self.T)]))
-                print("")
+                #print(self.grad_eta)
+                #print(self.grad_eta0)
+                #print(np.sum([self.p_Xt[t] * self.get_log_f(t)[0] for t in range(self.T)]))
+                #print(np.sum([self.p_Xtm1_Xt[t] * self.get_log_Gamma()[0] for t in range(1,self.T)]))
+                #print("")
 
                 # update eta0
                 delta = alpha_eta * self.grad_eta0[0]
@@ -1247,14 +1244,14 @@ class optimizor:
                             self.theta[1][k0][feature][param] += delta
 
                 # record trace
-                self.theta_trace.append(deepcopy(self.theta))
-                self.eta_trace.append(deepcopy(self.eta))
-                self.eta0_trace.append(deepcopy(self.eta0))
+                #self.theta_trace.append(deepcopy(self.theta))
+                #self.eta_trace.append(deepcopy(self.eta))
+                #self.eta0_trace.append(deepcopy(self.eta0))
 
                 # record log likelihood
-                ll, grad_norm = self.get_log_like()
-                self.grad_norm_trace.append(grad_norm / self.T)
-                self.log_like_trace.append(ll / self.T)
+                #ll, grad_norm = self.get_log_like()
+                #self.grad_norm_trace.append(grad_norm / self.T)
+                #self.log_like_trace.append(ll / self.T)
 
                 continue
 
@@ -1519,11 +1516,6 @@ class optimizor:
             self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
             self.log_delta = self.get_log_delta()[0]
 
-            # record trace
-            self.theta_trace.append(deepcopy(self.theta))
-            self.eta_trace.append(deepcopy(self.eta))
-            self.eta0_trace.append(deepcopy(self.eta0))
-
             # record likelihood and check for convergence every T iterations
             if (iter % (2*self.T) == (2*self.T-1)):
 
@@ -1535,10 +1527,15 @@ class optimizor:
 
                 if record_like:
 
-                    # record time trace
+                    # record time trace and stop timer
                     self.train_time += time.time() - self.start_time
                     self.time_trace.append(self.train_time)
                     self.epoch_trace.append(self.epoch_num)
+
+                    # record parameter traces
+                    self.theta_trace.append(deepcopy(self.theta))
+                    self.eta_trace.append(deepcopy(self.eta))
+                    self.eta0_trace.append(deepcopy(self.eta0))
 
                     # record log likelihood
                     ll, grad_norm = self.get_log_like()
@@ -1847,7 +1844,7 @@ class optimizor:
 
         return res
 
-    def train_HHMM(self,num_epochs=10,max_iters=None,alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-3,method="EM",partial_E=False,record_like=False):
+    def train_HHMM(self,num_epochs=10,max_time=np.infty,max_iters=None,alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-3,method="EM",partial_E=False,record_like=False):
 
         # fill in keyword args
         if max_iters is None:
@@ -1881,15 +1878,18 @@ class optimizor:
 
             return
 
+        # initialize old values
         ll_old = -np.infty
         theta_old = deepcopy(self.theta)
         eta_old = deepcopy(self.eta)
         eta0_old = deepcopy(self.eta0)
 
-        while self.epoch_num < num_epochs:
+        while (self.epoch_num < num_epochs) and (self.train_time < max_time):
 
             print("starting epoch %.1f" % (self.epoch_num))
             print("")
+
+            print("%.3f hours elapsed" % (self.train_time / 3600))
 
             # show current parameters
             print("current parameters:")
@@ -1909,32 +1909,32 @@ class optimizor:
             print("starting E-step...")
             self.E_step()
             print("...done")
+            print("")
 
             # record log-likelihood
             ll_new = logsumexp(self.log_alphas[self.T-1])
-            print(ll_new)
+            print("current log likelihood: %f" % ll_new)
+            print("")
 
             # check for convergence
             if (ll_new < ll_old):
 
                 print("log likelihood decreased. Trying again...")
+                print("")
                 ll_old = ll_new
 
-                # abandon partial_E
-                #partial_E = False
-
                 # return old parameters
-                #self.theta = theta_old
-                #self.eta = eta_old
-                #self.eta0 = eta0_old
+                self.theta = theta_old
+                self.eta = eta_old
+                self.eta0 = eta0_old
 
                 # return Gamma and delta
-                #self.log_Gamma = self.get_log_Gamma(jump=False)[0]
-                #self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
-                #self.log_delta = self.get_log_delta()[0]
+                self.log_Gamma = self.get_log_Gamma(jump=False)[0]
+                self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
+                self.log_delta = self.get_log_delta()[0]
 
                 # return old gradients and weights
-                #self.E_step()
+                self.E_step()
 
             elif ((ll_new - ll_old)/np.abs(ll_old)) < tol:
 
@@ -1981,7 +1981,10 @@ class optimizor:
             print("")
 
 
-        print("maximum number of epochs (%.1f) reached. Returning..." % self.epoch_num)
+        if self.train_time > max_time:
+            print("Maximum training time (%.3f hrs) reached. Returning..." % (max_time / 3600))
+        else:
+            print("Maximum number of epochs (%.1f) reached. Returning..." % self.epoch_num)
 
         return
 

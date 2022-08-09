@@ -472,18 +472,6 @@ class optimizor:
                         a = np.concatenate([a for _ in theta[1]])
                         b = np.concatenate([b for _ in theta[1]])
 
-                        #print("")
-                        #print(y[feature])
-                        #print(a)
-                        #print(b)
-                        #print(mu)
-                        #print(sig)
-                        #print(truncnorm.logpdf(y[feature],
-                        #                       a=(a-mu)/sig,
-                        #                       b=(b-mu)/sig,
-                        #                       loc=mu,scale=sig))
-                        #print("")
-
                         log_f += truncnorm.logpdf(y[feature],
                                                   a=(a-mu)/sig,
                                                   b=(b-mu)/sig,
@@ -719,13 +707,13 @@ class optimizor:
 
         return
 
-    def update_p_Xtm1_Xt(self,t,log_t=None):
+    def update_p_Xtm1_Xt(self,t,log_f=None):
 
         if t == 0:
             raise("p_Xtm1_Xt not defined for t = 0")
 
-        if log_t is None:
-            log_t = self.get_log_f(t)[0]
+        if log_f is None:
+            log_f = self.get_log_f(t)[0]
 
         if t % self.jump_every == 0:
             log_Gamma = self.log_Gamma_jump
@@ -737,7 +725,7 @@ class optimizor:
             for j in range(self.K_total):
                 p_XX[i,j] = self.log_alphas[t-1,i] \
                             + log_Gamma[i,j] \
-                            + log_t[j] \
+                            + log_f[j] \
                             + self.log_betas[t,j]
 
         self.p_Xtm1_Xt[t] = np.exp(p_XX - logsumexp(p_XX))

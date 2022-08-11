@@ -23,6 +23,8 @@ from scipy.signal import convolve
 from scipy.interpolate import interp1d
 from scipy.linalg import block_diag
 
+from itertools import product
+
 from math import isclose
 
 from copy import deepcopy
@@ -44,45 +46,61 @@ from optimizor import eta_2_Gamma
 from optimizor import logdotexp
 
 # parse command-line args
-experiment = int(sys.argv[1])
-T = int(sys.argv[2])
-max_time = 3600*float(sys.argv[3])
-id = int(sys.argv[4])
+max_time = 3600*float(sys.argv[1])
+id = int(sys.argv[2])
 
-# set method
-if id % 5 == 4:
-    method = "control"
-    partial_E = 0
-elif id % 5 == 3:
-    method = "BFGS"
-    partial_E = 0
-else:
-    method = "SAGA"
-    partial_E = float(id % 5) / 2.0
+method_partialEs = [("control",0.0),
+                    ("BFGS",0.0),
+                    ("CG",0.0),
+                    ("GD",0.0),
+                    ("SAGA",0.0),
+                    ("SAGA",0.5),
+                    ("SAGA",1.0),
+                    ("SVRG",0.0),
+                    ("SVRG",0.5),
+                    ("SVRG",1.0)]
 
-rand_seed = int(id / 5)
+Ts = [1e3,1e4,1e5]
+Ks = [3,5,10]
+ds = [1,4,10]
+rand_seed = [0,1,2,3,4,5,6,7,8,9]
+
+# set methods
+for i,settings in enumerate(product(method_partialEs,Ts,Ks,ds,rand_seed)):
+    if i == id:
+        break
+
+
+method = settings[0][0]
+partial_E = settings[0][1]
+T = int(settings[1])
+K = [settings[2],1]
+d = settings[3]
+rand_seed = settings[4]
 random.seed(rand_seed)
 np.random.seed(rand_seed)
 
-print("experiment: %d" % experiment)
 print("method: %s" % method)
 print("partial E_step: %.1f" % partial_E)
+print("T: %d" % T)
+print("K: %s" % str(K))
+print("d: %d" % d)
 print("random seed: %d" % rand_seed)
 print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
 num_epochs = 100
-tol = 1e-8
+tol = 1e-16
 grad_tol = 1e-16
 
 step_sizes = {"EM"  : [None,None],
               "CG"  : [None,None],
               "BFGS": [None,None],
-              "GD"  : [0.01,0.01],
-              "SGD" : [0.01,0.01],
-              "SAG" : [0.01,0.01],
-              "SVRG": [0.01,0.01],
-              "SAGA": [0.01,0.01]}
+              "GD"  : [0.005,0.005],
+              "SGD" : [0.005,0.005],
+              "SAG" : [0.005,0.005],
+              "SVRG": [0.005,0.005],
+              "SAGA": [0.005,0.005]}
 
 jump_every = 1
 
@@ -91,82 +109,22 @@ if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
     raise("partial_E not consistent with method")
 
 ### features of data ###
-if experiment == 1:
-
-    features = [{},
-                {'Y'      : {'f'           : 'normal',
-                             'lower_bound' : None,
-                             'upper_bound' : None},
-                 'Y_star' : {'f'           : 'normal',
-                             'lower_bound' : None,
-                             'upper_bound' : None}}]
-
-    K = [2,2]
-
-    jump_every = 1
-
-    Gamma = [np.array([[0.99,0.01],
-                       [0.01,0.99]]),
-             [np.array([[0.75,0.25],
-                        [0.25,0.75]]),
-              np.array([[0.25,0.75],
-                        [0.75,0.25]])]]
-
-    delta = [np.array([0.5,0.5]),
-             [np.array([0.5,0.5]),
-              np.array([0.5,0.5])]]
-
-
-    Gamma_coarse_full = np.kron(Gamma[0],np.ones((2,2)))
-    Gamma_fine_full = np.block([[Gamma[1][0],np.tile(delta[1][1],(2,1))],
-                                [np.tile(delta[1][0],(2,1)),Gamma[1][1]]])
-
-    Gamma_full = Gamma_coarse_full * Gamma_fine_full
-    delta_full = np.repeat(delta[0],2) * np.concatenate(delta[1])
-
-    mus = {'Y'      : np.array([1.0,1.0,2.0,2.0]),
-           'Y_star' : np.array([1.0,2.0,1.0,2.0])}
-
-    sigs = {'Y'      : np.exp(np.array([-1.0,-1.0,-1.0,-1.0])), # coarse-scale sigs
-            'Y_star' : np.exp(np.array([-1.0,-1.0,-1.0,-1.0]))} # fine-scale sigs
-
-elif experiment == 2:
-
-    features = [{},
-                {'Y'      : {'f'           : 'normal',
-                             'lower_bound' : None,
-                             'upper_bound' : None}}]
-
-    K = [1,3]
-
-    jump_every = 1
-
-    Gamma = [np.array([[1.0]]),
-             [np.array([[0.99,0.005,0.005],
-                        [0.005,0.99,0.005],
-                        [0.005,0.005,0.99]])]]
-
-    delta = [np.array([1.0]),
-             [np.array([0.3,0.3,0.4])]]
-
-    Gamma_full = Gamma[1][0]
-    delta_full = delta[1][0]
-
-    mus =  {'Y' : np.array([1.0,2.0,3.0])}
-    sigs = {'Y' : np.exp(np.array([-1.0,-1.0,-1.0]))}
+features = [{},
+            {'Y%d'%d0  : {'f'           : 'normal',
+                          'lower_bound' : None,
+                          'upper_bound' : None} for d0 in range(d)}]
 
 ### load in data ###
-data_fname = "../dat/data_Y_exp-%d_T-%d" % (experiment,T)
+data_fname = "../dat/data_Y_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
 with open(data_fname,"rb") as f:
     data = pickle.load(f)
 
 # pick intial parameters
 optim = optimizor.optimizor(data,features,K)
-optim.param_bounds[1]["Y"]["mu"] = [-100,100]
-optim.param_bounds[1]["Y"]["log_sig"] = [-5,5]
-if experiment == 1:
-    optim.param_bounds[1]["Y_star"]["mu"] = [-100,100]
-    optim.param_bounds[1]["Y_star"]["log_sig"] = [-5,5]
+for d0 in range(d):
+    optim.param_bounds[1]["Y%d"%d0] = {}
+    optim.param_bounds[1]["Y%d"%d0]["mu"] = [-100,100]
+    optim.param_bounds[1]["Y%d"%d0]["log_sig"] = [-5,5]
 
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
@@ -192,46 +150,24 @@ print("")
 
 # get optimal value via SAGA:
 if method == "control":
-    if experiment == 1:
-        optim.theta = [{},
-                        [{'Y'      : {'mu': np.array([1.0,1.0]),
-                                     'log_sig': np.array([-1.0,-1.0])},
-                          'Y_star' : {'mu': np.array([1.0,2.0]),
-                                     'log_sig': np.array([-1.0,-1.0])}},
-                         {'Y'      : {'mu': np.array([2.0,2.0]),
-                                     'log_sig': np.array([-1.0,-1.0])},
-                          'Y_star' : {'mu': np.array([1.0,2.0]),
-                                     'log_sig': np.array([-1.0,-1.0])}}]]
 
-        optim.Gamma = [np.array([[0.99,0.01],
-                                  [0.01,0.99]]),
-                        [np.array([[0.75,0.25],
-                                   [0.25,0.75]]),
-                         np.array([[0.25,0.75],
-                                   [0.75,0.25]])]]
+    fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    with open(fname_p, 'rb') as f:
+        true_params = pickle.load(f)
 
-        optim.delta = [np.array([0.5,0.5]),
-                         [np.array([0.5,0.5]),
-                          np.array([0.5,0.5])]]
+    optim.theta = [{},[]]
 
-        optim.eta0 = delta_2_eta0(optim.delta)
-        optim.eta = Gamma_2_eta(optim.Gamma)
+    for k0 in range(K[0]):
+        optim.theta[1].append({'Y%d'%d0 : {'mu': true_params["mus"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])],
+                                           'log_sig': np.log(true_params["sigs"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])])} \
+                               for d0 in range(d)})
 
-    elif experiment == 2:
-        optim.theta = [{},
-                        [{'Y': {'mu': np.array([1.0,2.0,3.0]),
-                                'log_sig': np.array([-1.0,-1.0,-1.0])}}]]
+    optim.Gamma = true_params["Gamma"]
+    optim.delta = true_params["delta"]
 
-        optim.Gamma = [np.array([[1.0]]),
-                                     [np.array([[0.99,0.005,0.005],
-                                                [0.005,0.99,0.005],
-                                                [0.005,0.005,0.99]])]]
+    optim.eta0 = delta_2_eta0(optim.delta)
+    optim.eta = Gamma_2_eta(optim.Gamma)
 
-        optim.delta = [np.array([1.0]),
-                                     [np.array([0.3,0.3,0.4])]]
-
-        optim.eta0 = delta_2_eta0(optim.delta)
-        optim.eta = Gamma_2_eta(optim.Gamma)
 
     optim.train_HHMM(num_epochs=200,
                      max_time=max_time,

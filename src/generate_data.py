@@ -44,100 +44,86 @@ from optimizor import eta_2_Gamma
 from optimizor import logdotexp
 
 # parse command-line args
-experiment = int(sys.argv[1])
-T = int(sys.argv[2])
+#T = int(sys.argv[1])
+#K = [int(sys.argv[2]),int(sys.argv[3])]
+#d = int(sys.argv[4])
 
-# set random seed
-random.seed(0)
-np.random.seed(0)
+def generate_data(T,K,d):
 
-# Select parameters for data generating process
-if experiment == 1:
+    # set random seed
+    random.seed(0)
+    np.random.seed(0)
 
+    # Select parameters for data generating process
     features = [{},
-                {'Y'      : {'f'           : 'normal',
-                             'lower_bound' : None,
-                             'upper_bound' : None},
-                 'Y_star' : {'f'           : 'normal',
-                             'lower_bound' : None,
-                             'upper_bound' : None}}]
-
-    K = [2,2]
+                {'Y%d'%d0  : {'f'           : 'normal',
+                              'lower_bound' : None,
+                              'upper_bound' : None} for d0 in range(d)}]
 
     jump_every = 1
 
-    Gamma = [np.array([[0.99,0.01],
-                       [0.01,0.99]]),
-             [np.array([[0.75,0.25],
-                        [0.25,0.75]]),
-              np.array([[0.25,0.75],
-                        [0.75,0.25]])]]
+    # generate Gamma_coarse
+    Gamma_coarse = np.zeros((K[0],K[0]))
+    for i in range(K[0]):
+        Gamma_coarse[i] = 100.0/(T*(K[0]-1)) * np.ones(K[0])
+        Gamma_coarse[i,i] = 1.0-100.0/T
 
-    delta = [np.array([0.5,0.5]),
-             [np.array([0.5,0.5]),
-              np.array([0.5,0.5])]]
+    # generate Gamma_fines
+    Gamma_fines = []
+    for k0 in range(K[0]):
+        Gamma_fine = np.zeros((K[1],K[1]))
+        for k1 in range(K[1]):
+            Gamma_fine[k1] = np.random.dirichlet(np.ones(K[1]))
+        Gamma_fines.append(Gamma_fine)
 
+    delta_coarse = np.random.dirichlet(np.ones(K[0]))
+    delta_fines = [np.random.dirichlet(np.ones(K[1])) for _ in range(K[0])]
 
-    Gamma_coarse_full = np.kron(Gamma[0],np.ones((2,2)))
-    Gamma_fine_full = np.block([[Gamma[1][0],np.tile(delta[1][1],(2,1))],
-                                [np.tile(delta[1][0],(2,1)),Gamma[1][1]]])
+    Gamma_coarse_full = np.kron(Gamma_coarse,np.ones((K[1],K[1])))
+    Gamma_fine_full = np.zeros((0,K[0]*K[1]))
+
+    for k0 in range(K[0]):
+        coarse_row_elements = [np.tile(delta_fines[i],(K[1],1)) for i in range(K[0])]
+        coarse_row_elements[k0] = Gamma_fines[k0]
+        coarse_row = np.hstack(coarse_row_elements)
+        Gamma_fine_full = np.vstack([Gamma_fine_full,coarse_row])
 
     Gamma_full = Gamma_coarse_full * Gamma_fine_full
-    delta_full = np.repeat(delta[0],2) * np.concatenate(delta[1])
+    delta_full = np.repeat(delta_coarse,K[1]) * np.concatenate(delta_fines)
 
-    mus = {'Y'      : np.array([1.0,1.0,2.0,2.0]),
-           'Y_star' : np.array([1.0,2.0,1.0,2.0])}
+    mus =  {'Y%d'%d0 : np.random.normal(size=K[0]*K[1]) for d0 in range(d)}
+    sigs = {'Y%d'%d0 : np.exp(-1.0)*np.ones(K[0]*K[1]) for d0 in range(d)}
 
-    sigs = {'Y'      : np.exp(np.array([-1.0,-1.0,-1.0,-1.0])), # coarse-scale sigs
-            'Y_star' : np.exp(np.array([-1.0,-1.0,-1.0,-1.0]))} # fine-scale sigs
+    ### GENERATE DATA ###
+    X = np.zeros(T,dtype=int)
+    data_y = []
 
-elif experiment == 2:
+    for t in range(T):
 
-    features = [{},
-                {'Y'      : {'f'           : 'normal',
-                             'lower_bound' : None,
-                             'upper_bound' : None}}]
+        if t == 0:
+            X[t] = np.random.choice(K[0]*K[1],p=delta_full)
+        else:
+            X[t] = np.random.choice(K[0]*K[1],p=Gamma_full[X[t-1]])
 
-    K = [1,3]
+        datum = {}
+        for feature in features[1]:
+            datum[feature] =  mus[feature][X[t]] + sigs[feature][X[t]]*np.random.normal()
+        data_y.append(datum)
 
-    jump_every = 1
+    # save data
+    fname_y = "../dat/data_Y_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    with open(fname_y, 'wb') as f:
+        pickle.dump(data_y, f)
 
-    Gamma = [np.array([[1.0]]),
-             [np.array([[0.99,0.005,0.005],
-                        [0.005,0.99,0.005],
-                        [0.005,0.005,0.99]])]]
+    fname_x = "../dat/data_X_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    with open(fname_x, 'wb') as f:
+        pickle.dump(X, f)
 
-    delta = [np.array([1.0]),
-             [np.array([0.3,0.3,0.4])]]
+    fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    with open(fname_p, 'wb') as f:
+        pickle.dump({"mus"  : mus,
+                     "sigs" : sigs,
+                     "Gamma": [Gamma_coarse,Gamma_fines],
+                     "delta": [delta_coarse,delta_fines]}, f)
 
-    Gamma_full = Gamma[1][0]
-    delta_full = delta[1][0]
-
-    mus =  {'Y' : np.array([1.0,2.0,3.0])}
-    sigs = {'Y' : np.exp(np.array([-1.0,-1.0,-1.0]))}
-
-### GENERATE DATA ###
-X = np.zeros(T,dtype=int)
-data_y = []
-
-for t in range(T):
-
-    if t == 0:
-        X[t] = np.random.choice(K[0]*K[1],p=delta_full)
-    else:
-        X[t] = np.random.choice(K[0]*K[1],p=Gamma_full[X[t-1]])
-
-    if experiment == 1:
-        data_y.append({'Y'      : mus['Y'][X[t]] + sigs['Y'][X[t]]*np.random.normal(),
-                       'Y_star' : mus['Y_star'][X[t]] + sigs['Y_star'][X[t]]*np.random.normal()})
-    elif experiment == 2:
-        data_y.append({'Y'      : mus['Y'][X[t]] + sigs['Y'][X[t]]*np.random.normal()})
-
-# save data
-fname_y = "../dat/data_Y_exp-%d_T-%d" % (experiment,T)
-with open(fname_y, 'wb') as f:
-    pickle.dump(data_y, f)
-
-fname_x = "../dat/data_X_exp-%d_T-%d" % (experiment,T)
-with open(fname_x, 'wb') as f:
-    pickle.dump(X, f)
+    return

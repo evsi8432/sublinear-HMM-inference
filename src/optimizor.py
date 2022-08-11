@@ -292,8 +292,8 @@ class optimizor:
     def initialize_eta0(self):
 
         # initialize eta0
-        self.eta0 = [np.random.normal(size=self.K[0]),
-                     [np.random.normal(size=self.K[1]) for _ in range(self.K[0])]]
+        self.eta0 = [np.concatenate(([0.0],np.random.normal(size=(self.K[0]-1)))),
+                     [np.concatenate(([0.0],np.random.normal(size=(self.K[1]-1)))) for _ in range(self.K[0])]]
 
         return
 
@@ -1023,7 +1023,7 @@ class optimizor:
         elif G_t_new > G_t - grad_G_t_norm2 / (2*self.L_eta):
             self.L_eta *= 2
         else:
-            self.L_eta *= 2**(-1/self.T)
+            self.L_eta *= 2**(-1/(self.T-1))
 
         return
 
@@ -1203,14 +1203,14 @@ class optimizor:
 
             return
 
-        if method == "GD":
-            max_iters = 10
+        #if method == "GD":
+        #    max_iters = 10
 
         for iter in range(max_iters):
 
-            if method == "GD":
+            #if method == "GD":
 
-                self.E_step(update_probs=False)
+                #self.E_step(update_probs=False)
                 #print(self.grad_eta)
                 #print(self.grad_eta0)
                 #print(np.sum([self.p_Xt[t] * self.get_log_f(t)[0] for t in range(self.T)]))
@@ -1218,30 +1218,30 @@ class optimizor:
                 #print("")
 
                 # update eta0
-                delta = alpha_eta * self.grad_eta0[0]
-                self.eta0[0] += delta
-                for k0 in range(self.K[0]):
-                    delta = alpha_eta * self.grad_eta0[1][k0]
-                    self.eta0[1][k0] += delta
+                #delta = alpha_eta * self.grad_eta0[0]
+                #self.eta0[0] += delta
+                #for k0 in range(self.K[0]):
+                #    delta = alpha_eta * self.grad_eta0[1][k0]
+                #    self.eta0[1][k0] += delta
 
                 # update eta
-                delta = alpha_eta * self.grad_eta[0]
-                self.eta[0] += delta
-                for k0 in range(self.K[0]):
-                    delta = alpha_eta * self.grad_eta[1][k0]
-                    self.eta[1][k0] += delta
+                #delta = alpha_eta * self.grad_eta[0]
+                #self.eta[0] += delta
+                #for k0 in range(self.K[0]):
+                #    delta = alpha_eta * self.grad_eta[1][k0]
+                #    self.eta[1][k0] += delta
 
                 # update theta
-                for feature in self.grad_theta[0]:
-                    for param in ['mu','log_sig']:
-                        delta = alpha_theta * self.grad_theta[0][feature][param]
-                        self.theta[0][feature][param] += delta
+                #for feature in self.grad_theta[0]:
+                #    for param in ['mu','log_sig']:
+                #        delta = alpha_theta * self.grad_theta[0][feature][param]
+                #        self.theta[0][feature][param] += delta
 
-                for k0 in range(self.K[0]):
-                    for feature in self.grad_theta[1][k0]:
-                        for param in ['mu','log_sig']:
-                            delta = alpha_theta * self.grad_theta[1][k0][feature][param]
-                            self.theta[1][k0][feature][param] += delta
+                #for k0 in range(self.K[0]):
+                #    for feature in self.grad_theta[1][k0]:
+                #        for param in ['mu','log_sig']:
+                #            delta = alpha_theta * self.grad_theta[1][k0][feature][param]
+                #            self.theta[1][k0][feature][param] += delta
 
                 # record trace
                 #self.theta_trace.append(deepcopy(self.theta))
@@ -1253,7 +1253,7 @@ class optimizor:
                 #self.grad_norm_trace.append(grad_norm / self.T)
                 #self.log_like_trace.append(ll / self.T)
 
-                continue
+                #continue
 
             # pick index
             t = np.random.choice(self.T)
@@ -1921,20 +1921,27 @@ class optimizor:
 
                 print("log likelihood decreased. Trying again...")
                 print("")
-                ll_old = ll_new
+                #ll_old = ll_new
+
+                if method == "GD":
+                    alpha_theta = alpha_theta / 2.0
+                    alpha_eta = alpha_eta / 2.0
+
+                    print("new step size: %f" % alpha_theta)
 
                 # return old parameters
-                self.theta = theta_old
-                self.eta = eta_old
-                self.eta0 = eta0_old
+                self.theta = deepcopy(theta_old)
+                self.eta = deepcopy(eta_old)
+                self.eta0 = deepcopy(eta0_old)
 
                 # return Gamma and delta
                 self.log_Gamma = self.get_log_Gamma(jump=False)[0]
                 self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
                 self.log_delta = self.get_log_delta()[0]
 
-                # return old gradients and weights
+                # return old gradients, weights, and likleihood
                 self.E_step()
+                ll_new = logsumexp(self.log_alphas[self.T-1])
 
             elif ((ll_new - ll_old)/np.abs(ll_old)) < tol:
 
@@ -1944,6 +1951,12 @@ class optimizor:
 
             else:
                 ll_old = ll_new
+
+                if method == "GD":
+                    alpha_theta = alpha_theta * 2**(1/(self.T-1))
+                    alpha_eta = alpha_eta * 2**(1/(self.T-1))
+
+                    print("new step size: %f" % alpha_theta)
 
                 theta_old = deepcopy(self.theta)
                 eta_old = deepcopy(self.eta)
@@ -1969,8 +1982,8 @@ class optimizor:
             print("starting M-step...")
             self.M_step(max_iters=max_iters,
                         method=method,
-                        #alpha_theta=alpha_theta,
-                        #alpha_eta=alpha_eta,
+                        alpha_theta=alpha_theta,
+                        alpha_eta=alpha_eta,
                         partial_E=partial_E,
                         tol=grad_tol,
                         record_like=record_like)

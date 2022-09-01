@@ -66,17 +66,18 @@ ds = [1,4,10]
 rand_seed = [0,1,2,3,4,5,6,7,8,9]
 
 # set methods
-for i,settings in enumerate(product(method_partialEs,Ts,Ks,ds,rand_seed)):
+for i,settings0 in enumerate(product(Ts,Ks,ds,rand_seed,method_partialEs)):
     if i == id:
+        settings = settings0
         break
 
+T = int(settings[0])
+K = [settings[1],1]
+d = settings[2]
+rand_seed = settings[3]
+method = settings[4][0]
+partial_E = settings[4][1]
 
-method = settings[0][0]
-partial_E = settings[0][1]
-T = int(settings[1])
-K = [settings[2],1]
-d = settings[3]
-rand_seed = settings[4]
 random.seed(rand_seed)
 np.random.seed(rand_seed)
 
@@ -219,8 +220,21 @@ elif partial_E == 1:
                           record_like=True)
 
 
-# save file
+# reduce storage
 optim.data = data_fname
-fname = "../params/experiment_%d_%d_%s_%.1f_%d" % (experiment,T,method,partial_E,rand_seed)
+
+# cut variables with size complexity O(T) (can recalculate with E-step)
+optim.grad_eta_t = None
+optim.grad_eta0_t = None
+optim.grad_theta_t = None
+
+optim.log_alphas = None
+optim.log_betas = None
+
+optim.p_Xt = None
+optim.p_Xtm1_Xt = None
+
+# save file
+fname = "../params/T-%d_K-%d-%d_d-%d_%s_%.1f_%d" % (T,K[0],K[1],d,method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

@@ -22,6 +22,8 @@ from scipy.interpolate import interp1d
 
 from copy import deepcopy
 
+import warnings
+
 import time
 import pickle
 
@@ -112,9 +114,15 @@ class optimizor:
         self.K_total = self.K[0]*self.K[1]
         self.T = len(data)
         self.jump_every = 1
-
-        # define features
         self.features = features
+
+        # indices where sequences start and end
+        self.initial_ts = [0]
+        self.final_ts = [self.T-1]
+
+        # get log likelihood and grad ll
+        self.ll = None
+        self.grad_ll = None
 
         # thetas and etas
         self.initialize_theta(data)
@@ -125,22 +133,6 @@ class optimizor:
         self.log_Gamma = self.get_log_Gamma(jump=False)[0]
         self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
         self.log_delta = self.get_log_delta()[0]
-
-        self.theta_tilde = deepcopy(self.theta)
-        self.eta_tilde = deepcopy(self.eta)
-        self.eta0_tilde = deepcopy(self.eta0)
-
-        self.theta_trace = []
-        self.eta_trace = []
-        self.eta0_trace = []
-
-        # log-likelihood traces
-        self.log_like_trace = []
-        self.grad_norm_trace = []
-
-        # time traces
-        self.time_trace = []
-        self.epoch_trace = []
 
         # alpha and beta
         self.log_alphas = np.zeros((self.T,self.K_total))
@@ -165,7 +157,31 @@ class optimizor:
         # initialize gradients
         self.initialize_grads()
 
+        # keep track of time
+        self.start_time = None
+        self.train_time = None
+
+        # keep track of epochs
+        self.epoch_num = 0.0
+
+        # traces of parameters
+        self.theta_trace = []
+        self.eta_trace = []
+        self.eta0_trace = []
+
+        # log-likelihood traces
+        self.log_like_trace = []
+        self.grad_norm_trace = []
+
+        # time traces
+        self.time_trace = []
+        self.epoch_trace = []
+
         # copies for SVRG
+        self.theta_tilde = deepcopy(self.theta)
+        self.eta_tilde = deepcopy(self.eta)
+        self.eta0_tilde = deepcopy(self.eta0)
+
         self.grad_theta_tilde = deepcopy(self.grad_theta)
         self.grad_eta_tilde = deepcopy(self.grad_eta)
         self.grad_eta0_tilde = deepcopy(self.grad_eta0)
@@ -176,11 +192,6 @@ class optimizor:
         self.theta_tilde = deepcopy(self.theta)
         self.eta_tilde = deepcopy(self.eta)
         self.eta0_tilde = deepcopy(self.eta0)
-
-        # time to train
-        self.train_time = None
-        self.start_time = None
-        self.epoch_num = None
 
         # initialize step sizes and parameter bounds
         self.step_size = None
@@ -384,7 +395,7 @@ class optimizor:
 
         return
 
-    def get_log_f(self,t,theta=None):
+    def get_log_f(self,t,theta=None,grad=True):
 
         if theta is None:
             theta = self.theta
@@ -431,45 +442,46 @@ class optimizor:
 
 
                     # store gradient
-                    mu = theta[0][feature]['mu']
-                    sig = np.exp(theta[0][feature]['log_sig'])
+                    if grad:
+                        mu = theta[0][feature]['mu']
+                        sig = np.exp(theta[0][feature]['log_sig'])
 
-                    if np.isnan(y[feature]):
-                        grad_log_f[0][feature] = {'mu': 0, 'log_sig': 0}
-                    else:
-                        grad_log_f[0][feature] = {'mu': (y[feature]-mu)/(sig**2),
-                                                  'log_sig': ((y[feature]-mu)/sig)**2 - 1}
+                        if np.isnan(y[feature]):
+                            grad_log_f[0][feature] = {'mu': 0, 'log_sig': 0}
+                        else:
+                            grad_log_f[0][feature] = {'mu': (y[feature]-mu)/(sig**2),
+                                                      'log_sig': ((y[feature]-mu)/sig)**2 - 1}
 
-                        # deal with truncated normals
-                        a = self.features[0][feature]['lower_bound']
-                        b = self.features[0][feature]['upper_bound']
-                        if (a is not None) and (b is not None):
-                            for k0 in range(self.K[0]):
+                            # deal with truncated normals
+                            a = self.features[0][feature]['lower_bound']
+                            b = self.features[0][feature]['upper_bound']
+                            if (a is not None) and (b is not None):
+                                for k0 in range(self.K[0]):
 
-                                if a[k0] > -np.infty and b[k0] < np.infty:
-                                    print("cannot handle two-sided truncated normals at this time.")
+                                    if a[k0] > -np.infty and b[k0] < np.infty:
+                                        print("cannot handle two-sided truncated normals at this time.")
 
-                                elif a[k0] > -np.infty:
+                                    elif a[k0] > -np.infty:
 
-                                    ratio = norm.pdf(a,loc=mu,scale=sig)/norm.sf(a,loc=mu,scale=sig)
+                                        ratio = norm.pdf(a,loc=mu,scale=sig)/norm.sf(a,loc=mu,scale=sig)
 
-                                    if y[feature] >= np.array(a[k1]):
-                                        grad_log_f[0][feature]['mu'][k0] += -ratio
-                                        grad_log_f[0][feature]['log_sig'][k0] += -(a-mu)*(ratio)
-                                    else:
-                                        grad_log_f[0][feature]['mu'][k0] = 0.0
-                                        grad_log_f[0][feature]['log_sig'][k0] = 0.0
+                                        if y[feature] >= np.array(a[k1]):
+                                            grad_log_f[0][feature]['mu'][k0] += -ratio
+                                            grad_log_f[0][feature]['log_sig'][k0] += -(a-mu)*(ratio)
+                                        else:
+                                            grad_log_f[0][feature]['mu'][k0] = 0.0
+                                            grad_log_f[0][feature]['log_sig'][k0] = 0.0
 
-                                elif b[k1] < np.infty:
+                                    elif b[k1] < np.infty:
 
-                                    ratio = norm.pdf(b,loc=mu,scale=sig)/norm.cdf(b,loc=mu,scale=sig)
+                                        ratio = norm.pdf(b,loc=mu,scale=sig)/norm.cdf(b,loc=mu,scale=sig)
 
-                                    if y[feature] <= np.array(b[k1]):
-                                        grad_log_f[0][feature]['mu'][k0] += ratio
-                                        grad_log_f[0][feature]['log_sig'][k0] += (b-mu)*(ratio)
-                                    else:
-                                        grad_log_f[0][feature]['mu'][k0] = 0.0
-                                        grad_log_f[0][feature]['log_sig'][k0] = 0.0
+                                        if y[feature] <= np.array(b[k1]):
+                                            grad_log_f[0][feature]['mu'][k0] += ratio
+                                            grad_log_f[0][feature]['log_sig'][k0] += (b-mu)*(ratio)
+                                        else:
+                                            grad_log_f[0][feature]['mu'][k0] = 0.0
+                                            grad_log_f[0][feature]['log_sig'][k0] = 0.0
 
 
                 elif dist == 'bern':
@@ -487,16 +499,17 @@ class optimizor:
                         print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
 
                     # store gradient
-                    logit_p = theta[0][feature]['logit_p']
+                    if grad:
+                        logit_p = theta[0][feature]['logit_p']
 
-                    if np.isnan(y[feature]):
-                        grad_log_f[0][feature] = {'logit_p': 0}
-                    elif y[feature] == 0:
-                        grad_log_f[0][feature] = {'logit_p': -expit(logit_p)}
-                    elif y[feature] == 1:
-                        grad_log_f[0][feature] = {'logit_p': expit(-logit_p)}
-                    else:
-                        print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
+                        if np.isnan(y[feature]):
+                            grad_log_f[0][feature] = {'logit_p': 0}
+                        elif y[feature] == 0:
+                            grad_log_f[0][feature] = {'logit_p': -expit(logit_p)}
+                        elif y[feature] == 1:
+                            grad_log_f[0][feature] = {'logit_p': expit(-logit_p)}
+                        else:
+                            print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
 
                 else:
                     print("unidentified emission distribution %s for %s"%(dist,feature))
@@ -532,49 +545,50 @@ class optimizor:
 
 
                     # store gradient
-                    for k0 in range(self.K[0]):
+                    if grad:
+                        for k0 in range(self.K[0]):
 
-                        mu = theta[1][k0][feature]['mu']
-                        log_sig = theta[1][k0][feature]['log_sig']
-                        sig = np.exp(log_sig)
+                            mu = theta[1][k0][feature]['mu']
+                            log_sig = theta[1][k0][feature]['log_sig']
+                            sig = np.exp(log_sig)
 
-                        if np.isnan(y[feature]):
-                            grad_log_f[1][k0][feature] = {'mu': 0, 'log_sig': 0}
-                        else:
-                            grad_log_f[1][k0][feature] = {'mu': (y[feature]-mu)/(sig**2),
-                                                          'log_sig': ((y[feature]-mu)/sig)**2 - 1}
+                            if np.isnan(y[feature]):
+                                grad_log_f[1][k0][feature] = {'mu': 0, 'log_sig': 0}
+                            else:
+                                grad_log_f[1][k0][feature] = {'mu': (y[feature]-mu)/(sig**2),
+                                                              'log_sig': ((y[feature]-mu)/sig)**2 - 1}
 
-                            # deal with truncated normals
-                            a = self.features[1][feature]['lower_bound']
-                            b = self.features[1][feature]['upper_bound']
+                                # deal with truncated normals
+                                a = self.features[1][feature]['lower_bound']
+                                b = self.features[1][feature]['upper_bound']
 
-                            if (a is not None) and (b is not None):
+                                if (a is not None) and (b is not None):
 
-                                ratio_a = norm.pdf(a,loc=mu,scale=sig)/norm.sf(a,loc=mu,scale=sig)
-                                ratio_b = norm.pdf(b,loc=mu,scale=sig)/norm.cdf(b,loc=mu,scale=sig)
+                                    ratio_a = norm.pdf(a,loc=mu,scale=sig)/norm.sf(a,loc=mu,scale=sig)
+                                    ratio_b = norm.pdf(b,loc=mu,scale=sig)/norm.cdf(b,loc=mu,scale=sig)
 
-                                for k1 in range(self.K[1]):
+                                    for k1 in range(self.K[1]):
 
-                                    if a[k1] > -np.infty and b[k1] < np.infty:
-                                        print("cannot handle two-sided truncated normals at this time.")
+                                        if a[k1] > -np.infty and b[k1] < np.infty:
+                                            print("cannot handle two-sided truncated normals at this time.")
 
-                                    elif a[k1] > -np.infty:
+                                        elif a[k1] > -np.infty:
 
-                                        if y[feature] >= np.array(a[k1]):
-                                            grad_log_f[1][k0][feature]['mu'][k1] += -ratio_a[k1]
-                                            grad_log_f[1][k0][feature]['log_sig'][k1] += -(a[k1]-mu[k1])*ratio_a[k1]
-                                        else:
-                                            grad_log_f[1][k0][feature]['mu'][k1] = 0.0
-                                            grad_log_f[1][k0][feature]['log_sig'][k1] = 0.0
+                                            if y[feature] >= np.array(a[k1]):
+                                                grad_log_f[1][k0][feature]['mu'][k1] += -ratio_a[k1]
+                                                grad_log_f[1][k0][feature]['log_sig'][k1] += -(a[k1]-mu[k1])*ratio_a[k1]
+                                            else:
+                                                grad_log_f[1][k0][feature]['mu'][k1] = 0.0
+                                                grad_log_f[1][k0][feature]['log_sig'][k1] = 0.0
 
-                                    elif b[k1] < np.infty:
+                                        elif b[k1] < np.infty:
 
-                                        if y[feature] <= np.array(b[k1]):
-                                            grad_log_f[1][k0][feature]['mu'][k1] += ratio_b[k1]
-                                            grad_log_f[1][k0][feature]['log_sig'][k1] += (b[k1]-mu[k1])*ratio_b[k1]
-                                        else:
-                                            grad_log_f[1][k0][feature]['mu'][k1] = 0.0
-                                            grad_log_f[1][k0][feature]['log_sig'][k1] = 0.0
+                                            if y[feature] <= np.array(b[k1]):
+                                                grad_log_f[1][k0][feature]['mu'][k1] += ratio_b[k1]
+                                                grad_log_f[1][k0][feature]['log_sig'][k1] += (b[k1]-mu[k1])*ratio_b[k1]
+                                            else:
+                                                grad_log_f[1][k0][feature]['mu'][k1] = 0.0
+                                                grad_log_f[1][k0][feature]['log_sig'][k1] = 0.0
 
                 elif dist == 'bern':
 
@@ -591,18 +605,19 @@ class optimizor:
                         print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
 
                     # store gradient
-                    for k0 in range(self.K[0]):
+                    if grad:
+                        for k0 in range(self.K[0]):
 
-                        logit_p = theta[1][k0][feature]['logit_p']
+                            logit_p = theta[1][k0][feature]['logit_p']
 
-                        if np.isnan(y[feature]):
-                            grad_log_f[1][k0][feature] = {'logit_p': 0}
-                        elif y[feature] == 0:
-                            grad_log_f[1][k0][feature] = {'logit_p': -expit(logit_p)}
-                        elif y[feature] == 1:
-                            grad_log_f[1][k0][feature] = {'logit_p': expit(-logit_p)}
-                        else:
-                            print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
+                            if np.isnan(y[feature]):
+                                grad_log_f[1][k0][feature] = {'logit_p': 0}
+                            elif y[feature] == 0:
+                                grad_log_f[1][k0][feature] = {'logit_p': -expit(logit_p)}
+                            elif y[feature] == 1:
+                                grad_log_f[1][k0][feature] = {'logit_p': expit(-logit_p)}
+                            else:
+                                print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
 
                 else:
                     print("unidentified emission distribution %s for %s"%(dist,feature))
@@ -615,33 +630,34 @@ class optimizor:
         # return the result
         return log_f,grad_log_f
 
-    def get_log_delta(self,eta0=None):
+    def get_log_delta(self,eta0=None,grad=True):
 
         if eta0 is None:
             eta0 = self.eta0
 
         # get delta
         log_coarse_delta = np.repeat(eta0[0] - logsumexp(eta0[0]),self.K[1])
-        log_fine_delta = np.concatenate([eta01 for eta01 in eta0[1]])
+        log_fine_delta = np.concatenate([(eta01 - logsumexp(eta01)) for eta01 in eta0[1]])
         log_delta = log_coarse_delta + log_fine_delta
         self.log_delta = np.copy(log_delta)
 
         # get the gradient
-        coarse_delta = np.exp(eta0[0]) / np.sum(np.exp(eta0[0]))
-        fine_deltas = [np.exp(eta01) / np.sum(np.exp(eta01)) for eta01 in eta0[1]]
+        if grad:
+            coarse_delta = np.exp(eta0[0]) / np.sum(np.exp(eta0[0]))
+            fine_deltas = [np.exp(eta01) / np.sum(np.exp(eta01)) for eta01 in eta0[1]]
 
-        grad_eta0_log_delta = [np.eye(self.K[0]) - np.tile(coarse_delta,[self.K[0],1]),
-                               [np.eye(self.K[1]) - np.tile(fine_delta,[self.K[1],1]) \
-                                for fine_delta in fine_deltas]]
+            grad_eta0_log_delta = [np.eye(self.K[0]) - np.tile(coarse_delta,[self.K[0],1]),
+                                   [np.eye(self.K[1]) - np.tile(fine_delta,[self.K[1],1]) \
+                                    for fine_delta in fine_deltas]]
 
-        # set some gradients to zero for identifiability
-        grad_eta0_log_delta[0][:,0] = 0
-        for k0 in range(self.K[0]):
-            grad_eta0_log_delta[1][k0][:,0] = 0
+            # set some gradients to zero for identifiability
+            grad_eta0_log_delta[0][:,0] = 0
+            for k0 in range(self.K[0]):
+                grad_eta0_log_delta[1][k0][:,0] = 0
 
         return log_delta,grad_eta0_log_delta
 
-    def get_log_Gamma(self,eta=None,eta0=None,jump=True):
+    def get_log_Gamma(self,eta=None,eta0=None,jump=True,grad=True):
 
         if eta is None:
             eta = self.eta
@@ -682,6 +698,11 @@ class optimizor:
                         log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
                                   (self.K[1]*j):(self.K[1]*(j+1))] += -np.infty
 
+        if jump:
+            self.log_Gamma_jump = np.copy(log_Gamma)
+        else:
+            self.log_Gamma = np.copy(log_Gamma)
+
         # get the gradient of log_Gamma wrt eta and eta0
         grad_eta_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
                               [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
@@ -689,50 +710,58 @@ class optimizor:
         grad_eta0_log_delta = [np.zeros((self.K[0],self.K[0])),
                                [np.zeros((self.K[1],self.K[1])) for _ in range(self.K[0])]]
 
-        # grad from coarse_Gamma
-        for i in range(self.K[0]):
-            for j in range(self.K[0]):
-                for l in range(self.K[0]):
-                    if not jump:
-                        pass
-                    elif i == l:
-                        pass
-                    elif j == l:
-                        grad_eta_log_Gamma[0][i,j,i,l] = 1.0-Gammas[0][i,l]
-                    else:
-                        grad_eta_log_Gamma[0][i,j,i,l] = -Gammas[0][i,l]
+        if grad:
 
-        # grad from fine_Gamma
-        for n in range(self.K[0]):
-            for i in range(self.K[1]):
-                for j in range(self.K[1]):
-                    for l in range(self.K[1]):
-                        if i == l:
+            # grad from coarse_Gamma
+            for i in range(self.K[0]):
+                for j in range(self.K[0]):
+                    for l in range(self.K[0]):
+                        if not jump:
+                            pass
+                        elif i == l:
                             pass
                         elif j == l:
-                            grad_eta_log_Gamma[1][n][i,j,i,l] = 1.0-Gammas[1][n][i,l]
+                            grad_eta_log_Gamma[0][i,j,i,l] = 1.0-Gammas[0][i,l]
                         else:
-                            grad_eta_log_Gamma[1][n][i,j,i,l] = -Gammas[1][n][i,l]
+                            grad_eta_log_Gamma[0][i,j,i,l] = -Gammas[0][i,l]
 
-        # grad from fine_delta
-        for k0 in range(self.K[0]):
-            if not jump:
-                pass
-            else:
-                grad_eta0_log_delta[1][k0] = np.eye(self.K[1]) - np.tile(fine_deltas[k0],[self.K[1],1])
-                grad_eta0_log_delta[1][k0][:,0] = 0
+            # grad from fine_Gamma
+            for n in range(self.K[0]):
+                for i in range(self.K[1]):
+                    for j in range(self.K[1]):
+                        for l in range(self.K[1]):
+                            if i == l:
+                                pass
+                            elif j == l:
+                                grad_eta_log_Gamma[1][n][i,j,i,l] = 1.0-Gammas[1][n][i,l]
+                            else:
+                                grad_eta_log_Gamma[1][n][i,j,i,l] = -Gammas[1][n][i,l]
+
+            # grad from fine_delta
+            for k0 in range(self.K[0]):
+                if not jump:
+                    pass
+                else:
+                    grad_eta0_log_delta[1][k0] = np.eye(self.K[1]) - np.tile(fine_deltas[k0],[self.K[1],1])
+                    grad_eta0_log_delta[1][k0][:,0] = 0.0
 
         return log_Gamma,grad_eta0_log_delta,grad_eta_log_Gamma
 
     def update_alpha(self,t):
 
-        # get log_f, grad_log_f
-        log_f = self.get_log_f(t)[0]
+        # get log_f
+        log_f = self.get_log_f(t,grad=False)[0]
+
+        # get initial index
+        seq_num = np.argmax(self.initial_ts > t)-1
+        t0 = self.initial_ts[seq_num]
 
         # update log_alpha
         if t == 0:
             self.log_alphas[t] = self.log_delta + log_f
-        elif t % self.jump_every == 0:
+        elif t == t0:
+            self.log_alphas[t] = logsumexp(self.log_alphas[t-1]) + self.log_delta + log_f
+        elif (t-t0) % self.jump_every == 0:
             self.log_alphas[t] = logdotexp(self.log_alphas[t-1],self.log_Gamma_jump) + log_f
         else:
             self.log_alphas[t] = logdotexp(self.log_alphas[t-1],self.log_Gamma) + log_f
@@ -741,16 +770,26 @@ class optimizor:
 
     def update_beta(self,t):
 
+        # get initial and final indices
+        seq_num = np.argmax(self.initial_ts > t)-1
+        t0 = self.initial_ts[seq_num]
+        tf = self.final_ts[seq_num]
+
         # update log_beta
         if t == self.T-1:
             self.log_betas[t] = np.zeros(self.K_total)
-        elif (t % self.jump_every == 1) or (self.jump_every == 1):
-            log_tp1 = self.get_log_f(t+1)[0]
-            self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_tp1,
+        elif t == tf:
+            log_f_tp1 = self.get_log_f(t+1,grad=False)[0]
+            self.log_betas[t] = np.ones(self.K_total) * \
+                                logsumexp(self.log_betas[t+1] + log_f_tp1 + \
+                                          self.log_delta)
+        elif ((t-t0) % self.jump_every == 1) or (self.jump_every == 1):
+            log_f_tp1 = self.get_log_f(t+1,grad=False)[0]
+            self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_f_tp1,
                                           np.transpose(self.log_Gamma_jump))
         else:
-            log_tp1 = self.get_log_f(t+1)[0]
-            self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_tp1,
+            log_f_tp1 = self.get_log_f(t+1,grad=False)[0]
+            self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_f_tp1,
                                           np.transpose(self.log_Gamma))
         return
 
@@ -761,15 +800,19 @@ class optimizor:
 
         return
 
-    def update_p_Xtm1_Xt(self,t,log_t=None):
+    def update_p_Xtm1_Xt(self,t,log_f=None):
 
-        if t == 0:
-            raise("p_Xtm1_Xt not defined for t = 0")
+        # get initial and final indices
+        seq_num = np.argmax(self.initial_ts > t)-1
+        t0 = self.initial_ts[seq_num]
 
-        if log_t is None:
-            log_t = self.get_log_f(t)[0]
+        if t == t0:
+            raise("p_Xtm1_Xt not defined for t = t0")
 
-        if t % self.jump_every == 0:
+        if log_f is None:
+            log_f = self.get_log_f(t)[0]
+
+        if (t-t0) % self.jump_every == 0:
             log_Gamma = self.log_Gamma_jump
         else:
             log_Gamma = self.log_Gamma
@@ -779,11 +822,10 @@ class optimizor:
             for j in range(self.K_total):
                 p_XX[i,j] = self.log_alphas[t-1,i] \
                             + log_Gamma[i,j] \
-                            + log_t[j] \
+                            + log_f[j] \
                             + self.log_betas[t,j]
 
         self.p_Xtm1_Xt[t] = np.exp(p_XX - logsumexp(p_XX))
-
         return
 
     def get_grad_theta_t(self,t,grad_log_f=None,p_Xt=None):
@@ -820,14 +862,18 @@ class optimizor:
         grad_eta0_t = [np.zeros(self.K[0]),
                        [np.zeros(self.K[1]) for _ in range(self.K[0])]]
 
-        # deal with t == 0:
-        if t == 0:
+        # get initial and final indices
+        seq_num = np.argmax(self.initial_ts > t)-1
+        t0 = self.initial_ts[seq_num]
+        tf = self.final_ts[seq_num]
+
+        # deal with t == t0:
+        if t == t0:
 
             # get gradient of log delta wrt eta0
             if grad_eta0_log_delta is None:
                 _,grad_eta0_log_delta = self.get_log_delta()
 
-            # get probabilities
             p_Xt = self.p_Xt[t]
             p_Xt_coarse = [np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))]) for k0 in range(self.K[0])]
 
@@ -839,9 +885,10 @@ class optimizor:
             for k0 in range(self.K[0]):
                 for i in range(self.K[1]):
                     grad_eta0_t[1][k0][i] += np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                    grad_eta0_log_delta[1][k0][:,i])
+                                                      grad_eta0_log_delta[1][k0][:,i])
 
             return grad_eta_t,grad_eta0_t
+
 
         # get gradients of log Gamma wrt eta and eta0
         if (grad_eta0_log_delta is None) or (grad_eta_log_Gamma is None):
@@ -850,7 +897,6 @@ class optimizor:
             else:
                 _,grad_eta0_log_delta,grad_eta_log_Gamma = self.get_log_Gamma(jump=False)
 
-        # get weights
         if p_Xtm1_Xt is None:
             p_Xtm1_Xt = self.p_Xtm1_Xt[t]
 
@@ -1009,8 +1055,12 @@ class optimizor:
         for k0 in range(self.K[0]):
             eta0_new[1][k0] += grad_G_eta0_t[1][k0] / self.L_eta
 
+        # get initial index
+        seq_num = np.argmax(self.initial_ts > t)-1
+        t0 = self.initial_ts[seq_num]
+
         # Evaluate G for eta and eta_new
-        if t == 0:
+        if t == t0:
             G_t  = -np.sum(self.p_Xt[t] * self.get_log_delta(eta0=self.eta0)[0])
             G_t_new = -np.sum(self.p_Xt[t] * self.get_log_delta(eta0=eta0_new)[0])
         else:
@@ -1126,7 +1176,7 @@ class optimizor:
 
         return
 
-    def M_step(self,max_iters=None,alpha_theta=None,alpha_eta=None,method="EM",partial_E=False,tol=1e-5,record_like=False):
+    def M_step(self,max_iters=None,max_time=np.infty,alpha_theta=None,alpha_eta=None,method="EM",partial_E=False,tol=1e-5,record_like=False):
 
         if max_iters is None:
             max_iters = self.T
@@ -1264,7 +1314,11 @@ class optimizor:
                 # get old gradients
                 grad_log_f = self.get_log_f(t,theta=self.theta_tilde)[1]
 
-                if t == 0:
+                # get initial index
+                seq_num = np.argmax(self.initial_ts > t)-1
+                t0 = self.initial_ts[seq_num]
+
+                if t == t0:
                     _,grad_eta0_log_delta = self.get_log_delta(eta0=self.eta0_tilde)
                     grad_eta_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
                                           [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
@@ -1471,7 +1525,7 @@ class optimizor:
                 alpha_eta = 1.0/(3.0*self.L_eta)
 
             # clip values
-            self.eta[0] = np.clip(self.eta[0],-10,10)
+            self.eta[0] = np.clip(self.eta[0],-np.log(self.T)-1,np.log(self.T)+1)
             for feature in self.theta[0]:
                 for param in self.theta[1][k0][feature]:
                     self.theta[0][feature][param] = np.clip(self.theta[0][feature][param],
@@ -1517,13 +1571,33 @@ class optimizor:
             self.log_delta = self.get_log_delta()[0]
 
             # record likelihood and check for convergence every T iterations
-            if (iter % (2*self.T) == (2*self.T-1)):
+            if iter % self.T == self.T-1:
 
                 # update epoch
                 if partial_E:
                     self.epoch_num += 1.0
                 else:
                     self.epoch_num += 1.0
+
+                print("starting epoch %.1f" % (self.epoch_num))
+                print("")
+
+                print("%.3f hours elapsed" % (self.train_time / 3600))
+                print("")
+
+                # show current parameters
+                print("current parameters:")
+                print(self.theta)
+                print(self.eta)
+                print(self.eta0)
+                print("")
+
+                # show current gradients
+                print("current gradients:")
+                print(self.grad_theta)
+                print(self.grad_eta)
+                print(self.grad_eta0)
+                print("")
 
                 if record_like:
 
@@ -1546,25 +1620,73 @@ class optimizor:
                     self.start_time = time.time()
 
                 grad_norm = self.est_grad_norm() / self.T
-                print(grad_norm)
                 if (grad_norm < tol):
                     print("M-step sucesssfully converged")
+                    return
+                elif (self.train_time > max_time):
+                    print("Time limit reached within M step")
                     return
 
         print("M-step failed to converge: maximum number of iterations reached")
 
         return
 
-    def baseline_optim(self,num_epochs=None,method="CG",tol=1e-5):
+    def callback(self, x):
+
+        # callback to terminate if max_sec exceeded
+        if self.train_time >= self.max_time:
+            raise RuntimeError("Terminating optimization: time limit reached")
+        elif self.epoch_num >= self.num_epochs:
+            raise RuntimeError("Terminating optimization: epoch limit reached")
+        else:
+            print("starting epoch %.1f" % (self.epoch_num))
+            print("")
+
+            print("%.3f hours elapsed" % (self.train_time / 3600))
+            print("")
+
+            # show log likelihood
+            print("current log-likelihood:")
+            print(self.ll)
+            print("")
+
+            # show current parameters
+            print("current parameters:")
+            print(self.theta)
+            print(self.eta)
+            print(self.eta0)
+            print("")
+
+            # show current gradients
+            print("current gradients:")
+            print(self.grad_theta)
+            print(self.grad_eta)
+            print(self.grad_eta0)
+            print("")
+
+            # record time and epoch from E step
+            self.train_time += time.time() - self.start_time
+            self.epoch_num += 1.0
+            self.time_trace.append(self.train_time)
+            self.epoch_trace.append(self.epoch_num)
+
+            # record trace
+            self.log_like_trace.append(ll / self.T)
+            self.grad_norm_trace.append(self.est_grad_norm() / self.T)
+            self.theta_trace.append(deepcopy(self.theta))
+            self.eta_trace.append(deepcopy(self.eta))
+            self.eta0_trace.append(deepcopy(self.eta0))
+
+            # start timer back up
+            self.start_time = time.time()
+
+    def baseline_optim(self,num_epochs=None,max_time=np.infty,method="BFGS",tol=1e-5):
 
         options = {'maxiter':num_epochs,'disp':True}
+        self.max_time = max_time
+        self.num_epochs = num_epochs
 
         def loss_fn(x):
-
-            # hold on to backups
-            theta_backup = deepcopy(self.theta)
-            eta_backup = deepcopy(self.eta)
-            eta0_backup = deepcopy(self.eta0)
 
             # update parameters
             ind = 0
@@ -1632,6 +1754,8 @@ class optimizor:
 
             # get likelihood
             ll = logsumexp(self.log_alphas[self.T-1])
+            print("current log likelihood: %f" % ll)
+            print("")
 
             # initialize gradient
             grad_ll = np.zeros_like(x)
@@ -1647,12 +1771,12 @@ class optimizor:
                         ind += 1
 
             # gradient wrt theta fine
-            for feature in self.theta[1][k0]:
+            for feature in self.theta[1][0]:
 
                 if feature == 'broadDiveType':
                     continue
 
-                for param in self.theta[1][k0][feature]:
+                for param in self.theta[1][0][feature]:
                     for k1 in range(self.K[1]):
                         grad_ll[ind] = 0
                         for k0 in range(self.K[0]):
@@ -1692,28 +1816,6 @@ class optimizor:
                     if i != 0:
                         grad_ll[ind] = -self.grad_eta0[1][k0][i]
                         ind += 1
-
-            # record stuff
-            self.epoch_num += 1.0
-            self.epoch_trace.append(self.epoch_num)
-            self.time_trace.append(time.time() - self.start_time)
-            self.log_like_trace.append(ll / self.T)
-            self.theta_trace.append(deepcopy(self.theta))
-            self.eta_trace.append(deepcopy(self.eta))
-
-            # return parameters
-            self.theta = theta_backup
-            self.eta = eta_backup
-            self.eta0 = eta0_backup
-
-            # return Gamma and delta
-            self.log_Gamma = self.get_log_Gamma(jump=False)[0]
-            self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
-            self.log_delta = self.get_log_delta()[0]
-
-            print(ll/self.T)
-            print(grad_ll/self.T)
-            print("")
 
             return (-ll/self.T,grad_ll/self.T)
 
@@ -1778,71 +1880,20 @@ class optimizor:
 
         # fit x
         print(x0)
-        res = minimize(loss_fn, x0, bounds=bounds,
-                       method=method, tol=tol,
-                       options=options, jac=True)
-        x = res["x"]
-
-        # finalize parameters
-        ind = 0
-
-        # finalize theta coarse
-        for feature in self.theta[0]:
-            if feature == 'broadDiveType':
-                continue
-            for param in self.theta[0][feature]:
-                for k0 in range(self.K[0]):
-                    self.theta[0][feature][param][k0] = x[ind]
-                    ind += 1
-
-        # finalize theta fine
-        for feature in self.theta[1][k0]:
-
-            if feature == 'broadDiveType':
-                continue
-
-            for param in self.theta[1][k0][feature]:
-                for k1 in range(self.K[1]):
-                    for k0 in range(self.K[0]):
-                        self.theta[1][k0][feature][param][k1] = x[ind]
-                        #if k0 == (self.K[0]-1) or k1 != 0:
-                        #if k0 == (self.K[0]-1):
-                        ind += 1
-
-        # finalize eta coarse
-        for i in range(self.K[0]):
-            for j in range(self.K[0]):
-                if i != j:
-                    self.eta[0][i,j] = x[ind]
-                    ind += 1
-
-        # finalize eta fine
-        for k0 in range(self.K[0]):
-            for i in range(self.K[1]):
-                for j in range(self.K[1]):
-                    if i != j:
-                        self.eta[1][k0][i,j] = x[ind]
-                        ind += 1
-
-        # finalize eta0 coarse
-        for i in range(self.K[0]):
-            if i != 0:
-                self.eta0[0][i] = x[ind]
-                ind += 1
-
-        # finalize eta0 fine
-        for k0 in range(self.K[0]):
-            for i in range(self.K[1]):
-                if i != 0:
-                    self.eta0[1][k0][i] = x[ind]
-                    ind += 1
+        try:
+            res = minimize(loss_fn, x0, bounds=bounds,
+                           method=method, tol=tol,
+                           options=options, jac=True,
+                           callback=self.callback)
+        except RuntimeError:
+            print("Terminating optimization: time or epoch limit reached")
 
         # finalize log Gamma and log delta
         self.log_Gamma = self.get_log_Gamma(jump=False)[0]
         self.log_Gamma_jump = self.get_log_Gamma(jump=True)[0]
         self.log_delta = self.get_log_delta()[0]
 
-        return res
+        return
 
     def train_HHMM(self,num_epochs=10,max_time=np.infty,max_iters=None,alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-3,method="EM",partial_E=False,record_like=False):
 
@@ -1870,7 +1921,8 @@ class optimizor:
         # do direct likelihood maximization
         if method in ["Nelder-Mead","BFGS","CG"]:
             res = self.baseline_optim(num_epochs=num_epochs,
-                                      method=method,tol=tol)
+                                      method=method,tol=tol,
+                                      max_time=max_time)
             print(res)
 
             # record time
@@ -1890,6 +1942,7 @@ class optimizor:
             print("")
 
             print("%.3f hours elapsed" % (self.train_time / 3600))
+            print("")
 
             # show current parameters
             print("current parameters:")
@@ -1953,8 +2006,8 @@ class optimizor:
                 ll_old = ll_new
 
                 if method == "GD":
-                    alpha_theta = alpha_theta * 2**(1/(self.T-1))
-                    alpha_eta = alpha_eta * 2**(1/(self.T-1))
+                    alpha_theta = alpha_theta * 1.05
+                    alpha_eta = alpha_eta * 1.05
 
                     print("new step size: %f" % alpha_theta)
 
@@ -1981,6 +2034,7 @@ class optimizor:
             # do M-step
             print("starting M-step...")
             self.M_step(max_iters=max_iters,
+                        max_time=max_time,
                         method=method,
                         alpha_theta=alpha_theta,
                         alpha_eta=alpha_eta,

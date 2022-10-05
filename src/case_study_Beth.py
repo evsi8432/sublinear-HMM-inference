@@ -1,5 +1,4 @@
 import sys
-import os
 
 import pandas as pd
 import numpy as np
@@ -46,12 +45,7 @@ import HHMM
 import optimizor
 import stoch_optimizor
 
-from helper_funcs import eta_2_log_Gamma
-from helper_funcs import log_Gamma_2_eta
-from helper_funcs import eta0_2_log_delta
-from helper_funcs import log_delta_2_eta0
-from helper_funcs import logdotexp
-from helper_funcs import generate_data
+from numpy import array
 
 # parse command-line args
 max_time = 3600*float(sys.argv[1])
@@ -68,40 +62,31 @@ method_partialEs = [("control",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
 
-Ts = [1e3,1e5]
-Ks = [3,6]
-ds = [3,6]
-rand_seed = range(50)
+rand_seed = range(100)
 
 # set methods
-for i,settings0 in enumerate(product(Ts,Ks,ds,rand_seed,method_partialEs)):
+for i,settings0 in enumerate(product(rand_seed,method_partialEs)):
     if i == id:
         settings = settings0
         break
 
-T = int(settings[0])
-K = [settings[1],1]
-d = settings[2]
-rand_seed = settings[3]
-method = settings[4][0]
-partial_E = settings[4][1]
+rand_seed = settings[0]
+method = settings[1][0]
+partial_E = settings[1][1]
 
 random.seed(rand_seed)
 np.random.seed(rand_seed)
 
 print("method: %s" % method)
 print("partial E_step: %.1f" % partial_E)
-print("T: %d" % T)
-print("K: %s" % str(K))
-print("d: %d" % d)
 print("random seed: %d" % rand_seed)
 print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
-num_epochs = 10000
+num_epochs = 1000
 tol = 1e-16
 grad_tol = 1e-16
-grad_buffer = "coarse"
+grad_buffer = "none"
 weight_buffer = "none"
 
 step_sizes = {"EM"  : [None,None],
@@ -120,23 +105,80 @@ if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
     raise("partial_E not consistent with method")
 
 ### features of data ###
-features = {'Y%d'%d0  : {'f'           : 'normal',
-                          'lower_bound' : None,
-                          'upper_bound' : None,
-                          'share_coarse': False,
-                          'share_fine'  : False} for d0 in range(d)}
+features = {'diveDuration'     : {'f'           : 'normal',
+                                   'lower_bound' : None,
+                                   'upper_bound' : None,
+                                   'share_coarse': True,
+                                   'share_fine'  : False},
+             'maxDepth'         : {'f'           : 'normal',
+                                   'lower_bound' : np.array([-np.infty,-np.infty,np.log(5),np.log(5)]),
+                                   'upper_bound' : np.array([np.log(10),np.log(10),np.infty,np.infty]),
+                                   'share_coarse': True,
+                                   'share_fine'  : False},
+             'postDiveInt'      : {'f'           : 'normal',
+                                   'lower_bound' : None,
+                                   'upper_bound' : None,
+                                   'share_coarse': True,
+                                   'share_fine'  : False}}
+
+
 
 ### load in data ###
-data_fname = "../dat/data_Y_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
-with open(data_fname,"rb") as f:
-    data = pickle.load(f)
+df = pd.read_csv("../../dat/Final_Data_Beth.csv")
+
+# only take whale I107
+#whales = ["I145"]
+#df = df[df["ID"].isin(whales)]
+
+# convert times
+df["stime"] = pd.to_datetime(df["stime"])
+df["etime"] = pd.to_datetime(df["etime"])
+
+# force dives to be at least 2 seconds long
+df = df[df["diveDuration"] > np.log(2.0)]
+
+# replace -inf
+df["max_bot_jp"][df["max_bot_jp"] == -np.infty] = np.NAN
+
+df["broadDiveType"] = np.NAN #3  # unknown
+df.loc[df["maxDepth"] > np.log(20),"broadDiveType"] = 1  # deep
+df.loc[df["maxDepth"] < np.log(5),"broadDiveType"] = 0  # shallow
+
+# populate a data object
+
+data = []
+
+initial_ts = [0]
+final_ts = []
+
+for t,row in enumerate(df.iterrows()):
+
+    if t != 0 and df.iloc[t]["ID"] != df.iloc[t-1]["ID"]:
+        final_ts.append(t-1)
+        initial_ts.append(t)
+
+    data.append({"diveDuration"     : row[1]["diveDuration"],
+                 "maxDepth"         : row[1]["maxDepth"],
+                 "postDiveInt"      : row[1]["postDiveInt"]})
+
+final_ts.append(t)
+
+initial_ts = np.array(initial_ts)
+final_ts = np.array(final_ts)
+
+T = len(data)
+K = [3,4]
 
 # pick intial parameters
 optim = stoch_optimizor.StochOptimizor(data,features,K)
-for d0 in range(d):
-    optim.param_bounds["Y%d"%d0] = {}
-    optim.param_bounds["Y%d"%d0]["mu"] = [-100,100]
-    optim.param_bounds["Y%d"%d0]["log_sig"] = [-5,5]
+
+optim.initial_ts = initial_ts
+optim.final_ts = final_ts
+
+for feature in features:
+    optim.param_bounds[feature] = {}
+    optim.param_bounds[feature]["mu"] = [-100,100]
+    optim.param_bounds[feature]["log_sig"] = [-5,5]
 
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
@@ -146,8 +188,8 @@ if method == "control":
 else:
     optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / step_sizes[method][0]
-        optim.L_eta = 1.0 / step_sizes[method][1]
+        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0])
+        optim.L_eta = 1.0 / (3.0 * step_sizes[method][1])
 
 # print initial parameters
 print("initial theta:")
@@ -162,38 +204,17 @@ print("")
 
 # get optimal value via SAGA:
 if method == "control":
-
-    fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
-    with open(fname_p, 'rb') as f:
-        true_params = pickle.load(f)
-
-    optim.theta = []
-
-    for k0 in range(K[0]):
-        optim.theta.append({'Y%d'%d0 : {'mu': true_params["mus"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])],
-                                           'log_sig': np.log(true_params["sigs"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])])} \
-                               for d0 in range(d)})
-
-    log_Gamma = [np.log(true_params["Gamma"][0]),
-                 [np.log(Gamma) for Gamma in true_params["Gamma"][1]]]
-    log_delta = [np.log(true_params["delta"][0]),
-                 [np.log(Gamma) for Gamma in true_params["delta"][1]]]
-
-    optim.eta0 = log_delta_2_eta0(log_delta)
-    optim.eta = log_Gamma_2_eta(log_Gamma)
-
-
-    optim.train_HHMM_stoch(num_epochs=200,
-                     max_time=max_time,
-                     method="SAGA",
-                     max_iters=T,
-                     partial_E=True,
-                     tol=1e-4*tol,
-                     grad_tol=1e-4*grad_tol,
-                     record_like=True,
-                     weight_buffer=weight_buffer,
-                     grad_buffer=grad_buffer,
-                     buffer_eps=1e-3)
+    optim.train_HHMM_stoch(num_epochs=2*num_epochs,
+                         max_time=max_time,
+                         method="SAGA",
+                         max_iters=T,
+                         partial_E=True,
+                         tol=1e-4*tol,
+                         grad_tol=1e-4*grad_tol,
+                         record_like=True,
+                         weight_buffer=weight_buffer,
+                         grad_buffer=grad_buffer,
+                         buffer_eps=1e-3)
 
 elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
@@ -238,7 +259,7 @@ elif partial_E == 1:
 
 
 # reduce storage
-optim.data = data_fname
+optim.data = "../../dat/Final_Data_Beth.csv"
 
 # cut variables with size complexity O(T) (can recalculate with E-step)
 optim.grad_eta_t = None
@@ -251,6 +272,7 @@ optim.log_betas = None
 optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
-fname = "../params/sim_study/T-%d_K-%d-%d_d-%d_%s_%.1f_%03d" % (T,K[0],K[1],d,method,partial_E,rand_seed)
+# save file
+fname = "../params/case_study/case_study_Beth_K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

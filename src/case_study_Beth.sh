@@ -9,7 +9,7 @@
 #SBATCH --mail-type=ALL
 
 #SBATCH --time=23:59:00
-#SBATCH --mem-per-cpu=16G
-#SBATCH --array=0-4000
+#SBATCH --mem-per-cpu=8G
+#SBATCH --array=0-1000
 
-python sim_study.py 12 $SLURM_ARRAY_TASK_ID
+python case_study_Beth.py 12 $SLURM_ARRAY_TASK_ID

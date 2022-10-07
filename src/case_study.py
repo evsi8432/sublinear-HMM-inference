@@ -84,8 +84,8 @@ print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
 num_epochs = 10000
-tol = 1e-16
-grad_tol = 1e-16
+tol = 1e-8
+grad_tol = 1e-8
 grad_buffer = "fine"
 weight_buffer = "none"
 
@@ -275,12 +275,16 @@ print("")
 print("parameter bounds:")
 print(optim.param_bounds)
 print("")
+print("length of data:")
+print(T)
+print("")
+
 # get optimal value via SAGA:
 if method == "control":
     optim.train_HHMM_stoch(num_epochs=2*num_epochs,
                          max_time=max_time,
                          method="SAGA",
-                         max_iters=T,
+                         max_epochs=1,
                          partial_E=True,
                          tol=1e-4*tol,
                          grad_tol=1e-4*grad_tol,
@@ -293,7 +297,7 @@ elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
                           max_time=max_time,
                           method=method,
-                          max_iters=T,
+                          max_epochs=1,
                           partial_E=False,
                           tol=tol,
                           grad_tol=grad_tol,
@@ -307,7 +311,7 @@ elif partial_E == 0.5:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
-                              max_iters=T,
+                              max_epochs=1,
                               partial_E=True,
                               tol=tol,
                               grad_tol=grad_tol,
@@ -321,7 +325,7 @@ elif partial_E == 1:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
-                              max_iters=10*T,
+                              max_epochs=10,
                               partial_E=True,
                               tol=tol,
                               grad_tol=grad_tol,

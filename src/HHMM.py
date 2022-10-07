@@ -51,6 +51,7 @@ class HHMM:
         self.T = len(data)
         self.jump_every = 1
         self.features = features
+        self.stationary_delta = True
 
         # indices where sequences start and end
         self.initial_ts = np.array([0])
@@ -262,14 +263,34 @@ class HHMM:
         # return the result
         return log_f
 
-    def get_log_delta(self,eta0=None):
-
-        if eta0 is None:
-            eta0 = self.eta0
+    def get_log_delta(self,eta=None,eta0=None):
 
         # get delta
-        log_coarse_delta = np.repeat(eta0[0] - logsumexp(eta0[0]),self.K[1])
-        log_fine_delta = np.concatenate([(eta01 - logsumexp(eta01)) for eta01 in eta0[1]])
+        if self.stationary_delta:
+
+            if eta is None:
+                eta = self.eta
+
+            log_Gammas = eta_2_log_Gamma(eta)
+
+            coarse_Gamma = np.exp(log_Gammas[0])
+            fine_Gammas = [np.exp(log_fine_Gamma) for log_fine_Gamma in log_Gammas[1]]
+
+            coarse_delta = np.linalg.solve((np.eye(self.K[0])-coarse_Gamma+1).transpose(),np.ones(self.K[0]))
+            coarse_delta = np.repeat(coarse_delta,self.K[1])
+            log_coarse_delta = np.log(coarse_delta)
+
+            fine_deltas = []
+            for fine_Gamma in fine_Gammas:
+                fine_deltas.append(np.linalg.solve((np.eye(self.K[1])-fine_Gamma+1).transpose(),np.ones(self.K[1])))
+            log_fine_delta = np.concatenate([np.log(fine_delta) for fine_delta in fine_deltas])
+
+        else:
+            if eta0 is None:
+                eta0 = self.eta0
+            log_coarse_delta = np.repeat(eta0[0] - logsumexp(eta0[0]),self.K[1])
+            log_fine_delta = np.concatenate([(eta01 - logsumexp(eta01)) for eta01 in eta0[1]])
+
         log_delta = log_coarse_delta + log_fine_delta
         self.log_delta = np.copy(log_delta)
 
@@ -573,7 +594,7 @@ class HHMM:
     def get_mixing_time(self,Gamma,max_t=None,buffer_eps=1e-3):
 
         if max_t is None:
-            max_t = int(np.sqrt(self.T))
+            max_t = int(np.sqrt(self.T)/2.0)
 
         # get stationary distribution
         evals,evecs = np.linalg.eig(Gamma.T)

@@ -99,8 +99,8 @@ print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
 num_epochs = 10000
-tol = 1e-16
-grad_tol = 1e-16
+tol = 1e-8
+grad_tol = 1e-8
 grad_buffer = "coarse"
 weight_buffer = "none"
 
@@ -160,12 +160,16 @@ print("initial eta:")
 print(optim.eta)
 print("")
 
+fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+with open(fname_p, 'rb') as f:
+    true_params = pickle.load(f)
+
+print("true parameters:")
+print(true_params)
+print("")
+
 # get optimal value via SAGA:
 if method == "control":
-
-    fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
-    with open(fname_p, 'rb') as f:
-        true_params = pickle.load(f)
 
     optim.theta = []
 
@@ -184,22 +188,22 @@ if method == "control":
 
 
     optim.train_HHMM_stoch(num_epochs=200,
-                     max_time=max_time,
-                     method="SAGA",
-                     max_iters=T,
-                     partial_E=True,
-                     tol=1e-4*tol,
-                     grad_tol=1e-4*grad_tol,
-                     record_like=True,
-                     weight_buffer=weight_buffer,
-                     grad_buffer=grad_buffer,
-                     buffer_eps=1e-3)
+                         max_time=max_time,
+                         method="SAGA",
+                         max_epochs=1,
+                         partial_E=True,
+                         tol=1e-4*tol,
+                         grad_tol=1e-4*grad_tol,
+                         record_like=True,
+                         weight_buffer=weight_buffer,
+                         grad_buffer=grad_buffer,
+                         buffer_eps=1e-3)
 
 elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
                           max_time=max_time,
                           method=method,
-                          max_iters=T,
+                          max_epochs=10,
                           partial_E=False,
                           tol=tol,
                           grad_tol=grad_tol,
@@ -213,7 +217,7 @@ elif partial_E == 0.5:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
-                              max_iters=T,
+                              max_epochs=1,
                               partial_E=True,
                               tol=tol,
                               grad_tol=grad_tol,
@@ -227,7 +231,7 @@ elif partial_E == 1:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
-                              max_iters=10*T,
+                              max_epochs=10,
                               partial_E=True,
                               tol=tol,
                               grad_tol=grad_tol,

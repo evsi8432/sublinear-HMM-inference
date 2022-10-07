@@ -268,7 +268,7 @@ class StochOptimizor(Optimizor):
 
         return
 
-    def M_step(self,max_iters=None,max_time=np.infty,alpha_theta=None,alpha_eta=None,
+    def M_step(self,max_epochs=1,max_time=np.infty,alpha_theta=None,alpha_eta=None,
                method="EM",partial_E=False,tol=1e-5,record_like=False,
                weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
 
@@ -279,9 +279,6 @@ class StochOptimizor(Optimizor):
         if not grad_buffer in ["coarse","fine","none"]:
             print("buffer type not understood. Setting to 'none'")
             buffer = "none"
-
-        if max_iters is None:
-            max_iters = self.T
 
         if alpha_theta is None:
             if self.L_theta != 0:
@@ -325,350 +322,376 @@ class StochOptimizor(Optimizor):
 
             return
 
-        # pick grad_buffer size (minibatch size pretty much)
-        if grad_buffer == "none":
-            grad_buffer_size = 0
-        elif grad_buffer == "fine":
-            log_Gammas = eta_2_log_Gamma(self.eta)[1]
-            grad_buffer_size = max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
-        elif grad_buffer == "coarse":
-            log_Gamma = eta_2_log_Gamma(self.eta)[0]
-            grad_buffer_size = self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
-        else:
-            print("unknown grad buffer scale: %d" % grad_buffer)
-            grad_buffer_size = 0
+        for epoch_num in range(max_epochs):
 
-        print("grad buffer size: %d" % grad_buffer_size)
-        print("")
+            # pick grad_buffer size (minibatch size pretty much)
+            if grad_buffer == "none":
+                grad_buffer_size = 0
+            elif grad_buffer == "fine":
+                log_Gammas = eta_2_log_Gamma(self.eta)[1]
+                grad_buffer_size = 2*max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
+            elif grad_buffer == "coarse":
+                log_Gamma = eta_2_log_Gamma(self.eta)[0]
+                grad_buffer_size = 2*self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
+            else:
+                print("unknown grad buffer scale: %d" % grad_buffer)
+                grad_buffer_size = 0
 
-        # pick weight buffer size
-        if weight_buffer == "none":
-            weight_buffer_size = 0
-        elif weight_buffer == "fine":
-            log_Gammas = eta_2_log_Gamma(self.eta)[1]
-            weight_buffer_size = max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
-        elif weight_buffer == "coarse":
-            log_Gamma = eta_2_log_Gamma(self.eta)[0]
-            weight_buffer_size = self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
-        else:
-            print("unknown weight buffer scale: %s" % weight_buffer)
-            weight_buffer_size = 0
+            print("grad buffer size: %d" % grad_buffer_size)
+            print("")
 
-        print("weight buffer size: %d" % weight_buffer_size)
-        print("")
+            # pick weight buffer size
+            if weight_buffer == "none":
+                weight_buffer_size = 0
+            elif weight_buffer == "fine":
+                log_Gammas = eta_2_log_Gamma(self.eta)[1]
+                weight_buffer_size = max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
+            elif weight_buffer == "coarse":
+                log_Gamma = eta_2_log_Gamma(self.eta)[0]
+                weight_buffer_size = self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
+            else:
+                print("unknown weight buffer scale: %s" % weight_buffer)
+                weight_buffer_size = 0
 
-        iter = 0
+            print("weight buffer size: %d" % weight_buffer_size)
+            print("")
 
-        while iter < max_iters:
+            nbatches = int(self.T / grad_buffer_size)
+            minibatches = [range(grad_buffer_size*i,min(grad_buffer_size*(i+1),self.T)) for i in range(nbatches)]
+            batch_order = np.random.permutation(range(nbatches))
+            print(batch_order)
+            print(minibatches)
+            iter = 0
 
-            # pick index
-            t_center = np.random.choice(range(grad_buffer_size,self.T-grad_buffer_size))
-            ts = range(t_center-grad_buffer_size,t_center+grad_buffer_size+1)
-
-            # get old gradient
-            old_grad_thetas = []
-            old_grad_etas = []
-            old_grad_eta0s = []
-
-            for t in ts:
-
-                if method == "SVRG":
-
-                    # get old gradients
-                    grad_log_f = self.get_grad_log_f(t,theta=deepcopy(self.theta_tilde))
-
-                    # get initial index
-                    seq_num = np.argmax(self.initial_ts > t)-1
-                    t0 = self.initial_ts[seq_num]
-
-                    if t == t0:
-                        grad_eta0_log_delta = self.get_grad_log_delta(eta0=self.eta0_tilde)
-                        grad_eta_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
-                                              [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
-                    else:
-                        grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(eta=self.eta_tilde,eta0=self.eta0_tilde)
-
-                    # get old weights
-                    p_Xt = self.p_Xt_tilde[t]
-                    p_Xtm1_X1 = self.p_Xtm1_Xt_tilde[t]
-
-                    # calculate old gradient
-                    old_grad_theta_t = self.get_grad_theta_t(t,
-                                                             grad_log_f=grad_log_f,
-                                                             p_Xt=p_Xt)
-
-                    old_grad_eta_t,old_grad_eta0_t = self.get_grad_eta_t(t,
-                                                                         grad_eta0_log_delta=grad_eta0_log_delta,
-                                                                         grad_eta_log_Gamma=grad_eta_log_Gamma,
-                                                                         p_Xtm1_Xt=p_Xtm1_X1)
-
-                else:
-
-                    # get old gradient at index
-                    old_grad_theta_t = deepcopy(self.grad_theta_t[t])
-                    old_grad_eta0_t = deepcopy(self.grad_eta0_t[t])
-                    old_grad_eta_t = deepcopy(self.grad_eta_t[t])
-
-                old_grad_thetas.append(old_grad_theta_t)
-                old_grad_etas.append(old_grad_eta_t)
-                old_grad_eta0s.append(old_grad_eta0_t)
-
-            weight_change = 0.0
-
-            # update weights
-            if partial_E:
+            for batch_ind in batch_order:
 
                 # pick index
-                weight_ts = range(max(0,min(ts)-weight_buffer_size), \
-                                  min(self.T,max(ts)+weight_buffer_size+1))
+                ts = minibatches[batch_ind]
 
-                for t in weight_ts:
+                # get old gradient
+                old_grad_thetas = []
+                old_grad_etas = []
+                old_grad_eta0s = []
 
-                    old_p_Xt = np.copy(self.p_Xt[t])
-                    old_p_Xtm1_Xt = np.copy(self.p_Xtm1_Xt[t])
+                for t in ts:
 
-                    self.update_alpha(t)
-                    self.update_beta(t)
-                    self.update_p_Xt(t)
+                    if method == "SVRG":
 
-                    seq_num = np.argmax(self.initial_ts > t)-1
-                    t0 = self.initial_ts[seq_num]
-                    tf = self.final_ts[seq_num]
+                        # get old gradients
+                        grad_log_f = self.get_grad_log_f(t,theta=deepcopy(self.theta_tilde))
 
-                    if t != t0:
-                        self.update_p_Xtm1_Xt(t)
-                    if t != tf:
-                        self.update_p_Xtm1_Xt(t+1)
+                        # get initial index
+                        seq_num = np.argmax(self.initial_ts > t)-1
+                        t0 = self.initial_ts[seq_num]
 
-                    weight_change += np.sum(np.abs(self.p_Xt[t]-old_p_Xt))
-                    weight_change += np.sum(np.abs(self.p_Xtm1_Xt[t]-old_p_Xtm1_Xt))
+                        if t == t0:
+                            grad_eta0_log_delta = self.get_grad_log_delta(eta0=self.eta0_tilde)
+                            grad_eta_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
+                                                  [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
+                        else:
+                            grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(eta=self.eta_tilde,eta0=self.eta0_tilde)
 
-            # update parameters
-            for i,t in enumerate(ts):
+                        # get old weights
+                        p_Xt = self.p_Xt_tilde[t]
+                        p_Xtm1_X1 = self.p_Xtm1_Xt_tilde[t]
 
-                # check Lipshitz constants
-                self.check_L_eta(t)
-                self.check_L_theta(t)
+                        # calculate old gradient
+                        old_grad_theta_t = self.get_grad_theta_t(t,
+                                                                 grad_log_f=grad_log_f,
+                                                                 p_Xt=p_Xt)
 
-                # get old gradients
-                old_grad_theta_t = old_grad_thetas[i]
-                old_grad_eta_t = old_grad_etas[i]
-                old_grad_eta0_t = old_grad_eta0s[i]
+                        old_grad_eta_t,old_grad_eta0_t = self.get_grad_eta_t(t,
+                                                                             grad_eta0_log_delta=grad_eta0_log_delta,
+                                                                             grad_eta_log_Gamma=grad_eta_log_Gamma,
+                                                                             p_Xtm1_Xt=p_Xtm1_X1)
 
-                # get new gradients
-                new_grad_theta_t = self.get_grad_theta_t(t)
-                new_grad_eta_t,new_grad_eta0_t = self.get_grad_eta_t(t)
+                    else:
 
-                if method == "SGD":
+                        # get old gradient at index
+                        old_grad_theta_t = deepcopy(self.grad_theta_t[t])
+                        old_grad_eta0_t = deepcopy(self.grad_eta0_t[t])
+                        old_grad_eta_t = deepcopy(self.grad_eta_t[t])
 
-                    # update step size
-                    alpha_eta_m = alpha_eta / np.sqrt(iter+1)
-                    alpha_theta_m = alpha_theta / np.sqrt(iter+1)
+                    old_grad_thetas.append(old_grad_theta_t)
+                    old_grad_etas.append(old_grad_eta_t)
+                    old_grad_eta0s.append(old_grad_eta0_t)
 
-                    # update eta0
-                    delta = alpha_eta_m * new_grad_eta0_t[0]
-                    self.eta0[0] += delta
+                weight_change = 0.0
+
+                # update weights
+                if partial_E:
+
+                    # pick index
+                    weight_ts = range(max(0,min(ts)-weight_buffer_size), \
+                                      min(self.T,max(ts)+weight_buffer_size+1))
+
+                    for t in weight_ts:
+
+                        old_p_Xt = np.copy(self.p_Xt[t])
+                        old_p_Xtm1_Xt = np.copy(self.p_Xtm1_Xt[t])
+
+                        self.update_alpha(t)
+                        self.update_beta(t)
+                        self.update_p_Xt(t)
+
+                        seq_num = np.argmax(self.initial_ts > t)-1
+                        t0 = self.initial_ts[seq_num]
+                        tf = self.final_ts[seq_num]
+
+                        if t != t0:
+                            self.update_p_Xtm1_Xt(t)
+                        if t != tf:
+                            self.update_p_Xtm1_Xt(t+1)
+
+                        weight_change += np.sum(np.abs(self.p_Xt[t]-old_p_Xt))
+                        weight_change += np.sum(np.abs(self.p_Xtm1_Xt[t]-old_p_Xtm1_Xt))
+
+                # update parameters
+                for i,t in enumerate(ts):
+
+                    # check Lipshitz constants
+                    self.check_L_eta(t)
+                    self.check_L_theta(t)
+
+                    # get old gradients
+                    old_grad_theta_t = old_grad_thetas[i]
+                    old_grad_eta_t = old_grad_etas[i]
+                    old_grad_eta0_t = old_grad_eta0s[i]
+
+                    # get new gradients
+                    new_grad_theta_t = self.get_grad_theta_t(t)
+                    new_grad_eta_t,new_grad_eta0_t = self.get_grad_eta_t(t)
+
+                    if method == "SGD":
+
+                        # update step size
+                        alpha_eta_m = alpha_eta / np.sqrt(iter+1)
+                        alpha_theta_m = alpha_theta / np.sqrt(iter+1)
+
+                        # update eta0
+                        delta = alpha_eta_m * new_grad_eta0_t[0]
+                        self.eta0[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = alpha_eta_m * new_grad_eta0_t[1][k0]
+                            self.eta0[1][k0] += delta
+
+                        # update eta
+                        delta = alpha_eta_m * new_grad_eta_t[0]
+                        self.eta[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = alpha_eta_m * new_grad_eta_t[1][k0]
+                            self.eta[1][k0] += delta
+
+                        # update theta
+                        for k0 in range(self.K[0]):
+                            for feature in new_grad_theta_t[k0]:
+                                for param in new_grad_theta_t[k0][feature]:
+                                    delta = alpha_theta_m * new_grad_theta_t[k0][feature][param]
+                                    self.theta[k0][feature][param] += delta
+
+                    elif method == "SAG":
+
+                        # update eta0
+                        delta = (alpha_eta) * (new_grad_eta0_t[0] \
+                                             - old_grad_eta0_t[0] \
+                                             + self.grad_eta0[0])/self.T
+                        self.eta0[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = (alpha_eta) * (new_grad_eta0_t[1][k0] \
+                                               - old_grad_eta0_t[1][k0]
+                                               + self.grad_eta0[1][k0])/self.T
+                            self.eta0[1][k0] += delta
+
+                        # update eta
+                        delta = (alpha_eta) * (new_grad_eta_t[0] \
+                                           - old_grad_eta_t[0] \
+                                           + self.grad_eta[0])/self.T
+                        self.eta[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = (alpha_eta) * (new_grad_eta_t[1][k0] \
+                                               - old_grad_eta_t[1][k0] \
+                                               + self.grad_eta[1][k0])/self.T
+                            self.eta[1][k0] += delta
+
+                        # update theta
+                        for k0 in range(self.K[0]):
+                            for feature in new_grad_theta_t[k0]:
+                                for param in new_grad_theta_t[k0][feature]:
+                                    delta = (alpha_theta) * (new_grad_theta_t[k0][feature][param] \
+                                                         - old_grad_theta_t[k0][feature][param] \
+                                                         + self.grad_theta[k0][feature][param])/self.T
+                                    self.theta[k0][feature][param] += delta
+
+                    elif method == "SVRG":
+
+                        # update eta0
+                        delta = (alpha_eta) * (new_grad_eta0_t[0] \
+                                           - old_grad_eta0_t[0] \
+                                           + self.grad_eta0_tilde[0]/self.T)
+                        self.eta0[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = (alpha_eta) * (new_grad_eta0_t[1][k0] \
+                                               - old_grad_eta0_t[1][k0]
+                                               + self.grad_eta0_tilde[1][k0]/self.T)
+                            self.eta0[1][k0] += delta
+
+                        # update eta
+                        delta = (alpha_eta) * (new_grad_eta_t[0] \
+                                           - old_grad_eta_t[0] \
+                                           + self.grad_eta_tilde[0]/self.T)
+                        self.eta[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = (alpha_eta) * (new_grad_eta_t[1][k0] \
+                                                 - old_grad_eta_t[1][k0] \
+                                                 + self.grad_eta_tilde[1][k0]/self.T)
+                            self.eta[1][k0] += delta
+
+                        # update theta
+                        for k0 in range(self.K[0]):
+                            for feature in new_grad_theta_t[k0]:
+                                for param in new_grad_theta_t[k0][feature]:
+                                    delta = (alpha_theta) * (new_grad_theta_t[k0][feature][param] \
+                                                           - old_grad_theta_t[k0][feature][param] \
+                                                           + self.grad_theta_tilde[k0][feature][param]/self.T)
+                                    self.theta[k0][feature][param] += delta
+
+                    elif method == "SAGA":
+
+                        # update eta0
+                        delta = (alpha_eta) * (new_grad_eta0_t[0] \
+                                             - old_grad_eta0_t[0] \
+                                             + self.grad_eta0[0]/self.T)
+                        self.eta0[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = (alpha_eta) * (new_grad_eta0_t[1][k0] \
+                                                 - old_grad_eta0_t[1][k0]
+                                                 + self.grad_eta0[1][k0]/self.T)
+                            self.eta0[1][k0] += delta
+
+                        # update eta
+                        delta = (alpha_eta) * (new_grad_eta_t[0] \
+                                             - old_grad_eta_t[0] \
+                                             + self.grad_eta[0]/self.T)
+                        self.eta[0] += delta
+                        for k0 in range(self.K[0]):
+                            delta = (alpha_eta) * (new_grad_eta_t[1][k0] \
+                                                 - old_grad_eta_t[1][k0] \
+                                                 + self.grad_eta[1][k0]/self.T)
+                            self.eta[1][k0] += delta
+
+                        # update theta
+                        for k0 in range(self.K[0]):
+                            for feature in new_grad_theta_t[k0]:
+                                for param in new_grad_theta_t[k0][feature]:
+                                    delta = (alpha_theta) * (new_grad_theta_t[k0][feature][param] \
+                                                           - old_grad_theta_t[k0][feature][param] \
+                                                           + self.grad_theta[k0][feature][param]/self.T)
+                                    delta = np.clip(delta,-0.5,0.5)
+                                    self.theta[k0][feature][param] += delta
+
+                    else:
+                        raise("method %s not recognized" % method)
+
+                    # clip values
+                    self.eta0[0] = np.clip(self.eta0[0],-1-np.log(self.T),1+np.log(self.T))
+                    self.eta[0]  = np.clip(self.eta[0], -1-np.log(self.T),1+np.log(self.T))
                     for k0 in range(self.K[0]):
-                        delta = alpha_eta_m * new_grad_eta0_t[1][k0]
-                        self.eta0[1][k0] += delta
+                        self.eta0[1][k0] = np.clip(self.eta0[1][k0],-1-np.log(self.T),1+np.log(self.T))
+                        self.eta[1][k0]  = np.clip(self.eta[1][k0], -1-np.log(self.T),1+np.log(self.T))
+                        for feature in self.theta[k0]:
+                            if min(self.theta[k0][feature]['log_sig']) < -3:
+                                print("HEY LOOK log_sig is too low")
+                                print("t:", t)
+                                print("")
+                                print("theta:")
+                                print(self.theta)
+                                print("")
+                                print("new gradient:")
+                                print(new_grad_theta_t)
+                                print("")
+                                print("old gradient:")
+                                print(old_grad_theta_t)
+                                print("")
+                                print("table average:")
+                                print(self.grad_theta)
+                                print("")
+                                print("Data_t:")
+                                print(self.data[t])
+                                print("")
+                                grad_thetas0 = [self.grad_theta_t[t0][k0][feature]['log_sig'][0] for t0 in range(self.T)]
+                                print(np.quantile(grad_thetas0,q=[0.0,0.01,0.1,0.5,0.9,0.99,1.0]))
+                                grad_thetas1 = [self.grad_theta_t[t0][k0][feature]['log_sig'][1] for t0 in range(self.T)]
+                                print(np.quantile(grad_thetas1,q=[0.0,0.01,0.1,0.5,0.9,0.99,1.0]))
+                                grad_thetas2 = [self.grad_theta_t[t0][k0][feature]['log_sig'][2] for t0 in range(self.T)]
+                                print(np.quantile(grad_thetas2,q=[0.0,0.01,0.1,0.5,0.9,0.99,1.0]))
+                            for param in self.theta[k0][feature]:
+                                self.theta[k0][feature][param] = np.clip(self.theta[k0][feature][param],
+                                                                         self.param_bounds[feature][param][0],
+                                                                         self.param_bounds[feature][param][1])
 
-                    # update eta
-                    delta = alpha_eta_m * new_grad_eta_t[0]
-                    self.eta[0] += delta
+                    # update Gamma and delta
+                    self.get_log_Gamma(jump=False)
+                    self.get_log_Gamma(jump=True)
+                    self.get_log_delta()
+
+                    # update average gradient and table of gradients
+                    self.grad_eta0[0] += new_grad_eta0_t[0] - old_grad_eta0_t[0]
+                    self.grad_eta0_t[t][0] = deepcopy(new_grad_eta0_t[0])
                     for k0 in range(self.K[0]):
-                        delta = alpha_eta_m * new_grad_eta_t[1][k0]
-                        self.eta[1][k0] += delta
+                        self.grad_eta0[1][k0] += new_grad_eta0_t[1][k0] - old_grad_eta0_t[1][k0]
+                        self.grad_eta0_t[t][1][k0] = deepcopy(new_grad_eta0_t[1][k0])
 
-                    # update theta
+                    self.grad_eta[0] += new_grad_eta_t[0] - old_grad_eta_t[0]
+                    self.grad_eta_t[t][0] = deepcopy(new_grad_eta_t[0])
+                    for k0 in range(self.K[0]):
+                        self.grad_eta[1][k0] += new_grad_eta_t[1][k0] - old_grad_eta_t[1][k0]
+                        self.grad_eta_t[t][1][k0] = deepcopy(new_grad_eta_t[1][k0])
+
                     for k0 in range(self.K[0]):
                         for feature in new_grad_theta_t[k0]:
                             for param in new_grad_theta_t[k0][feature]:
-                                delta = alpha_theta_m * new_grad_theta_t[k0][feature][param]
-                                self.theta[k0][feature][param] += delta
+                                self.grad_theta[k0][feature][param] += new_grad_theta_t[k0][feature][param]
+                                self.grad_theta[k0][feature][param] -= old_grad_theta_t[k0][feature][param]
+                                self.grad_theta_t[t][k0][feature][param] = deepcopy(new_grad_theta_t[k0][feature][param])
 
-                elif method == "SAG":
+                # print iteration
+                if True:
+                    print("batch number %d of %d" % (iter,nbatches))
+                    print("")
 
-                    # update eta0
-                    delta = (alpha_eta) * (new_grad_eta0_t[0] \
-                                         - old_grad_eta0_t[0] \
-                                         + self.grad_eta0[0])/self.T
-                    self.eta0[0] += delta
-                    for k0 in range(self.K[0]):
-                        delta = (alpha_eta) * (new_grad_eta0_t[1][k0] \
-                                           - old_grad_eta0_t[1][k0]
-                                           + self.grad_eta0[1][k0])/self.T
-                        self.eta0[1][k0] += delta
+                    # show current parameters
+                    print("current parameters:")
+                    print(self.theta)
+                    print(self.eta)
+                    print(self.eta0)
+                    print("")
 
-                    # update eta
-                    delta = (alpha_eta) * (new_grad_eta_t[0] \
-                                       - old_grad_eta_t[0] \
-                                       + self.grad_eta[0])/self.T
-                    self.eta[0] += delta
-                    for k0 in range(self.K[0]):
-                        delta = (alpha_eta) * (new_grad_eta_t[1][k0] \
-                                           - old_grad_eta_t[1][k0] \
-                                           + self.grad_eta[1][k0])/self.T
-                        self.eta[1][k0] += delta
+                    if method == "SVRG":
+                        print("table averages:")
+                        print(self.grad_theta_tilde)
+                        print(self.grad_eta_tilde)
+                        print(self.grad_eta0_tilde)
+                        print("")
+                    else:
+                        print("table averages:")
+                        print(self.grad_theta)
+                        print(self.grad_eta)
+                        print(self.grad_eta0)
+                        print("")
 
-                    # update theta
-                    for k0 in range(self.K[0]):
-                        for feature in new_grad_theta_t[k0]:
-                            for param in new_grad_theta_t[k0][feature]:
-                                delta = (alpha_theta) * (new_grad_theta_t[k0][feature][param] \
-                                                     - old_grad_theta_t[k0][feature][param] \
-                                                     + self.grad_theta[k0][feature][param])/self.T
-                                self.theta[k0][feature][param] += delta
+                    print("average weight change:")
+                    print(weight_change / (grad_buffer_size*self.K[0]*self.K[1]))
+                    print("")
 
-                elif method == "SVRG":
+                    print("L_theta: ",self.L_theta)
+                    print("L_eta: ",self.L_eta)
+                    print("")
 
-                    # update eta0
-                    delta = (alpha_eta) * (new_grad_eta0_t[0] \
-                                       - old_grad_eta0_t[0] \
-                                       + self.grad_eta0_tilde[0]/self.T)
-                    self.eta0[0] += delta
-                    for k0 in range(self.K[0]):
-                        delta = (alpha_eta) * (new_grad_eta0_t[1][k0] \
-                                           - old_grad_eta0_t[1][k0]
-                                           + self.grad_eta0_tilde[1][k0]/self.T)
-                        self.eta0[1][k0] += delta
+                # update iteration number
+                iter += 1
 
-                    # update eta
-                    delta = (alpha_eta) * (new_grad_eta_t[0] \
-                                       - old_grad_eta_t[0] \
-                                       + self.grad_eta_tilde[0]/self.T)
-                    self.eta[0] += delta
-                    for k0 in range(self.K[0]):
-                        delta = (alpha_eta) * (new_grad_eta_t[1][k0] \
-                                             - old_grad_eta_t[1][k0] \
-                                             + self.grad_eta_tilde[1][k0]/self.T)
-                        self.eta[1][k0] += delta
-
-                    # update theta
-                    for k0 in range(self.K[0]):
-                        for feature in new_grad_theta_t[k0]:
-                            for param in new_grad_theta_t[k0][feature]:
-                                delta = (alpha_theta) * (new_grad_theta_t[k0][feature][param] \
-                                                       - old_grad_theta_t[k0][feature][param] \
-                                                       + self.grad_theta_tilde[k0][feature][param]/self.T)
-                                self.theta[k0][feature][param] += delta
-
-                elif method == "SAGA":
-
-                    # update eta0
-                    delta = (alpha_eta) * (new_grad_eta0_t[0] \
-                                         - old_grad_eta0_t[0] \
-                                         + self.grad_eta0[0]/self.T)
-                    self.eta0[0] += delta
-                    for k0 in range(self.K[0]):
-                        delta = (alpha_eta) * (new_grad_eta0_t[1][k0] \
-                                             - old_grad_eta0_t[1][k0]
-                                             + self.grad_eta0[1][k0]/self.T)
-                        self.eta0[1][k0] += delta
-
-                    # update eta
-                    delta = (alpha_eta) * (new_grad_eta_t[0] \
-                                         - old_grad_eta_t[0] \
-                                         + self.grad_eta[0]/self.T)
-                    self.eta[0] += delta
-                    for k0 in range(self.K[0]):
-                        delta = (alpha_eta) * (new_grad_eta_t[1][k0] \
-                                             - old_grad_eta_t[1][k0] \
-                                             + self.grad_eta[1][k0]/self.T)
-                        self.eta[1][k0] += delta
-
-                    # update theta
-                    for k0 in range(self.K[0]):
-                        for feature in new_grad_theta_t[k0]:
-                            for param in new_grad_theta_t[k0][feature]:
-                                delta = (alpha_theta) * (new_grad_theta_t[k0][feature][param] \
-                                                       - old_grad_theta_t[k0][feature][param] \
-                                                       + self.grad_theta[k0][feature][param]/self.T)
-                                delta = np.clip(delta,-0.5,0.5)
-                                self.theta[k0][feature][param] += delta
-
-                else:
-                    raise("method %s not recognized" % method)
-
-                # clip values
-                self.eta0[0] = np.clip(self.eta0[0],-1-np.log(self.T),1+np.log(self.T))
-                self.eta[0]  = np.clip(self.eta[0], -1-np.log(self.T),1+np.log(self.T))
-                for k0 in range(self.K[0]):
-                    self.eta0[1][k0] = np.clip(self.eta0[1][k0],-1-np.log(self.T),1+np.log(self.T))
-                    self.eta[1][k0]  = np.clip(self.eta[1][k0], -1-np.log(self.T),1+np.log(self.T))
-                    for feature in self.theta[k0]:
-                        if min(self.theta[k0][feature]['log_sig']) < -3:
-                            print("HEY LOOK log_sig is too low")
-                            print(t)
-                            print(self.theta)
-                            print(new_grad_theta_t)
-                            print(old_grad_theta_t)
-                            print(self.grad_theta)
-                            print(self.data[t])
-                            print("")
-                            grad_thetas0 = [self.grad_theta_t[t0][k0][feature]['log_sig'][0] for t0 in range(self.T)]
-                            print(np.quantile(grad_thetas0,q=[0.0,0.01,0.1,0.5,0.9,0.99,1.0]))
-                            grad_thetas1 = [self.grad_theta_t[t0][k0][feature]['log_sig'][1] for t0 in range(self.T)]
-                            print(np.quantile(grad_thetas1,q=[0.0,0.01,0.1,0.5,0.9,0.99,1.0]))
-                            grad_thetas2 = [self.grad_theta_t[t0][k0][feature]['log_sig'][2] for t0 in range(self.T)]
-                            print(np.quantile(grad_thetas2,q=[0.0,0.01,0.1,0.5,0.9,0.99,1.0]))
-                        for param in self.theta[k0][feature]:
-                            self.theta[k0][feature][param] = np.clip(self.theta[k0][feature][param],
-                                                                     self.param_bounds[feature][param][0],
-                                                                     self.param_bounds[feature][param][1])
-
-                # update Gamma and delta
-                self.get_log_Gamma(jump=False)
-                self.get_log_Gamma(jump=True)
-                self.get_log_delta()
-
-                # update average gradient and table of gradients
-                self.grad_eta0[0] += new_grad_eta0_t[0] - old_grad_eta0_t[0]
-                self.grad_eta0_t[t][0] = deepcopy(new_grad_eta0_t[0])
-                for k0 in range(self.K[0]):
-                    self.grad_eta0[1][k0] += new_grad_eta0_t[1][k0] - old_grad_eta0_t[1][k0]
-                    self.grad_eta0_t[t][1][k0] = deepcopy(new_grad_eta0_t[1][k0])
-
-                self.grad_eta[0] += new_grad_eta_t[0] - old_grad_eta_t[0]
-                self.grad_eta_t[t][0] = deepcopy(new_grad_eta_t[0])
-                for k0 in range(self.K[0]):
-                    self.grad_eta[1][k0] += new_grad_eta_t[1][k0] - old_grad_eta_t[1][k0]
-                    self.grad_eta_t[t][1][k0] = deepcopy(new_grad_eta_t[1][k0])
-
-                for k0 in range(self.K[0]):
-                    for feature in new_grad_theta_t[k0]:
-                        for param in new_grad_theta_t[k0][feature]:
-                            self.grad_theta[k0][feature][param] += new_grad_theta_t[k0][feature][param]
-                            self.grad_theta[k0][feature][param] -= old_grad_theta_t[k0][feature][param]
-                            self.grad_theta_t[t][k0][feature][param] = deepcopy(new_grad_theta_t[k0][feature][param])
-
-            # print iteration
-            print("iter number %d" % iter)
-            print("")
-
-            # show current parameters
-            print("current parameters:")
-            print(self.theta)
-            print(self.eta)
-            print(self.eta0)
-            print("")
-
-            print("table averages:")
-            print(self.grad_theta)
-            print(self.grad_eta)
-            print(self.grad_eta0)
-            print("")
-
-            print("average weight change:")
-            print(weight_change / (grad_buffer_size*self.K[0]*self.K[1]))
-            print("")
-
-            print("L_theta: ",self.L_theta)
-            print("L_eta: ",self.L_eta)
-            print("")
-
-            # record likelihood and check for convergence every T iterations
-            if (np.floor(iter/self.T) != np.floor((iter-2*grad_buffer_size+1)/self.T)) \
-                and (iter != 0):
+            # record likelihood and check for convergence every epoch
+            if epoch_num != 0:
 
                 # update epoch
                 if partial_E:
@@ -690,11 +713,48 @@ class StochOptimizor(Optimizor):
                 print("")
 
                 # show current gradients
-                print("current gradients:")
+                print("current table averages:")
                 print(self.grad_theta)
                 print(self.grad_eta)
                 print(self.grad_eta0)
                 print("")
+
+                # update grad tilde if using SVRG:
+                if method == "SVRG":
+
+                    # initialize gradients
+                    self.initialize_grads()
+
+                    # update probs and gradients
+                    for t in range(self.T):
+
+                        # update theta
+                        self.grad_theta_t[t] = self.get_grad_theta_t(t)
+
+                        for k0 in range(self.K[0]):
+                            for feature in self.grad_theta[k0]:
+                                for param in self.grad_theta[k0][feature]:
+                                    self.grad_theta[k0][feature][param] += \
+                                    self.grad_theta_t[t][k0][feature][param]
+
+                        # update eta
+                        self.grad_eta_t[t],self.grad_eta0_t[t] = self.get_grad_eta_t(t)
+
+                        self.grad_eta[0] += self.grad_eta_t[t][0]
+                        self.grad_eta0[0] += self.grad_eta0_t[t][0]
+
+                        for k0 in range(self.K[0]):
+                            self.grad_eta[1][k0] += self.grad_eta_t[t][1][k0]
+                            self.grad_eta0[1][k0] += self.grad_eta0_t[t][1][k0]
+
+                    self.update_tilde()
+
+                    # show current gradients
+                    print("new table averages:")
+                    print(self.grad_theta_tilde)
+                    print(self.grad_eta_tilde)
+                    print(self.grad_eta0_tilde)
+                    print("")
 
                 if record_like:
 
@@ -730,53 +790,14 @@ class StochOptimizor(Optimizor):
                     print("Time limit reached within M step")
                     return
 
-                # pick grad_buffer size (minibatch size pretty much)
-                if grad_buffer == "none":
-                    grad_buffer_size = 0
-                elif grad_buffer == "fine":
-                    log_Gammas = eta_2_log_Gamma(self.eta)[1]
-                    grad_buffer_size = max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
-                elif grad_buffer == "coarse":
-                    log_Gamma = eta_2_log_Gamma(self.eta)[0]
-                    grad_buffer_size = self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
-                else:
-                    print("unknown grad buffer scale: %d" % grad_buffer)
-                    grad_buffer_size = 0
-
-                print("grad buffer size: %d" % grad_buffer_size)
-                print("")
-
-                # pick weight buffer size
-                if weight_buffer == "none":
-                    weight_buffer_size = 0
-                elif weight_buffer == "fine":
-                    log_Gammas = eta_2_log_Gamma(self.eta)[1]
-                    weight_buffer_size = max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
-                elif weight_buffer == "coarse":
-                    log_Gamma = eta_2_log_Gamma(self.eta)[0]
-                    weight_buffer_size = self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
-                else:
-                    print("unknown weight buffer scale: %s" % weight_buffer)
-                    weight_buffer_size = 0
-
-                print("weight buffer size: %d" % weight_buffer_size)
-                print("")
-
-            # update iteration number
-            iter += 2*grad_buffer_size+1
-
         print("M-step failed to converge: maximum number of iterations reached")
 
         return
 
-    def train_HHMM_stoch(self,num_epochs=10,max_time=np.infty,max_iters=None,
+    def train_HHMM_stoch(self,num_epochs=10,max_time=np.infty,max_epochs=1,
                          alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-5,
                          method="EM",partial_E=False,record_like=False,
                          weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
-
-        # fill in keyword args
-        if max_iters is None:
-            max_iters = self.T
 
         # check that the method makes sense
         if method not in ["EM","BFGS","Nelder-Mead","CG",
@@ -908,7 +929,7 @@ class StochOptimizor(Optimizor):
             # do M-step
             print("starting M-step...")
             print("")
-            self.M_step(max_iters=max_iters,
+            self.M_step(max_epochs=max_epochs,
                         max_time=max_time,
                         method=method,
                         alpha_theta=alpha_theta,

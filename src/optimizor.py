@@ -227,23 +227,38 @@ class Optimizor(HHMM):
 
     def get_grad_log_delta(self,eta0=None):
 
-        if eta0 is None:
-            eta0 = self.eta0
+        grad_eta_log_delta = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
+                              [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
 
-        log_delta = eta0_2_log_delta(eta0)
-        coarse_delta = np.exp(log_delta[0])
-        fine_deltas = [np.exp(log_delta1) for log_delta1 in log_delta[1]]
+        grad_eta0_log_delta = [np.zeros((self.K[0],self.K[0])),
+                               [np.zeros((self.K[1],self.K[1])) for _ in range(self.K[0])]]
 
-        grad_eta0_log_delta = [np.eye(self.K[0]) - np.tile(coarse_delta,[self.K[0],1]),
-                               [np.eye(self.K[1]) - np.tile(fine_delta,[self.K[1],1]) \
-                                for fine_delta in fine_deltas]]
+        if self.stationary_delta:
 
-        # set some gradients to zero for identifiability
-        grad_eta0_log_delta[0][:,0] = 0
-        for k0 in range(self.K[0]):
-            grad_eta0_log_delta[1][k0][:,0] = 0
+            if eta is None:
+                eta = self.eta
 
-        return grad_eta0_log_delta
+
+
+        else:
+
+            if eta0 is None:
+                eta0 = self.eta0
+
+            log_delta = eta0_2_log_delta(eta0)
+            coarse_delta = np.exp(log_delta[0])
+            fine_deltas = [np.exp(log_delta1) for log_delta1 in log_delta[1]]
+
+            grad_eta0_log_delta = [np.eye(self.K[0]) - np.tile(coarse_delta,[self.K[0],1]),
+                                   [np.eye(self.K[1]) - np.tile(fine_delta,[self.K[1],1]) \
+                                    for fine_delta in fine_deltas]]
+
+            # set some gradients to zero for identifiability
+            grad_eta0_log_delta[0][:,0] = 0
+            for k0 in range(self.K[0]):
+                grad_eta0_log_delta[1][k0][:,0] = 0
+
+        return grad_eta0_log_delta,grad_eta_log_delta
 
     def get_grad_log_Gamma(self,eta=None,eta0=None,jump=True):
 

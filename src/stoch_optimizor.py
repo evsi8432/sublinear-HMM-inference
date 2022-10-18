@@ -110,9 +110,9 @@ class StochOptimizor(Optimizor):
         self.E_step()
         #self.update_tilde()
         ll = logsumexp(self.log_alphas[self.T-1])
-        ll += self.get_log_p_theta()
-        ll += self.get_log_p_eta()
-        ll += self.get_log_p_eta0()
+        #ll += self.get_log_p_theta()
+        #ll += self.get_log_p_eta()
+        #ll += self.get_log_p_eta0()
         grad_norm = np.linalg.norm(self.grad_params_2_xprime())
 
         # return values to old state
@@ -183,10 +183,10 @@ class StochOptimizor(Optimizor):
             G_t_new = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=eta_new,eta0=eta0_new)))
 
         # add priors
-        G_t -= self.get_log_p_eta() / self.T + \
-              self.get_log_p_eta0() / self.T
-        G_t_new -= self.get_log_p_eta(eta=eta_new) / self.T + \
-                  self.get_log_p_eta0(eta0=eta0_new) / self.T
+        #G_t -= self.get_log_p_eta() / self.T + \
+        #      self.get_log_p_eta0() / self.T
+        #G_t_new -= self.get_log_p_eta(eta=eta_new) / self.T + \
+        #          self.get_log_p_eta0(eta0=eta0_new) / self.T
 
         # check inequality
         if grad_G_t_norm2 < 1e-8:
@@ -245,8 +245,8 @@ class StochOptimizor(Optimizor):
         F_t_new = -np.sum(np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=theta_new,code="F_t_new")))
 
         # add priors
-        F_t -= self.get_log_p_theta() / self.T
-        F_t_new -= self.get_log_p_theta(theta=theta_new) / self.T
+        #F_t -= self.get_log_p_theta() / self.T
+        #F_t_new -= self.get_log_p_theta(theta=theta_new) / self.T
 
         # check for inequality
         if grad_F_t_norm2 < 1e-8:
@@ -333,7 +333,7 @@ class StochOptimizor(Optimizor):
 
             # pick grad_buffer size (minibatch size pretty much)
             if grad_buffer == "none":
-                grad_buffer_size = 0
+                grad_buffer_size = 1
             elif grad_buffer == "fine":
                 log_Gammas = eta_2_log_Gamma(self.eta)[1]
                 grad_buffer_size = 2*max([self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps) for log_Gamma in log_Gammas])
@@ -342,7 +342,7 @@ class StochOptimizor(Optimizor):
                 grad_buffer_size = 2*self.get_mixing_time(np.exp(log_Gamma),buffer_eps=buffer_eps)
             else:
                 print("unknown grad buffer scale: %d" % grad_buffer)
-                grad_buffer_size = 0
+                grad_buffer_size = 1
 
             print("grad buffer size: %d" % grad_buffer_size)
             print("")
@@ -669,7 +669,7 @@ class StochOptimizor(Optimizor):
                                 self.grad_theta_t[t][k0][feature][param] = deepcopy(new_grad_theta_t[k0][feature][param])
 
                 # print iteration
-                if True:
+                if False:
                     print("batch number %d of %d" % (iter,nbatches))
                     print("")
 
@@ -873,9 +873,9 @@ class StochOptimizor(Optimizor):
 
             # record log-likelihood
             ll_new = logsumexp(self.log_alphas[self.T-1])
-            ll_new += self.get_log_p_theta()
-            ll_new += self.get_log_p_eta()
-            ll_new += self.get_log_p_eta0()
+            #ll_new += self.get_log_p_theta()
+            #ll_new += self.get_log_p_eta()
+            #ll_new += self.get_log_p_eta0()
             print("current log likelihood: %f" % ll_new)
             print("")
 
@@ -907,9 +907,9 @@ class StochOptimizor(Optimizor):
                 self.E_step()
                 self.update_tilde()
                 ll_new = logsumexp(self.log_alphas[self.T-1])
-                ll_new += self.get_log_p_theta()
-                ll_new += self.get_log_p_eta()
-                ll_new += self.get_log_p_eta0()
+                #ll_new += self.get_log_p_theta()
+                #ll_new += self.get_log_p_eta()
+                #ll_new += self.get_log_p_eta0()
 
                 print("returned log likelihood: %f" % ll_new)
                 print("Trying again...")

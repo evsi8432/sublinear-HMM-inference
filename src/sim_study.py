@@ -68,9 +68,9 @@ method_partialEs = [("control",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
 
-Ts = [1e5]#[1e3,1e5]
-Ks = [3]#[3,6]
-ds = [3]#[3,6]
+Ts = [1e3]#[1e3,1e5]
+Ks = [5]#[3,6]
+ds = [1]#[3,6]
 rand_seed = range(50)
 
 # set methods
@@ -98,10 +98,10 @@ print("random seed: %d" % rand_seed)
 print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
-num_epochs = 1000
+num_epochs = 100
 tol = 1e-6
 grad_tol = 1e-6
-grad_buffer = "coarse"
+grad_buffer = "none"
 weight_buffer = "none"
 
 step_sizes = {"EM"  : [None,None],
@@ -200,7 +200,7 @@ if method == "control":
     optim.eta0 = log_delta_2_eta0(log_delta)
     optim.eta = log_Gamma_2_eta(log_Gamma)
 
-    optim.train_HHMM_stoch(num_epochs=200,
+    optim.train_HHMM_stoch(num_epochs=num_epochs,
                            max_time=max_time,
                            method="SAGA",
                            max_epochs=1,

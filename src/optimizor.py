@@ -442,8 +442,8 @@ class Optimizor(HHMM):
                                                            grad_log_f[k0][feature][param]
 
                 # add prior
-                for k0 in range(self.K[0]):
-                    grad_theta_t[k0][feature][param] += grad_log_p_theta[k0][feature][param] / self.T
+                #for k0 in range(self.K[0]):
+                #    grad_theta_t[k0][feature][param] += grad_log_p_theta[k0][feature][param] / self.T
 
         return grad_theta_t
 
@@ -490,11 +490,11 @@ class Optimizor(HHMM):
                                                       grad_eta0_log_delta[1][k0][:,k1])
 
             # add prior
-            grad_eta_t[0] += grad_log_p_eta[0] / self.T
-            grad_eta0_t[0] += grad_log_p_eta0[0] / self.T
-            for k0 in range(self.K[0]):
-                grad_eta_t[1][k0] += grad_log_p_eta[1][k0] / self.T
-                grad_eta0_t[1][k0] += grad_log_p_eta0[1][k0] / self.T
+            #grad_eta_t[0] += grad_log_p_eta[0] / self.T
+            #grad_eta0_t[0] += grad_log_p_eta0[0] / self.T
+            #for k0 in range(self.K[0]):
+            #    grad_eta_t[1][k0] += grad_log_p_eta[1][k0] / self.T
+            #    grad_eta0_t[1][k0] += grad_log_p_eta0[1][k0] / self.T
 
             return grad_eta_t,grad_eta0_t
 
@@ -542,11 +542,11 @@ class Optimizor(HHMM):
                                                        grad_eta_log_Gamma[1][k0][:,:,i,j])
 
         # add prior
-        grad_eta_t[0] += grad_log_p_eta[0] / self.T
-        grad_eta0_t[0] += grad_log_p_eta0[0] / self.T
-        for k0 in range(self.K[0]):
-            grad_eta_t[1][k0] += grad_log_p_eta[1][k0] / self.T
-            grad_eta0_t[1][k0] += grad_log_p_eta0[1][k0] / self.T
+        #grad_eta_t[0] += grad_log_p_eta[0] / self.T
+        #grad_eta0_t[0] += grad_log_p_eta0[0] / self.T
+        #for k0 in range(self.K[0]):
+        #    grad_eta_t[1][k0] += grad_log_p_eta[1][k0] / self.T
+        #    grad_eta0_t[1][k0] += grad_log_p_eta0[1][k0] / self.T
 
         return grad_eta_t,grad_eta0_t
 
@@ -742,9 +742,9 @@ class Optimizor(HHMM):
             print(self.ll)
 
             # add prior
-            self.ll += self.get_log_p_eta()
-            self.ll += self.get_log_p_eta0()
-            self.ll += self.get_log_p_theta()
+            #self.ll += self.get_log_p_eta()
+            #self.ll += self.get_log_p_eta0()
+            #self.ll += self.get_log_p_theta()
 
             # get gradient
             self.xprime = self.grad_params_2_xprime()

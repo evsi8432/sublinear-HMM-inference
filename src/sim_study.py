@@ -221,6 +221,6 @@ elif partial_E == 1:
 
 # save file
 optim.data = data_fname
-fname = "../params/experiment_%d_%d_%s_%.1f_%d" % (experiment,T,method,partial_E,rand_seed)
+fname = "../params/T-%d_K-%d-%d_%s_%.1f_%03d" % (T,K[0],K[1],method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

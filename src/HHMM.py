@@ -51,7 +51,7 @@ class HHMM:
         self.T = len(data)
         self.jump_every = 1
         self.features = features
-        self.stationary_delta = True
+        self.stationary_delta = False
 
         # indices where sequences start and end
         self.initial_ts = np.array([0])
@@ -92,8 +92,10 @@ class HHMM:
             return
 
         theta = [{} for _ in range(self.K[0])]
+        theta_mus = [{} for _ in range(self.K[0])]
+        theta_sigs = [{} for _ in range(self.K[0])]
+
         param_bounds = {}
-        max_step_sizes = {}
 
         initial_inds = np.random.choice(len(data),size=(self.K[0],self.K[1]))
 
@@ -102,32 +104,39 @@ class HHMM:
             feature_data = [datum[feature] for datum in data]
 
             param_bounds[feature] = {}
-            max_step_sizes[feature] = {}
 
             for k0 in range(self.K[0]):
 
                 # initialize values
                 theta[k0][feature] = {}
+                theta_mus[k0][feature] = {}
+                theta_sigs[k0][feature] = {}
 
                 if settings['f'] == 'normal':
 
-                    theta[k0][feature]['mu'] = np.array([feature_data[initial_inds[k0,k1]] for k1 in range(self.K[1])])
+                    #theta[k0][feature]['mu'] = np.array([feature_data[initial_inds[k0,k1]] for k1 in range(self.K[1])])
+                    theta[k0][feature]['mu'] = np.nanmean(feature_data)*np.ones(self.K[1])
                     theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
 
-                    theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),0.01*np.exp(theta[k0][feature]['log_sig']))
-                    theta[k0][feature]['log_sig'] += norm.rvs(0.0,0.5,size=self.K[1])
+                    #theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),0.1*np.exp(theta[k0][feature]['log_sig']))
+                    theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
+                    #theta[k0][feature]['log_sig'] += norm.rvs(0.0,0.25,size=self.K[1])
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
+
+                    # define priors
+                    theta_mus[k0][feature]['mu'] = np.nanmean(feature_data) * np.ones(self.K[1])
+                    theta_sigs[k0][feature]['mu'] = (np.nanmax(feature_data)-np.nanmin(feature_data)) * np.ones(self.K[1])
+
+                    theta_mus[k0][feature]['log_sig'] = np.log(np.nanstd(feature_data)) - np.log(self.K_total + 1) * np.ones(self.K[1])
+                    theta_sigs[k0][feature]['log_sig'] = np.log(self.K_total + 1) * np.ones(self.K[1])
 
                     if k0 == 0:
                         param_bounds[feature]['mu'] = [min(feature_data),
                                                        max(feature_data)]
-                        max_step_sizes[feature]['mu'] = 0.05*(np.nanmax(feature_data)-np.nanmin(feature_data))
 
                         param_bounds[feature]['log_sig'] = [np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
                                                             np.log(np.nanmax(feature_data) -
                                                                    np.nanmin(feature_data))]
-                        max_step_sizes[feature]['log_sig'] = 0.05*(np.log(np.nanmax(feature_data)-np.nanmin(feature_data)))
-
 
                 elif settings['f'] == 'bern':
 
@@ -136,12 +145,13 @@ class HHMM:
 
                     if k0 == 0:
                         param_bounds[feature]['logit_p'] = [logit(0.1/self.T),logit(1.0-0.1/self.T)]
-                        max_step_sizes[feature]['logit_p'] = 0.05*(logit(1.0-0.1/self.T)-logit(0.1/self.T))
 
                 else:
                     pass
 
         self.theta = theta
+        self.theta_mus = theta_mus
+        self.theta_sigs = theta_sigs
         self.param_bounds = param_bounds
 
         return
@@ -150,6 +160,8 @@ class HHMM:
 
         # initialize eta
         self.eta = []
+        self.eta_mus = []
+        self.eta_sigs = []
 
         # fill in coarse eta
         eta_crude = -2.0 + 2.0*np.random.normal(size=(self.K[0],self.K[0]))
@@ -157,15 +169,27 @@ class HHMM:
             eta_crude[i,i] = 0
         self.eta.append(eta_crude)
 
+        # fill in coarse eta prior
+        self.eta_mus.append(np.zeros((self.K[0],self.K[0])))
+        self.eta_sigs.append((np.log(self.T)/3.0) * np.ones((self.K[0],self.K[0])))
+
         # fill in fine eta
         eta_fine = []
+        eta_fine_mus = []
+        eta_fine_sigs = []
         for _ in range(self.K[0]):
             eta_fine_k = -1.0 + np.random.normal(size=(self.K[1],self.K[1]))
+            eta_fine_mu_k = np.zeros((self.K[1],self.K[1]))
+            eta_fine_sig_k = (np.log(self.T)/3.0) * np.ones((self.K[1],self.K[1]))
             for i in range(self.K[1]):
                 eta_fine_k[i,i] = 0
             eta_fine.append(eta_fine_k)
+            eta_fine_mus.append(eta_fine_mu_k)
+            eta_fine_sigs.append(eta_fine_sig_k)
 
         self.eta.append(eta_fine)
+        self.eta_mus.append(eta_fine_mus)
+        self.eta_sigs.append(eta_fine_sigs)
 
         return
 
@@ -175,6 +199,14 @@ class HHMM:
         self.eta0 = [np.concatenate(([0.0],np.random.normal(size=(self.K[0]-1)))),
                      [np.concatenate(([0.0],np.random.normal(size=(self.K[1]-1)))) \
                       for _ in range(self.K[0])]]
+
+        # initialize eta0 prior
+        self.eta0_mus = [np.zeros(self.K[0]),
+                         [np.zeros(self.K[1]) for _ in range(self.K[0])]]
+
+        N_whales = len(self.initial_ts)
+        self.eta0_sigs = [np.log(N_whales+1)/3.0 * np.ones((self.K[0])),
+                          [np.log(self.T)/3.0 * np.ones((self.K[1])) for _ in range(self.K[0])]]
 
         return
 
@@ -342,6 +374,74 @@ class HHMM:
             self.log_Gamma = np.copy(log_Gamma)
 
         return log_Gamma
+
+    def get_log_p_theta(self,theta=None):
+
+        log_p = 0.0
+
+        if theta is None:
+            theta = self.theta
+
+        for k0 in range(self.K[0]):
+            for feature in theta[k0]:
+                for param in theta[k0][feature]:
+                    log_p += np.sum(norm.logpdf(theta[k0][feature][param],
+                                                loc=self.theta_mus[k0][feature][param],
+                                                scale=self.theta_sigs[k0][feature][param]))
+
+        return log_p
+
+    def get_log_p_eta(self,eta=None):
+
+        if eta is None:
+            eta = self.eta
+
+        log_p = 0.0
+
+        # add eta_coarse
+        eta_coarse = eta[0]
+        eta_coarse_mu = self.eta_mus[0]
+        eta_coarse_sig = self.eta_sigs[0]
+        log_p += np.sum(norm.logpdf(eta_coarse,
+                                    loc = eta_coarse_mu,
+                                    scale = eta_coarse_sig))
+
+        # add eta_fine
+        for k0 in range(self.K[0]):
+            eta_fine = eta[1][k0]
+            eta_fine_mu = self.eta_mus[1][k0]
+            eta_fine_sig = self.eta_sigs[1][k0]
+            log_p += np.sum(norm.logpdf(eta_fine,
+                                        loc = eta_fine_mu,
+                                        scale = eta_fine_sig))
+
+        return log_p
+
+    def get_log_p_eta0(self,eta0=None):
+
+        if eta0 is None:
+            eta0 = self.eta0
+
+        log_p = 0.0
+
+        # add eta_coarse
+        eta0_coarse = eta0[0]
+        eta0_coarse_mu = self.eta0_mus[0]
+        eta0_coarse_sig = self.eta0_sigs[0]
+        log_p += np.sum(norm.logpdf(eta0_coarse,
+                                    loc = eta0_coarse_mu,
+                                    scale = eta0_coarse_sig))
+
+        # add eta_fine
+        for k0 in range(self.K[0]):
+            eta0_fine = eta0[1][k0]
+            eta0_fine_mu = self.eta0_mus[1][k0]
+            eta0_fine_sig = self.eta0_sigs[1][k0]
+            log_p += np.sum(norm.logpdf(eta0_fine,
+                                        loc = eta0_fine_mu,
+                                        scale = eta0_fine_sig))
+
+        return log_p
 
     def update_alpha(self,t):
 

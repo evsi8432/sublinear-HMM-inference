@@ -68,9 +68,9 @@ method_partialEs = [("control",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
 
-Ts = [1e3,1e5]
-Ks = [3,6]
-ds = [3,6]
+Ts = [1e5]#[1e3,1e5]
+Ks = [3]#[3,6]
+ds = [3]#[3,6]
 rand_seed = range(50)
 
 # set methods
@@ -98,9 +98,9 @@ print("random seed: %d" % rand_seed)
 print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
-num_epochs = 10000
-tol = 1e-8
-grad_tol = 1e-8
+num_epochs = 1000
+tol = 1e-6
+grad_tol = 1e-6
 grad_buffer = "coarse"
 weight_buffer = "none"
 
@@ -160,6 +160,20 @@ print("initial eta:")
 print(optim.eta)
 print("")
 
+# print mus and sigs
+print("theta priors:")
+print(optim.theta_mus)
+print(optim.theta_sigs)
+print("")
+print("eta0 priors:")
+print(optim.eta0_mus)
+print(optim.eta0_sigs)
+print("")
+print("eta priors:")
+print(optim.eta_mus)
+print(optim.eta_sigs)
+print("")
+
 fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
 with open(fname_p, 'rb') as f:
     true_params = pickle.load(f)
@@ -175,7 +189,7 @@ if method == "control":
 
     for k0 in range(K[0]):
         optim.theta.append({'Y%d'%d0 : {'mu': true_params["mus"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])],
-                                           'log_sig': np.log(true_params["sigs"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])])} \
+                                        'log_sig': np.log(true_params["sigs"]['Y%d'%d0][(k0*K[1]):((k0+1)*K[1])])} \
                                for d0 in range(d)})
 
     log_Gamma = [np.log(true_params["Gamma"][0]),
@@ -186,24 +200,23 @@ if method == "control":
     optim.eta0 = log_delta_2_eta0(log_delta)
     optim.eta = log_Gamma_2_eta(log_Gamma)
 
-
     optim.train_HHMM_stoch(num_epochs=200,
-                         max_time=max_time,
-                         method="SAGA",
-                         max_epochs=1,
-                         partial_E=True,
-                         tol=1e-4*tol,
-                         grad_tol=1e-4*grad_tol,
-                         record_like=True,
-                         weight_buffer=weight_buffer,
-                         grad_buffer=grad_buffer,
-                         buffer_eps=1e-3)
+                           max_time=max_time,
+                           method="SAGA",
+                           max_epochs=1,
+                           partial_E=True,
+                           tol=1e-4*tol,
+                           grad_tol=1e-4*grad_tol,
+                           record_like=True,
+                           weight_buffer=weight_buffer,
+                           grad_buffer=grad_buffer,
+                           buffer_eps=1e-3)
 
 elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
                           max_time=max_time,
                           method=method,
-                          max_epochs=10,
+                          max_epochs=1,
                           partial_E=False,
                           tol=tol,
                           grad_tol=grad_tol,

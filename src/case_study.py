@@ -83,7 +83,7 @@ print("random seed: %d" % rand_seed)
 print("max time : %.3f hours" % (max_time/3600))
 
 # select parameters for optimization
-num_epochs = 10000
+num_epochs = 1000
 tol = 1e-8
 grad_tol = 1e-8
 grad_buffer = "fine"

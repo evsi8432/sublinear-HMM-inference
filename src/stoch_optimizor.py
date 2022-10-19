@@ -344,8 +344,8 @@ class StochOptimizor(Optimizor):
                 print("unknown grad buffer scale: %d" % grad_buffer)
                 grad_buffer_size = 1
 
-            print("grad buffer size: %d" % grad_buffer_size)
-            print("")
+            #print("grad buffer size: %d" % grad_buffer_size)
+            #print("")
 
             # pick weight buffer size
             if weight_buffer == "none":
@@ -360,14 +360,12 @@ class StochOptimizor(Optimizor):
                 print("unknown weight buffer scale: %s" % weight_buffer)
                 weight_buffer_size = 0
 
-            print("weight buffer size: %d" % weight_buffer_size)
-            print("")
+            #print("weight buffer size: %d" % weight_buffer_size)
+            #print("")
 
             nbatches = int(self.T / grad_buffer_size)
             minibatches = [range(grad_buffer_size*i,min(grad_buffer_size*(i+1),self.T)) for i in range(nbatches)]
             batch_order = np.random.permutation(range(nbatches))
-            print(batch_order)
-            print(minibatches)
             iter = 0
 
             for batch_ind in batch_order:
@@ -733,6 +731,10 @@ class StochOptimizor(Optimizor):
                 print(self.grad_eta0)
                 print("")
 
+                print("L_theta: ",self.L_theta)
+                print("L_eta: ",self.L_eta)
+                print("")
+
                 # update grad tilde if using SVRG:
                 if method == "SVRG":
 
@@ -784,17 +786,13 @@ class StochOptimizor(Optimizor):
 
                     # record log likelihood
                     ll, grad_norm = self.get_ll_keep_params()
-                    print("current log likelihood: %f" % ll)
-                    print("")
+                    #print("current log likelihood: %f" % ll)
+                    # print("")
                     self.grad_norm_trace.append(grad_norm / self.T)
                     self.log_like_trace.append(ll / self.T)
 
                     # start timer back up
                     self.start_time = time.time()
-
-                print("L_theta: ",self.L_theta)
-                print("L_eta: ",self.L_eta)
-                print("")
 
                 grad_norm = np.linalg.norm(self.grad_params_2_xprime()) / self.T
                 if (grad_norm < tol):

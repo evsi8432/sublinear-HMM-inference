@@ -320,6 +320,7 @@ class HHMM:
         else:
             if eta0 is None:
                 eta0 = self.eta0
+                
             log_coarse_delta = np.repeat(eta0[0] - logsumexp(eta0[0]),self.K[1])
             log_fine_delta = np.concatenate([(eta01 - logsumexp(eta01)) for eta01 in eta0[1]])
 

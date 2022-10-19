@@ -167,7 +167,9 @@ optim.eta = [array([[ 0.        ,  0.45427351, -0.23896227, -0.87832498, -0.5561
 optim.eta0 = [array([ 0.        , -1.04855297, -1.42001794, -1.70627019,  1.9507754 ]),
               [array([0.]), array([0.]), array([0.]), array([0.]), array([0.])]]
 
-
+optim.get_log_Gamma(jump=False)
+optim.get_log_Gamma(jump=True)
+optim.get_log_delta()
 
 # print initial parameters
 print("initial theta:")

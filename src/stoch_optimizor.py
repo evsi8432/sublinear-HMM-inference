@@ -252,7 +252,6 @@ class StochOptimizor(Optimizor):
         if grad_F_t_norm2 < 1e-8:
             pass
         elif F_t_new > F_t - grad_F_t_norm2 / (2*self.L_theta):
-            print("doubled L_theta")
             self.L_theta *= 2
             self.check_L_theta(t)
         else:

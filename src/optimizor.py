@@ -1147,6 +1147,9 @@ class optimizor:
         else:
             self.L_eta = 1.0/(3.0*alpha_eta)
 
+        print("alpha theta: %f" % alpha_theta)
+        print("alpha eta: %f" % alpha_eta)
+
         # update parameters
         if method == "EM":
 
@@ -1205,29 +1208,6 @@ class optimizor:
 
         #if method == "GD":
         #    max_iters = 10
-
-        print("starting epoch %.1f" % (self.epoch_num))
-        print("")
-
-        print("%.3f hours elapsed" % (self.train_time / 3600))
-        print("")
-
-        # show current parameters
-        print("current parameters:")
-        print(self.theta)
-        print(self.eta)
-        print(self.eta0)
-        print("")
-
-        # show current gradients
-        print("current gradients:")
-        print(self.grad_theta)
-        print(self.grad_eta)
-        print(self.grad_eta0)
-        print("")
-
-        print("L_theta: %f"%self.L_theta)
-        print("L_eta: %f"%self.L_eta)
 
         for iter in range(max_iters):
 
@@ -1489,9 +1469,13 @@ class optimizor:
             if method != "SGD":
                 self.check_L_theta(t)
                 alpha_theta = 1.0/(3.0*self.L_theta)
+                print(alpha_theta)
 
                 self.check_L_eta(t)
                 alpha_eta = 1.0/(3.0*self.L_eta)
+                print(alpha_eta)
+
+                print("")
 
             # clip values
             self.eta[0] = np.clip(self.eta[0],-10,10)
@@ -1540,7 +1524,7 @@ class optimizor:
             self.log_delta = self.get_log_delta()[0]
 
             # record likelihood and check for convergence every T iterations
-            if (iter % (2*self.T) == (2*self.T-1)):
+            if (iter % (self.T) == (self.T-1)):
 
                 # update epoch
                 if partial_E:
@@ -1583,7 +1567,7 @@ class optimizor:
                 print("")
 
                 # show current gradients
-                print("current gradients:")
+                print("current table averages:")
                 print(self.grad_theta)
                 print(self.grad_eta)
                 print(self.grad_eta0)
@@ -1960,6 +1944,7 @@ class optimizor:
 
             print("L_theta: %f"%self.L_theta)
             print("L_eta: %f"%self.L_eta)
+            print("")
 
             # record log-likelihood
             ll_new = logsumexp(self.log_alphas[self.T-1])

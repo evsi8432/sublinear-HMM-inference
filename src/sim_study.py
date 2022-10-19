@@ -3,6 +3,7 @@ import sys
 
 import pandas as pd
 import numpy as np
+from numpy import array
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
@@ -96,11 +97,11 @@ grad_tol = 1e-16
 step_sizes = {"EM"  : [None,None],
               "CG"  : [None,None],
               "BFGS": [None,None],
-              "GD"  : [0.005,0.005],
-              "SGD" : [0.005,0.005],
-              "SAG" : [0.005,0.005],
-              "SVRG": [0.005,0.005],
-              "SAGA": [0.005,0.005]}
+              "GD"  : [0.01,0.01],
+              "SGD" : [0.01,0.01],
+              "SAG" : [0.01,0.01],
+              "SVRG": [0.01,0.01],
+              "SAGA": [0.01,0.01]}
 
 jump_every = 1
 
@@ -129,13 +130,34 @@ for d0 in range(d):
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
     if not (step_sizes["SAGA"][0] is None):
-        optim.L_theta = 1.0 / step_sizes["SAGA"][0]
-        optim.L_eta = 1.0 / step_sizes["SAGA"][1]
+        optim.L_theta = 1.0 / (3.0*step_sizes["SAGA"][0])
+        optim.L_eta = 1.0 / (3.0*step_sizes["SAGA"][1])
 else:
     optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / step_sizes[method][0]
-        optim.L_eta = 1.0 / step_sizes[method][1]
+        optim.L_theta = 1.0 / (3.0*step_sizes[method][0])
+        optim.L_eta = 1.0 / (3.0*step_sizes[method][1])
+
+# TEMPORARAY THING
+optim.theta = [{},[{'Y0': {'mu': array([1.81734315]), 'log_sig': array([0.17850115])}},
+               {'Y0': {'mu': array([1.18815644]), 'log_sig': array([2.01923715])}},
+               {'Y0': {'mu': array([1.90027093]), 'log_sig': array([-1.19893393])}},
+               {'Y0': {'mu': array([1.16520267]), 'log_sig': array([-0.37301326])}},
+               {'Y0': {'mu': array([0.32130249]), 'log_sig': array([0.18894245])}}]]
+
+optim.eta = [array([[ 0.        ,  0.45427351, -0.23896227, -0.87832498, -0.55613677],
+                    [-0.66632567,  0.        , -1.20515826, -0.6869323 , -1.85409574],
+                    [-3.55298982, -0.3463814 ,  0.        , -1.74216502,  1.26975462],
+                    [-2.45436567, -0.95424148, -1.18718385,  0.        ,  0.46935877],
+                    [-0.84505257, -0.62183748, -1.88778575, -2.98079647,  0.        ]]),
+            [array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]])]]
+
+optim.eta0 = [array([ 0.        , -1.04855297, -1.42001794, -1.70627019,  1.9507754 ]),
+              [array([0.]), array([0.]), array([0.]), array([0.]), array([0.])]]
+
+optim.log_Gamma = optim.get_log_Gamma(jump=False)[0]
+optim.log_Gamma_jump = optim.get_log_Gamma(jump=True)[0]
+optim.log_delta = optim.get_log_delta()[0]
 
 # print initial parameters
 print("initial theta:")

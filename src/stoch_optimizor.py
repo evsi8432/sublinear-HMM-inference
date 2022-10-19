@@ -848,20 +848,6 @@ class StochOptimizor(Optimizor):
             print("%.3f hours elapsed" % (self.train_time / 3600))
             print("")
 
-            # show current parameters
-            print("current parameters:")
-            print(self.theta)
-            print(self.eta)
-            print(self.eta0)
-            print("")
-
-            # show current gradients
-            print("current gradients:")
-            print(self.grad_theta)
-            print(self.grad_eta)
-            print(self.grad_eta0)
-            print("")
-
             # do E-step
             print("starting E-step...")
             self.E_step()
@@ -881,6 +867,30 @@ class StochOptimizor(Optimizor):
             print(self.grad_theta)
             print(self.grad_eta)
             print(self.grad_eta0)
+            print("")
+
+            print("log alphas:")
+            print(self.log_alphas)
+            print("")
+
+            print("delta:")
+            print(np.exp(self.log_delta))
+            print("")
+
+            print("Gamma:")
+            print(np.exp(self.log_Gamma_jump))
+            print("")
+
+            print("log_f_0:")
+            print(self.get_log_f(0))
+            print("")
+
+            print("alpha_0 (by hand):")
+            print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)))
+            print("")
+
+            print("alpha_0 (in memory):")
+            print(np.exp(self.log_alphas[0]))
             print("")
 
             # record log-likelihood

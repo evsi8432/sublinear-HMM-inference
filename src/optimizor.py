@@ -1226,29 +1226,8 @@ class optimizor:
         print(self.grad_eta0)
         print("")
 
-        print("log alphas:")
-        print(self.log_alphas)
-        print("")
-
-        print("delta:")
-        print(np.exp(self.log_delta))
-        print("")
-
-        print("Gamma:")
-        print(np.exp(self.log_Gamma_jump))
-        print("")
-
-        print("log_f_0:")
-        print(self.get_log_f(0))
-        print("")
-
-        print("alpha_0 (by hand):")
-        print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)))
-        print("")
-
-        print("alpha_0 (in memory):")
-        print(np.exp(self.log_alphas[0]))
-        print("")
+        print("L_theta: %f"%self.L_theta)
+        print("L_eta: %f"%self.L_eta)
 
         for iter in range(max_iters):
 
@@ -1610,32 +1589,8 @@ class optimizor:
                 print(self.grad_eta0)
                 print("")
 
-                print("log alphas:")
-                print(self.log_alphas)
-                print("")
-
-                print("delta:")
-                print(np.exp(self.log_delta))
-                print("")
-
-                print("Gamma:")
-                print(np.exp(self.log_Gamma_jump))
-                print("")
-
-                print("log_f_0:")
-                print(self.get_log_f(0))
-                print("")
-
-                print("alpha_0 (by hand):")
-                print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)))
-                print("")
-
-                print("alpha_0 (in memory):")
-                print(np.exp(self.log_alphas[0]))
-                print("")
-
-                print("L_theta: ",self.L_theta)
-                print("L_eta: ",self.L_eta)
+                print("L_theta: %f"%self.L_theta)
+                print("L_eta: %f"%self.L_eta)
                 print("")
 
                 if (grad_norm < tol):
@@ -1981,6 +1936,7 @@ class optimizor:
             print("")
 
             print("%.3f hours elapsed" % (self.train_time / 3600))
+            print("")
 
             # do E-step
             print("starting E-step...")
@@ -2002,29 +1958,8 @@ class optimizor:
             print(self.grad_eta0)
             print("")
 
-            print("log alphas:")
-            print(self.log_alphas)
-            print("")
-
-            print("delta:")
-            print(np.exp(self.log_delta))
-            print("")
-
-            print("Gamma:")
-            print(np.exp(self.log_Gamma_jump))
-            print("")
-
-            print("log_f_0:")
-            print(self.get_log_f(0)[0])
-            print("")
-
-            print("alpha_0 (by hand):")
-            print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)[0]))
-            print("")
-
-            print("alpha_0 (in memory):")
-            print(np.exp(self.log_alphas[0]))
-            print("")
+            print("L_theta: %f"%self.L_theta)
+            print("L_eta: %f"%self.L_eta)
 
             # record log-likelihood
             ll_new = logsumexp(self.log_alphas[self.T-1])
@@ -2104,8 +2039,8 @@ class optimizor:
                         record_like=record_like)
             print("...done")
             print("")
-            print("L_theta: ",self.L_theta)
-            print("L_eta: ",self.L_eta)
+            print("L_theta: %f"%self.L_theta)
+            print("L_eta: %f"%self.L_eta)
             print("")
 
 

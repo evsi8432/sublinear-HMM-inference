@@ -3,6 +3,7 @@ import os
 
 import pandas as pd
 import numpy as np
+from numpy import array
 import numdifftools as ndt
 import statsmodels.api as sm
 
@@ -148,6 +149,25 @@ else:
     if not (step_sizes[method][0] is None):
         optim.L_theta = 1.0 / step_sizes[method][0]
         optim.L_eta = 1.0 / step_sizes[method][1]
+
+### TEMPORARY INITIAL PARAMETERS TO CHECK
+optim.theta = [{'Y0': {'mu': array([1.1491484]), 'log_sig': array([-0.56610564])}},
+              {'Y0': {'mu': array([1.18010873]), 'log_sig': array([1.16942988])}},
+              {'Y0': {'mu': array([1.48536701]), 'log_sig': array([-1.23494082])}},
+              {'Y0': {'mu': array([0.92590664]), 'log_sig': array([-0.86533968])}},
+              {'Y0': {'mu': array([-0.21531898]), 'log_sig': array([-0.78066977])}}]
+
+optim.eta = [array([[ 0.        , -0.04104855, -0.14974445, -0.68153845, -0.51455389],
+        [-0.6298834 ,  0.        , -1.20091954, -0.53539455, -1.79889616],
+        [-3.53285839, -0.47144173,  0.        , -1.64007429,  0.65952809],
+        [-2.43369303, -1.1694875 , -1.13880217,  0.        ,  0.1014636 ],
+        [-1.80541663, -2.17279241, -2.39805625, -2.96556544,  0.        ]]),
+        [array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]])]]
+
+optim.eta0 = [array([ 0.        , -1.04869783, -1.41348288, -1.70532364,  1.93126396]),
+               [array([0.]), array([0.]), array([0.]), array([0.]), array([0.])]]
+
+
 
 # print initial parameters
 print("initial theta:")

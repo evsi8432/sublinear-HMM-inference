@@ -1206,12 +1206,28 @@ class optimizor:
         #if method == "GD":
         #    max_iters = 10
 
-        # check gradients
-        print("current step size:", alpha_theta)
+        print("starting epoch %.1f" % (self.epoch_num))
         print("")
-        print("current gradient:", self.grad_theta)
+
+        print("%.3f hours elapsed" % (self.train_time / 3600))
         print("")
-        print("current theta:", self.theta)
+
+        # show current parameters
+        print("current parameters:")
+        print(self.theta)
+        print(self.eta)
+        print(self.eta0)
+        print("")
+
+        # show current gradients
+        print("current table averages:")
+        print(self.grad_theta)
+        print(self.grad_eta)
+        print(self.grad_eta0)
+        print("")
+
+        print("L_theta: ",self.L_theta)
+        print("L_eta: ",self.L_eta)
         print("")
 
         for iter in range(max_iters):
@@ -1554,11 +1570,28 @@ class optimizor:
                     self.start_time = time.time()
 
                 # check gradients
-                print("current step size:", alpha_theta)
+                print("starting epoch %.1f" % (self.epoch_num))
                 print("")
-                print("current gradient:", self.grad_theta)
+
+                print("%.3f hours elapsed" % (self.train_time / 3600))
                 print("")
-                print("current theta:", self.theta)
+
+                # show current parameters
+                print("current parameters:")
+                print(self.theta)
+                print(self.eta)
+                print(self.eta0)
+                print("")
+
+                # show current gradients
+                print("current table averages:")
+                print(self.grad_theta)
+                print(self.grad_eta)
+                print(self.grad_eta0)
+                print("")
+
+                print("L_theta: ",self.L_theta)
+                print("L_eta: ",self.L_eta)
                 print("")
 
                 if (grad_norm < tol):

@@ -11,6 +11,7 @@
 *.cb
 *.cb2
 .*.lb
+*.pyc
 
 ## anything other than the bib file in /ref
 ref/*

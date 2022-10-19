@@ -1206,6 +1206,14 @@ class optimizor:
         #if method == "GD":
         #    max_iters = 10
 
+        # check gradients
+        print("current step size:", alpha_theta)
+        print("")
+        print("current gradient:", self.grad_theta)
+        print("")
+        print("current theta:", self.theta)
+        print("")
+
         for iter in range(max_iters):
 
             #if method == "GD":
@@ -1521,7 +1529,7 @@ class optimizor:
 
                 # update epoch
                 if partial_E:
-                    self.epoch_num += 1.0
+                    self.epoch_num += 2.0
                 else:
                     self.epoch_num += 1.0
 
@@ -1545,8 +1553,14 @@ class optimizor:
                     # start timer back up
                     self.start_time = time.time()
 
-                grad_norm = self.est_grad_norm() / self.T
-                print(grad_norm)
+                # check gradients
+                print("current step size:", alpha_theta)
+                print("")
+                print("current gradient:", self.grad_theta)
+                print("")
+                print("current theta:", self.theta)
+                print("")
+
                 if (grad_norm < tol):
                     print("M-step sucesssfully converged")
                     return

@@ -702,7 +702,7 @@ class StochOptimizor(Optimizor):
                 iter += 1
 
             # record likelihood and check for convergence every epoch
-            if epoch_num != 0:
+            if epoch_num != 0.0:
 
                 # update epoch
                 if partial_E:
@@ -868,28 +868,8 @@ class StochOptimizor(Optimizor):
             print(self.grad_eta0)
             print("")
 
-            print("log alphas:")
-            print(self.log_alphas)
-            print("")
-
-            print("delta:")
-            print(np.exp(self.log_delta))
-            print("")
-
-            print("Gamma:")
-            print(np.exp(self.log_Gamma_jump))
-            print("")
-
-            print("log_f_0:")
-            print(self.get_log_f(0))
-            print("")
-
-            print("alpha_0 (by hand):")
-            print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)))
-            print("")
-
-            print("alpha_0 (in memory):")
-            print(np.exp(self.log_alphas[0]))
+            print("L_theta: ",self.L_theta)
+            print("L_eta: ",self.L_eta)
             print("")
 
             # record log-likelihood

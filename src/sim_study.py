@@ -142,13 +142,13 @@ for d0 in range(d):
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
     if not (step_sizes["SAGA"][0] is None):
-        optim.L_theta = 1.0 / step_sizes["SAGA"][0]
-        optim.L_eta = 1.0 / step_sizes["SAGA"][1]
+        optim.L_theta = 1.0 / (3.0*step_sizes["SAGA"][0])
+        optim.L_eta = 1.0 / (3.0*step_sizes["SAGA"][1])
 else:
     optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / step_sizes[method][0]
-        optim.L_eta = 1.0 / step_sizes[method][1]
+        optim.L_theta = 1.0 / (3.0*step_sizes[method][0])
+        optim.L_eta = 1.0 / (3.0*step_sizes[method][1])
 
 ### TEMPORARY INITIAL PARAMETERS TO CHECK
 optim.theta = [{'Y0': {'mu': array([1.81734315]), 'log_sig': array([0.17850115])}},

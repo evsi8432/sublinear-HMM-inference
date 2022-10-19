@@ -1938,6 +1938,12 @@ class optimizor:
 
             print("%.3f hours elapsed" % (self.train_time / 3600))
 
+            # do E-step
+            print("starting E-step...")
+            self.E_step()
+            print("...done")
+            print("")
+
             # show current parameters
             print("current parameters:")
             print(self.theta)
@@ -1952,12 +1958,10 @@ class optimizor:
             print(self.grad_eta0)
             print("")
 
-            # do E-step
-            print("starting E-step...")
-            self.E_step()
-            print("...done")
-            print("")
-
+            # show probabilities
+            print("log_alphas:")
+            print(self.log_alphas)
+            
             # record log-likelihood
             ll_new = logsumexp(self.log_alphas[self.T-1])
             print("current log likelihood: %f" % ll_new)

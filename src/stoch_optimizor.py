@@ -848,6 +848,20 @@ class StochOptimizor(Optimizor):
             print("%.3f hours elapsed" % (self.train_time / 3600))
             print("")
 
+            # show current parameters
+            print("current parameters:")
+            print(self.theta)
+            print(self.eta)
+            print(self.eta0)
+            print("")
+
+            # show current gradients
+            print("current gradients:")
+            print(self.grad_theta)
+            print(self.grad_eta)
+            print(self.grad_eta0)
+            print("")
+
             # do E-step
             print("starting E-step...")
             self.E_step()

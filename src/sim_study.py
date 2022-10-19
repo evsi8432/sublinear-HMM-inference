@@ -151,21 +151,21 @@ else:
         optim.L_eta = 1.0 / step_sizes[method][1]
 
 ### TEMPORARY INITIAL PARAMETERS TO CHECK
-optim.theta = [{'Y0': {'mu': array([1.1491484]), 'log_sig': array([-0.56610564])}},
-              {'Y0': {'mu': array([1.18010873]), 'log_sig': array([1.16942988])}},
-              {'Y0': {'mu': array([1.48536701]), 'log_sig': array([-1.23494082])}},
-              {'Y0': {'mu': array([0.92590664]), 'log_sig': array([-0.86533968])}},
-              {'Y0': {'mu': array([-0.21531898]), 'log_sig': array([-0.78066977])}}]
+optim.theta = [{'Y0': {'mu': array([1.81734315]), 'log_sig': array([0.17850115])}},
+               {'Y0': {'mu': array([1.18815644]), 'log_sig': array([2.01923715])}},
+               {'Y0': {'mu': array([1.90027093]), 'log_sig': array([-1.19893393])}},
+               {'Y0': {'mu': array([1.16520267]), 'log_sig': array([-0.37301326])}},
+               {'Y0': {'mu': array([0.32130249]), 'log_sig': array([0.18894245])}}]
 
-optim.eta = [array([[ 0.        , -0.04104855, -0.14974445, -0.68153845, -0.51455389],
-        [-0.6298834 ,  0.        , -1.20091954, -0.53539455, -1.79889616],
-        [-3.53285839, -0.47144173,  0.        , -1.64007429,  0.65952809],
-        [-2.43369303, -1.1694875 , -1.13880217,  0.        ,  0.1014636 ],
-        [-1.80541663, -2.17279241, -2.39805625, -2.96556544,  0.        ]]),
-        [array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]])]]
+optim.eta = [array([[ 0.        ,  0.45427351, -0.23896227, -0.87832498, -0.55613677],
+                    [-0.66632567,  0.        , -1.20515826, -0.6869323 , -1.85409574],
+                    [-3.55298982, -0.3463814 ,  0.        , -1.74216502,  1.26975462],
+                    [-2.45436567, -0.95424148, -1.18718385,  0.        ,  0.46935877],
+                    [-0.84505257, -0.62183748, -1.88778575, -2.98079647,  0.        ]]),
+            [array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]]), array([[0.]])]]
 
-optim.eta0 = [array([ 0.        , -1.04869783, -1.41348288, -1.70532364,  1.93126396]),
-               [array([0.]), array([0.]), array([0.]), array([0.]), array([0.])]]
+optim.eta0 = [array([ 0.        , -1.04855297, -1.42001794, -1.70627019,  1.9507754 ]),
+              [array([0.]), array([0.]), array([0.]), array([0.]), array([0.])]]
 
 
 
@@ -181,26 +181,26 @@ print(optim.eta)
 print("")
 
 # print mus and sigs
-print("theta priors:")
-print(optim.theta_mus)
-print(optim.theta_sigs)
-print("")
-print("eta0 priors:")
-print(optim.eta0_mus)
-print(optim.eta0_sigs)
-print("")
-print("eta priors:")
-print(optim.eta_mus)
-print(optim.eta_sigs)
-print("")
+#print("theta priors:")
+#print(optim.theta_mus)
+#print(optim.theta_sigs)
+#print("")
+#print("eta0 priors:")
+#print(optim.eta0_mus)
+#print(optim.eta0_sigs)
+#print("")
+#print("eta priors:")
+#print(optim.eta_mus)
+#print(optim.eta_sigs)
+#print("")
 
 fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
 with open(fname_p, 'rb') as f:
     true_params = pickle.load(f)
 
-print("true parameters:")
-print(true_params)
-print("")
+#print("true parameters:")
+#print(true_params)
+#print("")
 
 # get optimal value via SAGA:
 if method == "control":

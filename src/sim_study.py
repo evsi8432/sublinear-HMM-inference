@@ -169,7 +169,7 @@ if method == "control":
     optim.eta = Gamma_2_eta(optim.Gamma)
 
 
-    optim.train_HHMM(num_epochs=200,
+    optim.train_HHMM(num_epochs=num_epochs,
                      max_time=max_time,
                      method="SAGA",
                      max_iters=T,
@@ -221,6 +221,6 @@ elif partial_E == 1:
 
 # save file
 optim.data = data_fname
-fname = "../params/T-%d_K-%d-%d_%s_%.1f_%03d" % (T,K[0],K[1],method,partial_E,rand_seed)
+fname = "../params/T-%d_K-%d-%d_d-%d_%s_%.1f_%03d" % (T,K[0],K[1],d,method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

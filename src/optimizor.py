@@ -1220,14 +1220,34 @@ class optimizor:
         print("")
 
         # show current gradients
-        print("current table averages:")
+        print("current gradients:")
         print(self.grad_theta)
         print(self.grad_eta)
         print(self.grad_eta0)
         print("")
 
-        print("L_theta: ",self.L_theta)
-        print("L_eta: ",self.L_eta)
+        print("log alphas:")
+        print(self.log_alphas)
+        print("")
+
+        print("delta:")
+        print(np.exp(self.log_delta))
+        print("")
+
+        print("Gamma:")
+        print(np.exp(self.log_Gamma_jump))
+        print("")
+
+        print("log_f_0:")
+        print(self.get_log_f(0))
+        print("")
+
+        print("alpha_0 (by hand):")
+        print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)))
+        print("")
+
+        print("alpha_0 (in memory):")
+        print(np.exp(self.log_alphas[0]))
         print("")
 
         for iter in range(max_iters):
@@ -1584,10 +1604,34 @@ class optimizor:
                 print("")
 
                 # show current gradients
-                print("current table averages:")
+                print("current gradients:")
                 print(self.grad_theta)
                 print(self.grad_eta)
                 print(self.grad_eta0)
+                print("")
+
+                print("log alphas:")
+                print(self.log_alphas)
+                print("")
+
+                print("delta:")
+                print(np.exp(self.log_delta))
+                print("")
+
+                print("Gamma:")
+                print(np.exp(self.log_Gamma_jump))
+                print("")
+
+                print("log_f_0:")
+                print(self.get_log_f(0))
+                print("")
+
+                print("alpha_0 (by hand):")
+                print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)))
+                print("")
+
+                print("alpha_0 (in memory):")
+                print(np.exp(self.log_alphas[0]))
                 print("")
 
                 print("L_theta: ",self.L_theta)
@@ -1958,10 +2002,30 @@ class optimizor:
             print(self.grad_eta0)
             print("")
 
-            # show probabilities
-            print("log_alphas:")
+            print("log alphas:")
             print(self.log_alphas)
-            
+            print("")
+
+            print("delta:")
+            print(np.exp(self.log_delta))
+            print("")
+
+            print("Gamma:")
+            print(np.exp(self.log_Gamma_jump))
+            print("")
+
+            print("log_f_0:")
+            print(self.get_log_f(0)[0])
+            print("")
+
+            print("alpha_0 (by hand):")
+            print(np.exp(self.log_delta)*np.exp(self.get_log_f(0)[0]))
+            print("")
+
+            print("alpha_0 (in memory):")
+            print(np.exp(self.log_alphas[0]))
+            print("")
+
             # record log-likelihood
             ll_new = logsumexp(self.log_alphas[self.T-1])
             print("current log likelihood: %f" % ll_new)

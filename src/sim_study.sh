@@ -10,6 +10,6 @@
 
 #SBATCH --time=23:59:00
 #SBATCH --mem-per-cpu=16G
-#SBATCH --array=0-4000
+#SBATCH --array=0-2000
 
 python sim_study.py 12 $SLURM_ARRAY_TASK_ID

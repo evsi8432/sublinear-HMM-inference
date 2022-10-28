@@ -393,8 +393,9 @@ class Optimizor(HHMM):
         grad_theta_t = deepcopy(self.grad_theta_t[t])
 
         # get gradient and weights
-        if grad_log_p_theta is None:
-            grad_log_p_theta = self.get_grad_log_p_theta()
+        #if grad_log_p_theta is None:
+        #    grad_log_p_theta = self.get_grad_log_p_theta()
+        
         if grad_log_f is None:
             grad_log_f = self.get_grad_log_f(t)
         if p_Xt is None:

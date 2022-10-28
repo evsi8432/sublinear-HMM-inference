@@ -110,11 +110,11 @@ def logdotexp(log_delta, log_Gamma):
     C += max_log_delta + max_log_Gamma
     return C
 
-def generate_data(T,K,d):
+def generate_data(T,K,d,rand_seed):
 
     # set random seed
-    random.seed(0)
-    np.random.seed(0)
+    random.seed(rand_seed)
+    np.random.seed(rand_seed)
 
     # Select parameters for data generating process
     features = [{},
@@ -173,17 +173,17 @@ def generate_data(T,K,d):
         data_y.append(datum)
 
     # save data
-    fname_y = "../dat/data_Y_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    fname_y = "../dat/data_Y_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,rand_seed)
     with open(fname_y, 'wb') as f:
         pickle.dump(data_y, f)
 
-    fname_x = "../dat/data_X_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    fname_x = "../dat/data_X_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,rand_seed)
     with open(fname_x, 'wb') as f:
         pickle.dump(X, f)
 
-    fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d" % (T,K[0],K[1],d)
+    fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,rand_seed)
     with open(fname_p, 'wb') as f:
-        pickle.dump({"mus"  : mus,
+        pickle.dump({"mus"  : mus, 
                      "sigs" : sigs,
                      "Gamma": [Gamma_coarse,Gamma_fines],
                      "delta": [delta_coarse,delta_fines]}, f)

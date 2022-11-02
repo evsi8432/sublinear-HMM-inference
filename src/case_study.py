@@ -62,7 +62,7 @@ method_partialEs = [("control",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
 
-rand_seed = range(100)
+rand_seed = range(50)
 
 # set methods
 for i,settings0 in enumerate(product(rand_seed,method_partialEs)):
@@ -187,12 +187,12 @@ optim.final_ts = final_ts
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
     if not (step_sizes["SAGA"][0] is None):
-        optim.L_theta = 1.0 / step_sizes["SAGA"][0]
+        optim.L_theta = 1.0 / step_sizes["SAGA"][0] * np.ones(optim.K_total)
         optim.L_eta = 1.0 / step_sizes["SAGA"][1]
 else:
     optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0])
+        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0]) * np.ones(optim.K_total)
         optim.L_eta = 1.0 / (3.0 * step_sizes[method][1])
 
 
@@ -350,6 +350,6 @@ optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
 # save file
-fname = "../params/case_study/case_study_K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
+fname = "../params/case_study/K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

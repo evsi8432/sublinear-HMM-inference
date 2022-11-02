@@ -10,6 +10,10 @@
 
 #SBATCH --time=23:59:00
 #SBATCH --mem-per-cpu=8G
-#SBATCH --array=0-1000
+#SBATCH --array=0-500
+
+source ~/Whale_Paper_1/bin/activate
+module load python/3.9
+module load scipy-stack
 
 python case_study_Beth.py 12 $SLURM_ARRAY_TASK_ID

@@ -62,7 +62,7 @@ method_partialEs = [("control",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
 
-rand_seed = range(100)
+rand_seed = range(50)
 
 # set methods
 for i,settings0 in enumerate(product(rand_seed,method_partialEs)):

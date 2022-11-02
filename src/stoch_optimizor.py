@@ -76,6 +76,24 @@ class StochOptimizor(Optimizor):
         # divider of Lipshitz constant
         self.divider = 1.0
 
+        # stuff for adam to work
+        self.eta0_m = deepcopy(self.grad_eta0)
+        self.eta0_v = deepcopy(self.grad_eta0)
+
+        self.eta_m = deepcopy(self.grad_eta)
+        self.eta_v = deepcopy(self.grad_eta)
+
+        self.theta_m = deepcopy(self.grad_eta)
+        self.theta_v = deepcopy(self.grad_theta)
+
+        self.beta1 = 0.9#1.0 - np.sqrt(1.0/self.T)
+        self.beta2 = 0.999#1.0 - (1.0/self.T)
+
+        print(self.beta1)
+        print(self.beta2)
+
+        self.epsilon = 1e-8
+
         return
 
     def get_ll_keep_params(self):
@@ -291,6 +309,69 @@ class StochOptimizor(Optimizor):
 
         return
 
+    def update_adam(self):
+
+        self.eta0_m = deepcopy(self.grad_eta0)
+        self.eta_m = deepcopy(self.grad_eta)
+        self.theta_m = deepcopy(self.grad_theta)
+
+        # initialize theta_v
+        for feature,dist in self.features.items():
+            if dist['f'] == 'normal':
+                for k0 in range(self.K[0]):
+
+                    self.theta_v[k0][feature]['mu'] = 0
+                    self.theta_v[k0][feature]['log_sig'] = 0
+
+            elif dist['f'] == 'bern':
+                for k0 in range(self.K[0]):
+
+                    self.theta_v[k0][feature]['logit_p'] = 0
+
+            else:
+                raise('only independent normal distributions supported at this time')
+
+        # initialize eta_v
+        self.eta_v = [np.zeros_like(self.eta_m[0]),
+                      [np.zeros_like(self.eta_m[1][k0]) for k0 in range(self.K[0])]]
+
+        # initialize eta0_v
+        self.eta0_v = [np.zeros_like(self.eta0_m[0]),
+                       [np.zeros_like(self.eta0_m[1][k0]) for k0 in range(self.K[0])]]
+
+        # iterate through all data points
+        for t in range(self.T):
+
+            # update theta_v
+            for feature,dist in self.features.items():
+                if dist['f'] == 'normal':
+                    for k0 in range(self.K[0]):
+
+                        self.theta_v[k0][feature]['mu'] += \
+                            self.grad_theta_t[t][k0][feature]['mu']**2
+
+                        self.theta_v[k0][feature]['log_sig'] += \
+                            self.grad_theta_t[t][k0][feature]['log_sig']**2
+
+                elif dist['f'] == 'bern':
+                    for k0 in range(self.K[0]):
+
+                        self.theta_v[k0][feature]['logit_p'] += \
+                            self.grad_theta_t[t][k0][feature]['logit_p']**2
+
+                else:
+                    raise('only independent normal distributions supported at this time')
+
+            # update eta_v, eta0_v
+            self.eta_v[0] += self.grad_eta_t[t][0]**2
+            self.eta0_v[0] += self.grad_eta0_t[t][0]**2
+
+            for k0 in range(k0):
+                self.eta_v[1][k0] += self.grad_eta_t[t][1][k0]**2
+                self.eta0_v[1][k0] += self.grad_eta0_t[t][1][k0]**2
+
+        return
+
     def M_step(self,max_epochs=1,max_time=np.infty,alpha_theta=None,alpha_eta=None,
                method="EM",partial_E=False,tol=1e-5,record_like=False,
                weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
@@ -332,6 +413,18 @@ class StochOptimizor(Optimizor):
                     for param in self.grad_theta[k0][feature]:
                         delta = alpha_theta[inds] * self.grad_theta[k0][feature][param]
                         self.theta[k0][feature][param] += delta
+
+            # clip values
+            self.eta0[0] = np.clip(self.eta0[0],-1-np.log(self.T),1+np.log(self.T))
+            self.eta[0]  = np.clip(self.eta[0], -1-np.log(self.T),1+np.log(self.T))
+            for k0 in range(self.K[0]):
+                self.eta0[1][k0] = np.clip(self.eta0[1][k0],-1-np.log(self.T),1+np.log(self.T))
+                self.eta[1][k0]  = np.clip(self.eta[1][k0], -1-np.log(self.T),1+np.log(self.T))
+                for feature in self.theta[k0]:
+                    for param in self.theta[k0][feature]:
+                        self.theta[k0][feature][param] = np.clip(self.theta[k0][feature][param],
+                                                                 self.param_bounds[feature][param][0],
+                                                                 self.param_bounds[feature][param][1])
 
             # update log_Gamma and log_delta
             self.get_log_Gamma(jump=False)
@@ -379,7 +472,7 @@ class StochOptimizor(Optimizor):
             batch_order = np.random.permutation(range(nbatches))
             iter = 0
 
-            for batch_ind in batch_order:
+            for batch_num,batch_ind in enumerate(batch_order):
 
                 # pick index
                 ts = minibatches[batch_ind]
@@ -593,8 +686,8 @@ class StochOptimizor(Optimizor):
                         self.eta0[0] += delta
                         for k0 in range(self.K[0]):
                             delta = alpha_eta * (new_grad_eta0_t[1][k0] \
-                                                 - old_grad_eta0_t[1][k0]
-                                                 + self.grad_eta0[1][k0]/self.T)
+                                               - old_grad_eta0_t[1][k0]
+                                               + self.grad_eta0[1][k0]/self.T)
                             self.eta0[1][k0] += delta
 
                         # update eta
@@ -614,11 +707,65 @@ class StochOptimizor(Optimizor):
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
                                     delta = alpha_theta[inds] * (new_grad_theta_t[k0][feature][param] \
-                                                           - old_grad_theta_t[k0][feature][param] \
-                                                           + self.grad_theta[k0][feature][param]/self.T)
-                                    delta = np.clip(delta,-0.5,0.5)
+                                                               - old_grad_theta_t[k0][feature][param] \
+                                                               + self.grad_theta[k0][feature][param]/self.T)
                                     self.theta[k0][feature][param] += delta
 
+                    elif method == "Adam":
+
+                        # update eta0
+                        self.eta0_m[0] = self.beta1*self.eta0_m[0] + (1-self.beta1)*new_grad_eta0_t[0]
+                        self.eta0_v[0] = self.beta2*self.eta0_v[0] + (1-self.beta2)*new_grad_eta0_t[0]**2
+                        delta = self.step_size[0]*(self.eta0_m[0]/(np.sqrt(self.eta0_v[0]) + self.epsilon))
+                        self.eta0[0] += delta
+
+                        for k0 in range(self.K[0]):
+                            self.eta0_m[1][k0] = self.beta1*self.eta0_m[1][k0] + (1-self.beta1)*new_grad_eta0_t[1][k0]
+                            self.eta0_v[1][k0] = self.beta2*self.eta0_v[1][k0] + (1-self.beta2)*new_grad_eta0_t[1][k0]**2
+                            delta = self.step_size[0]*(self.eta0_m[1][k0]/(np.sqrt(self.eta0_v[1][k0]) + self.epsilon))
+                            self.eta0[1][k0] += delta
+
+
+                        # update eta
+                        self.eta_m[0] = self.beta1*self.eta_m[0] + (1-self.beta1)*new_grad_eta_t[0]
+                        self.eta_v[0] = self.beta2*self.eta_v[0] + (1-self.beta2)*new_grad_eta_t[0]**2
+                        delta = self.step_size[0]*(self.eta_m[0]/(np.sqrt(self.eta_v[0]) + self.epsilon))
+                        self.eta[0] += delta
+
+                        for k0 in range(self.K[0]):
+                            self.eta_m[1][k0] = self.beta1*self.eta_m[1][k0] + (1-self.beta1)*new_grad_eta_t[1][k0]
+                            self.eta_v[1][k0] = self.beta2*self.eta_v[1][k0] + (1-self.beta2)*new_grad_eta_t[1][k0]**2
+                            delta = self.step_size[0]*(self.eta_m[1][k0]/(np.sqrt(self.eta_v[1][k0]) + self.epsilon))
+                            self.eta[1][k0] += delta
+
+
+                        # update theta
+                        for k0 in range(self.K[0]):
+                            for feature in new_grad_theta_t[k0]:
+                                for param in new_grad_theta_t[k0][feature]:
+
+                                    self.theta_m[k0][feature][param] = self.beta1*self.theta_m[k0][feature][param] + \
+                                                                       (1-self.beta1)*new_grad_theta_t[k0][feature][param]
+
+                                    self.theta_v[k0][feature][param] = self.beta2*self.theta_v[k0][feature][param] + \
+                                                                       (1-self.beta2)*new_grad_theta_t[k0][feature][param]**2
+
+                                    delta = self.step_size[1]*(self.theta_m[k0][feature][param]/(np.sqrt(self.theta_v[k0][feature][param]) + self.epsilon))
+                                    self.theta[k0][feature][param] += delta
+
+                        #print("t:")
+                        #print(batch_num)
+                        #print("")
+                        #print("parameters:")
+                        #print(self.theta)
+                        #print("")
+                        #print("gradients:")
+                        #print(self.theta_m)
+                        #print("")
+                        #print("variances:")
+                        #print(self.theta_v)
+                        #print("")
+                        #print("")
                     else:
                         raise("method %s not recognized" % method)
 
@@ -677,6 +824,18 @@ class StochOptimizor(Optimizor):
                         print(self.grad_eta_tilde)
                         print(self.grad_eta0_tilde)
                         print("")
+                    elif method == "Adam":
+                        print("gradient means:")
+                        print(self.theta_m)
+                        print(self.eta_m)
+                        print(self.eta0_m)
+                        print("")
+                        print("gradient varainces:")
+                        print(self.theta_v)
+                        print(self.eta_v)
+                        print(self.eta0_v)
+                        print("")
+                        print("")
                     else:
                         print("table averages:")
                         print(self.grad_theta)
@@ -719,12 +878,24 @@ class StochOptimizor(Optimizor):
                 print(self.eta0)
                 print("")
 
-                # show current gradients
-                print("current table averages:")
-                print(self.grad_theta)
-                print(self.grad_eta)
-                print(self.grad_eta0)
-                print("")
+                if method == "Adam":
+                    print("gradient means:")
+                    print(self.theta_m)
+                    print(self.eta_m)
+                    print(self.eta0_m)
+                    print("")
+                    print("gradient varainces:")
+                    print(self.theta_v)
+                    print(self.eta_v)
+                    print(self.eta0_v)
+                    print("")
+                    print("")
+                else:
+                    print("current table averages:")
+                    print(self.grad_theta)
+                    print(self.grad_eta)
+                    print(self.grad_eta0)
+                    print("")
 
                 print("L_theta: ",self.L_theta)
                 print("alpha_theta: ",1.0 / (self.divider*self.L_theta))
@@ -810,7 +981,7 @@ class StochOptimizor(Optimizor):
 
         # check that the method makes sense
         if method not in ["EM","BFGS","Nelder-Mead","CG",
-                          "GD","SGD","SAG","SVRG","SAGA"]:
+                          "GD","SGD","SAG","SVRG","SAGA","Adam"]:
             print("method %s not recognized" % method)
             return
 
@@ -849,6 +1020,7 @@ class StochOptimizor(Optimizor):
             print("starting E-step...")
             self.E_step()
             self.update_tilde()
+            self.update_adam()
             print("...done")
             print("")
 
@@ -859,12 +1031,24 @@ class StochOptimizor(Optimizor):
             print(self.eta0)
             print("")
 
-            # show current gradients
-            print("current gradients:")
-            print(self.grad_theta)
-            print(self.grad_eta)
-            print(self.grad_eta0)
-            print("")
+            if method == "Adam":
+                print("gradient means:")
+                print(self.theta_m)
+                print(self.eta_m)
+                print(self.eta0_m)
+                print("")
+                print("gradient varainces:")
+                print(self.theta_v)
+                print(self.eta_v)
+                print(self.eta0_v)
+                print("")
+                print("")
+            else:
+                print("table averages:")
+                print(self.grad_theta)
+                print(self.grad_eta)
+                print(self.grad_eta0)
+                print("")
 
             print("L_theta: ",self.L_theta)
             print("alpha_theta: ",1.0 / (self.divider*self.L_theta))
@@ -890,6 +1074,11 @@ class StochOptimizor(Optimizor):
                 if method == "GD":
                     self.L_theta *= 2.0
                     self.L_eta *= 2.0
+                elif method == "Adam":
+                    self.step_size[0] *= 0.5
+                    self.step_size[1] *= 0.5
+                    print("step size decreased: [%.3f,%.3f]" % (self.step_size[0],
+                                                                self.step_size[1]))
                 else:
                     self.divider *= 2.0
                     print("step size decreased: 1/(%.3f * L)" % self.divider)
@@ -907,6 +1096,7 @@ class StochOptimizor(Optimizor):
                 # return old gradients, weights, and likleihood
                 self.E_step()
                 self.update_tilde()
+                self.update_adam()
                 ll_new = logsumexp(self.log_alphas[self.T-1])
                 #ll_new += self.get_log_p_theta()
                 #ll_new += self.get_log_p_eta()

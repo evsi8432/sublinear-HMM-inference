@@ -62,7 +62,7 @@ method_partialEs = [("control",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
 
-rand_seed = range(100)
+rand_seed = range(50)
 
 # set methods
 for i,settings0 in enumerate(product(rand_seed,method_partialEs)):
@@ -160,20 +160,20 @@ optim = stoch_optimizor.StochOptimizor(data,features,K)
 optim.initial_ts = initial_ts
 optim.final_ts = final_ts
 
-for feature in features:
-    optim.param_bounds[feature] = {}
-    optim.param_bounds[feature]["mu"] = [-100,100]
-    optim.param_bounds[feature]["log_sig"] = [-5,5]
+#for feature in features:
+#    optim.param_bounds[feature] = {}
+#    optim.param_bounds[feature]["mu"] = [-100,100]
+#    optim.param_bounds[feature]["log_sig"] = [-5,5]
 
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
     if not (step_sizes["SAGA"][0] is None):
-        optim.L_theta = 1.0 / step_sizes["SAGA"][0]
+        optim.L_theta = 1.0 / step_sizes["SAGA"][0] * np.ones(optim.K_total)
         optim.L_eta = 1.0 / step_sizes["SAGA"][1]
 else:
     optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0])
+        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0]) * np.ones(optim.K_total)
         optim.L_eta = 1.0 / (3.0 * step_sizes[method][1])
 
 # print initial parameters
@@ -192,7 +192,7 @@ if method == "control":
     optim.train_HHMM_stoch(num_epochs=2*num_epochs,
                          max_time=max_time,
                          method="SAGA",
-                         max_iters=T,
+                         max_epochs=1,
                          partial_E=True,
                          tol=1e-4*tol,
                          grad_tol=1e-4*grad_tol,
@@ -205,7 +205,7 @@ elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
                           max_time=max_time,
                           method=method,
-                          max_iters=T,
+                          max_epochs=1,
                           partial_E=False,
                           tol=tol,
                           grad_tol=grad_tol,
@@ -219,7 +219,7 @@ elif partial_E == 0.5:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
-                              max_iters=T,
+                              max_epochs=1,
                               partial_E=True,
                               tol=tol,
                               grad_tol=grad_tol,
@@ -233,7 +233,7 @@ elif partial_E == 1:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
-                              max_iters=10*T,
+                              max_epochs=10,
                               partial_E=True,
                               tol=tol,
                               grad_tol=grad_tol,

@@ -62,9 +62,9 @@ method_partialEs = [("control",0.0),
                     ("BFGS",0.0),
                     ("CG",0.0),
                     ("GD",0.0),
-                    ("SAGA",0.0),
-                    ("SAGA",0.5),
-                    ("SAGA",1.0),
+                    ("Adam",0.0),
+                    ("Adam",0.5),
+                    ("Adam",1.0),
                     ("SVRG",0.0),
                     ("SVRG",0.5),
                     ("SVRG",1.0)]
@@ -115,7 +115,8 @@ step_sizes = {"EM"  : [None,None],
               "SGD" : [0.01,0.01],
               "SAG" : [0.01,0.01],
               "SVRG": [0.01,0.01],
-              "SAGA": [0.01,0.01]}
+              "SAGA": [0.01,0.01],
+              "Adam": [0.001,0.001]}
 
 jump_every = 1
 
@@ -277,7 +278,7 @@ elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
                            max_time=max_time,
                            method=method,
-                           max_epochs=1,
+                           max_epochs=10,
                            partial_E=False,
                            tol=tol,
                            grad_tol=grad_tol,
@@ -287,7 +288,7 @@ elif partial_E == 0:
                            buffer_eps=1e-3)
 
 elif partial_E == 0.5:
-    if method in ["SGD","SAG","SVRG","SAGA"]:
+    if method in ["SGD","SAG","SVRG","SAGA","Adam"]:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,
@@ -301,7 +302,7 @@ elif partial_E == 0.5:
                               buffer_eps=1e-3)
 
 elif partial_E == 1:
-    if method in ["SGD","SAG","SVRG","SAGA"]:
+    if method in ["SGD","SAG","SVRG","SAGA","Adam"]:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
                               max_time=max_time,
                               method=method,

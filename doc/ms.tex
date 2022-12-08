@@ -7,7 +7,7 @@
 %\def\bibfont{\large}
 \usepackage{appendix}
 
-\title{Stochastic optimization for Hidden Markov Models}
+\title{Variance reduced stochastic optimization for hidden Markov models}
 
 \author{
   Evan Sidrow \\
@@ -29,8 +29,15 @@
 \section{Background}
 \input sections/background.tex
 
-\section{Model}
-\input sections/model.tex
+%\section{Model}
+%\input sections/model.tex
+
+\section{Model - Nancy Comments, so duplicate labels for equations ...}
+\input sections/model_nancy.tex
+
+\section{Practical Considerations}
+\input sections/practical.tex
+\label{sec:prac}
 
 \section{Simulation Study}
 \input sections/sim_study.tex
@@ -38,12 +45,11 @@
 \section{Case Study}
 \input sections/case_study.tex
 
-\section{Conclusion}
-\input sections/conclusion.tex
+\section{Discussion}
+\input sections/discussion.tex
 
 \newpage
 
-\scriptsize
 \bibliography{references}
 
 \end{document}

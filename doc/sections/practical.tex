@@ -1,0 +1,81 @@
+%\section{Practical Considerations}
+
+\subsection{Line-search for step size selection}
+\label{subsec:est_L}
+
+One major drawback of stochastic optimization algorithms is that the tuning of the step-size schedule can greatly affect practical performance. \citet{Schmidt:2017} suggest using step sizes of $\lambda_F = 1/(16L_F)$ and $\lambda_G = 1/(16L_G)$ for theoretical guarantees within the SAG algorithm, where $L_F$ and $L_G$ are defined in Theorem 1. Similarly, \citet{Defazio:2014} suggest step sizes of $1/3L_F$ and $1/3L_G$ for SAGA. Unfortunately, these Lipschitz constants are rarely known in practice. Therefore, \citet{Schmidt:2017} suggest that practitioners initialize estimates of the Lipschitz constants, $\hat L_F$ and $\hat L_G$, and update them by checking the following inequalities at every iteration of the optimization algorithm:
+%
+\begin{gather}
+    F^{(k,m)}_{t_m}\left(\theta_{k,m} - \frac{1}{\hat L_F}\nabla_\theta F^{(k,m)}_{t_m}(\theta_{k,m})\right) \leq F^{(k,m)}_{t_m}(\theta_{k,m}) - \frac{1}{2 \hat L_F} || \nabla_\theta F^{(k,m)}_{t_m}(\theta_{k,m}) ||^2,
+    \label{ineq:F} \\
+    %
+    G^{(k,m)}_{t_m}\left(\eta_{k,m} - \frac{1}{\hat L_G}\nabla_\eta G^{(k,m)}_{t_m}(\eta_{k,m})\right) \leq G^{(k,m)}_{t_m}(\eta_{k,m}) - \frac{1}{2 \hat L_G} || \nabla_\eta G^{(k,m)}_{t_m}(\eta_{k,m}) ||^2.
+    \label{ineq:G}
+\end{gather}
+%
+The inequalities above must be obeyed if $L_F$ and $L_G$ are valid. Therefore, if either of the two inequalities above are violated, then the corresponding Lipschitz constant estimate ($\hat L_F$ or $\hat L_G$) is doubled. \citet{Schmidt:2017} also avoid checking this inequality if either $||\nabla_\theta F^{(k,m)}_{t_m}(\theta_{k,m})|| < 10^{-8}$ or $||\nabla_\eta G^{(k,m)}_{t_m}(\eta_{k,m})|| < 10^{-8}$ due to numerical instability. 
+
+Finally, close to the true MLE, $\{\theta^*,\eta^*\}$, a larger step size (i.e. a smaller value of $\hat L$) may be used while maintaining numerical stability. Therefore, after each parameter update, the Lipschitz constants $\hat L$ are decreased by a small amount so that they are halved after one full pass of the data:
+%
+\begin{equation*}
+    \hat L_F \leftarrow 2^{-1/T} ~ \hat L_F, \qquad \hat L_G \leftarrow 2^{-1/T} ~ \hat L_G
+\end{equation*}
+%
+This procedure allows the step size of the optimization algorithm to adapt to the smoothness of the objective function.
+
+%\subsection{Warm Starting}
+
+%If the data set is very large, it can be computational burdensome to initialize the first E-step of this algorithm. Therefore, the problem can be treated as an online learning algorithm for the first pass of the data.
+
+%\subsection{Mini-batch sizes}
+
+%Select a mini-batch depending upon the value of the largest diagonal of $\widehat \Gamma$ since the Markov chain is expected to stay in its current state no longer than $\max_i 1/(1-\Gamma_{ii})$ iterations. This is because we would intuitively like to actually update the chain every partial E-step.
+
+\subsection{Separate Lipschitz constant by Hidden State}
+\label{subsec:diff_Ls}
+
+The optimization problem within the M-step of the Baum Welch algorithm can be written as follows:
+
+\begin{equation} 
+    \theta_{k+1} = \argmin_{\theta} - \sum_{t=1}^T \sum_{i=1}^N \gamma^{(i)}_t(\theta_{k}, \eta_{k}) \log f^{(i)}(y_t;\theta)
+    \label{eqn:min_F}
+\end{equation}
+
+\begin{equation}
+    \eta^{(\cdot,\cdot)}_{k+1} = \argmin_{\eta^{(\cdot,\cdot)}} - \sum_{t=2}^T \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t(\theta_{k}, \eta_{k}) \log \Gamma^{(i,j)}(\eta)
+    \label{eqn:min_G}
+\end{equation}
+
+\begin{equation}
+    \eta^{(\cdot)}_{k+1} = \argmin_{\eta^{(\cdot)}} - \sum_{i=1}^N \gamma^{(i)}_t(\theta_{k},\eta_{k}) \log \delta^{(i)}(\eta)
+    \label{eqn:min_G}
+\end{equation}
+
+But we can separate out these optimization problems by state:
+
+\begin{equation} 
+    \theta^{(i)}_{k+1} = \argmin_{\theta^{(i)}} - \sum_{t=1}^T \gamma^{(i)}_t(\theta_{k}, \eta_{k}) \log f^{(i)}(y_t;\theta^{(i)})
+    \label{eqn:min_F}
+\end{equation}
+
+\begin{equation}
+    \eta^{(\cdot)}_{k+1} = \argmin_{\eta^{(\cdot)}} - \sum_{i=1}^N \gamma^{(i)}_t(\theta_{k},\eta_{k}) \log \delta^{(i)}(\eta^{(\cdot)})
+    \label{eqn:min_G}
+\end{equation}
+
+\begin{equation}
+    \eta^{(i,\cdot)}_{k+1} = \argmin_{\eta^{(i,\cdot)}} - \sum_{t=2}^T \sum_{j=1}^N \xi^{(i,j)}_t(\theta_{k}, \eta_{k}) \log \Gamma^{(i,j)}(\eta^{(i,\cdot)})
+    \label{eqn:min_G}
+\end{equation}
+
+Now we have a total of $2N + 1$ individual optimization problems. As such, within Algorithms (\ref{alg:EM-SO}), (\ref{alg:EM-SO-v2}), and (\ref{alg:P-EM-SO}) we can define $2N+1$ separate step sizes, $\lambda_F^{(i)}$, $\lambda_G^{(i,\cdot)}$, and $\lambda_G^{(\cdot)}$, each of which depend upon separate Lipschitz constants $L_F^{(i)}$, $L_G^{(i,\cdot)}$, and $L_G^{(\cdot)}$, respectively. A similar procedure to that described in section 4.1 can used to adapt $L_F^{(i)}$, $L_G^{(i,\cdot)}$, and $L_G^{(\cdot)}$ over the course of the algorithm.
+
+\subsection{Adaptive Step Size for Lipschitz Constant}
+\label{subsec:L_divider}
+
+For all experiments, algorithms, we used step sizes of $\lambda_G = 1/(3L_G)$ and $\lambda_F = 1/(3L_F)$. However, since this step size is only recommended for SAGA \citep{Defazio:2014}, and Algorithm (\ref{alg:P-EM-SO}) combines the E- and the M-step of the Baum-Welch algorithm, it may be that $1/(3L_F)$ or $1/(3L_G)$ might produce step-sizes that are too large. To mediate this issue, we halve the true step size after each iteration through Algorithm (\ref{alg:P-EM-SO}) if the loss function does not decrease. For example, if the step sizes are $\lambda_F = 1/(3L_F)$ or $\lambda_G = 1/(3L_G)$ and one iteration of Algorithm (\ref{alg:P-EM-SO}) increases the log-likelihood, we define new step-sizes $\lambda_F \leftarrow 1/(6L_F)$ and $\lambda_G \leftarrow 1/(6L_F)$.
+
+\subsection{sampling for SAGA and SVRG without replacement}
+\label{subsec:wo_replacement}
+
+Finally, we sampled the random index $t_m$ \textit{without} replacement for the M-step of algorithms (\ref{alg:EM-SO}) and (\ref{alg:P-EM-SO}). This is common for many stochastic optimization algorithms since sampling without replacement ensures that each term in the objective function is visited the same number of times. \citet{Ohad:2016} gives several convergence results for SVRG when indices are sampled without replacement.

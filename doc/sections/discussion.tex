@@ -12,9 +12,11 @@ We found that SVRG tended to perform better than SAGA for all simulation and cas
 %
 This cancellation of control variate terms is not the case for SAGA. A more formal analysis of why SVRG performs better than SAGA is left as future work.
 
+While we used SVRG and SAGA in our analysis, there are many more variance-reduced stochastic optimization algorithms that could be applied to this problem. SARAH recursively updates the control variate in the inner loop of the optimization algorithm \citep{Nguyen:2017}, SPIDER uses a path-integrated differential estimator of the gradient \citep{Fang:2018}, and LiSSA is a second-order variance-reduced stochastic optimization scheme \citep{Agarwal:2017}. We primarily focus on applying variance-reduced stochastic optimization in general in this work, so we focus on SAGA and SVRG as canonical optimization algorithms. However, future work can be done to examine the performance of all of these methods on learning HMM parameters.
+
 While we focus on an ecological case study, complex HMMs are used to model time series data in a variety of fields including (but not limited to) speech recognition \citep{Gales:2008}, geology \citep{Bebbington:2007}, and ecology \citep{McClintock:2020}. Our inference method allows practitioners to use variance-reduced stochastic optimization techniques within the M-step of an EM algorithm. This allows the EM algorithm to be used when no closed-form solution of the M- step exists with minimal addition computational burden compared to the EM algorithm when the M-step does have a closed form solution. In addition, if a partial E-step is implemented we see that our algorithm empirically converges faster than even gradient-based methods such as BFGS.
 
-We hope that this algorithm can unlock more complicated hidden Markov models with larger latent spaces for practitioners who have been unable to use them previously due to computational constraints.
+This algorithm can unlock more complicated hidden Markov models with larger latent spaces and bigger data sets for practitioners who have been unable to use them previously due to computational constraints.
 
 \iffalse
 

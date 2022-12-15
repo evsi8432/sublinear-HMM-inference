@@ -40,7 +40,7 @@ We estimated the parameters of the hierarchical HMM for this case study the same
 %
 All algorithms were run using 50 random initializations for a total of 12 hours each on Compute Canada Cedar nodes with 16GB of RAM.
 %
-Figure (\ref{fig:ll_trace_case}) displays the log-likelihood (divided by $T$) of the MLE minus the log-likelihood (divided by $T$) at each epoch. For each optimization algorithm we present the random initialization that resulted in the highest likelihood after 12 hours of computation.
+Figure (\ref{fig:ll_trace_case}) displays the log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch after 12 hours or 100 epochs (whichever came first). For each optimization algorithm we present the random initialization that resulted in the highest likelihood after 12 hours of computation.
 %
 \begin{figure}
     \centering
@@ -49,7 +49,7 @@ Figure (\ref{fig:ll_trace_case}) displays the log-likelihood (divided by $T$) of
     \label{fig:ll_trace_case}
 \end{figure}
 %
-Figure (\ref{fig:boxplots_case}) shows box plots of both the number of epochs until convergence as well as the optimality gap (log likelihood divided by $T$) at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$.
+Figure (\ref{fig:boxplots_case}) shows box plots of both the number of epochs until convergence as well as the optimality gap (log likelihood divided by $T$) at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. 
 %
 \begin{figure}
     \centering
@@ -60,12 +60,12 @@ Figure (\ref{fig:boxplots_case}) shows box plots of both the number of epochs un
 %
 All new algorithms converge to regions of lower loss on average, and all algorithms except for SAGA without a partial E-step converge in fewer epochs than BFGS.
 %
-Figure (\ref{fig:scatter_case}) displays scatter-plots of the number of epochs to converge and the loss at convergence of each algorithm vs. BFGS for the same data set and parameter initialization. For each 
+Figure (\ref{fig:scatter_case}) displays scatter plots of the number of epochs to converge and the loss at convergence of each algorithm vs. BFGS for the same data set and parameter initialization.
 %
 \begin{figure}
     \centering
     \includegraphics[width=6.5in]{../plt/paired_scatter_case_study.png}
-    \caption{number of epochs to converge (columns 1 and 3) and the loss at convergence (columns 2 and 4) of each algorithm vs. BFGS for identical same data sets and parameter initializations. Lower is better for both criteria, so data points below the line $y=x$ suggest that the stochastic optimization algorithms perform better.}
+    \caption{number of epochs to converge (columns 1 and 3) and the loss at convergence (columns 2 and 4) of each algorithm vs. BFGS for identical data sets and parameter initializations. Lower is better for both criteria, so data points below the line $y=x$ suggest that the stochastic optimization algorithms perform better.}
     \label{fig:scatter_case}
 \end{figure}
 %

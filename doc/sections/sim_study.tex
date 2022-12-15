@@ -90,22 +90,20 @@ All baselines were implemented using the Python library in Scipy \citep{Virtanen
 %
 All algorithms were run for a total of 12 hours on the Compute Canada Cedar cluster on nodes with 16GB of RAM.
 %
-Figure (\ref{fig:ll_trace_sim}) displays the log-likelihood (divided by $T$) of the MLE minus the log-likelihood (divided by $T$) at each epoch for a selected data set and random initialization. For each optimization algorithm we select the random initialization that resulted in the highest likelihood after 12 hours of computation.
+Figure (\ref{fig:ll_trace_sim}) displays the log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch after 12 hours or 150 epochs (whichever came first) for the first data set and a selected random initialization. For each optimization algorithm we select the random initialization that resulted in the highest likelihood after 12 hours. The dots on each figure correspond to the epoch and likelihood at convergence for each algorithm. Note that our stochastic optimization methods are less prone to getting stuck in local minima, especially when $N=6$. The stochastic optimization methods outperform the baseline methods for all experiments with the exception of $N = 3$ and $d = 3$, where BFGS achieves a higher log-likelihood after approximately 120 epochs. However, BFGS is expected to outperform our first-order methods on a per-epoch basis when very close to the true solution. We recreate Figure (\ref{fig:ll_trace_sim}) for the other four data sets in the supplement.
 %
 \begin{figure}
     \centering
-    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-3-003.png}
-    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-6-003.png}
-    %
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-3-000.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-6-000.png}
     \\
-    %
-    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-3-003.png}
-    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-6-003.png}   
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-3-000.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-6-000.png}   
     \caption{Optimally gap between the log-likelihood and optimal log-likelihood for the estimated parameters of the HMM from simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
     \label{fig:ll_trace_sim}
 \end{figure}
 %
-Figure (\ref{fig:boxplots_sim}) shows box plots of both the number of epochs until convergence as well as the optimality gap (log likelihood divided by $T$) at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$.
+Figure (\ref{fig:boxplots_sim}) shows box plots of both the number of epochs until convergence as well as the optimality gap (log likelihood divided by $T$) at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. 
 %
 \begin{figure}
     \centering
@@ -114,7 +112,7 @@ Figure (\ref{fig:boxplots_sim}) shows box plots of both the number of epochs unt
     \label{fig:scatter_sim}
 \end{figure}
 %
-Figure (\ref{fig:scatterplots_sim}) displays the scatter-plots of the optimality gap vs the number of epochs until convergence.
+Figure (\ref{fig:scatterplots_sim}) displays scatter plots of the optimality gap vs the number of epochs until convergence.
 %
 \begin{figure}
     \centering

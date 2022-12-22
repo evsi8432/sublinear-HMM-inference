@@ -1,0 +1,131 @@
+\section{Appendix A: Proof of Theorem 1}
+
+\begin{proof}
+
+First, let $i \in \{1,\ldots,T^M\}$ index all possible outcomes of performing SVRG on the objective function $Q(\cdot, \cdot \mid \theta, \eta)$ starting at $\{\theta,\eta\}$. Namely, let $SVRG_i(\theta,\eta)$ correspond to the mapping from performing one iteration of $M$ steps of SVRG with objective function $Q(\cdot, \cdot \mid \theta, \eta)$ and random realization $i$. Note that $SVRG_i(\theta,\eta)$ is continuous in $(\theta,\eta)$ because $Q(\cdot, \cdot \mid \theta, \eta)$ is continuously differentiable by conditions (2) and (3) of theorem 1.
+
+Given this, let $R(\theta,\eta)$ be a point-to-set map corresponding to one iteration of version 2 of Algorithm (\ref{alg:EM-SO}). In particular, we can define $R(\theta,\eta)$ as follows:
+
+\begin{align}
+    R(\theta',\eta') := \Bigg\{(\theta,\eta) ~ : ~ & (\theta,\eta) = SVRG_i(\theta',\eta') ~ \text{for some} ~ i \in \{1,\ldots,T^M\}, \nonumber \\
+    & Q(\theta, \eta \mid \theta', \eta') \geq Q^*(\theta', \eta') - \frac{\zeta + 1}{2} \Big( Q^*(\theta', \eta') - Q(\theta', \eta' \mid \theta', \eta') \Big)\Bigg\}
+\end{align}
+
+Our Theorem 1 is a direct application of Theorem 1 of \citet{Wu:1983}, which requires the following conditions:
+
+\begin{enumerate}[label=(\alph*)]
+    \item $R$ is a closed point-to-set map for all non-stationary points. In particular, $R$ is closed at a point $(\theta',\eta')$ if $(\theta'_{n},\eta'_{n}) \to (\theta',\eta')$ and $(\theta_{n},\eta_{n}) \to (\theta,\eta)$ with $(\theta_{n},\eta_{n}) \in R(\theta'_{n},\eta'_{n})$, implies that $(\theta,\eta) \in R(\theta',\eta')$. 
+    \item The log-likelihood strictly increases $\Big(\log p(\bfy;\theta_{k+1},\eta_{k+1}) > \log p(\bfy;\theta_k,\eta_k)\Big)$ for all $(\theta_k,\eta_k)$ that are not stationary points of $\log p$.
+\end{enumerate}
+
+In what follows, we demonstrate that the conditions from our Theorem 1 imply conditions (a) and (b) from Theorem 1 of \citet{Wu:1983}.
+
+\begin{lemma}
+    Suppose all conditions from Theorem 1 hold. Then $R$ is a closed point-to-set map for all non-stationary points.
+\end{lemma}
+
+\begin{proof}
+     Denote $Q^*(\theta', \eta') - \frac{\zeta + 1}{2} \Big( Q^*(\theta', \eta') - Q(\theta', \eta' \mid \theta', \eta') \Big) \equiv K(\theta',\eta')$. Given a point $(\theta',\eta')$, suppose there exits some sequence $(\theta'_{n},\eta'_{n}) \to (\theta',\eta')$ as well as another sequence $(\theta_{n},\eta_{n}) \to (\theta,\eta)$ with $(\theta_{n},\eta_{n}) \in R(\theta'_{n},\eta'_{n})$. In order for $(\theta,\eta) \in R(\theta',\eta')$, we must have:
+    \begin{enumerate}
+        \item $Q(\theta, \eta \mid \theta', \eta') \in [K(\theta',\eta'),\infty)$ and
+        \item $(\theta,\eta) = SVRG_i(\theta',\eta')$ for some $i \in \{1,\ldots,T^M\}$
+    \end{enumerate}
+    %
+    We start with the first condition. If $(\theta_{n},\eta_{n}) \to (\theta,\eta)$, then $Q(\theta_{n},\eta_{n} \mid \theta',\eta') \to Q(\theta,\eta \mid \theta',\eta')$ by continuity of $Q$. Further, $Q(\theta_{n},\eta_{n} \mid \theta',\eta') \in [K(\theta',\eta'),\infty)$, and $[K(\theta',\eta'),\infty)$ is a closed set, so by definition $Q(\theta,\eta \mid \theta',\eta') \in [K(\theta',\eta'),\infty)$ as well.
+    
+    Moving on to the (more difficult) second condition. By way of contradiction, assume that $(\theta,\eta) \neq SVRG_i(\theta',\eta')$ for any value of $i$. Then define $\epsilon = \min_i ||(\theta,\eta) - SVRG_i(\theta',\eta')|| > 0$. Because the sequence $\{(\theta_n,\eta_n)\}_{n>1}$ converges to $(\theta,\eta)$, there must exist some $N_1$ such that for all $n \geq N_1$, $||(\theta_{n},\eta_{n}) - (\theta,\eta)|| < \epsilon/2$. Further, since $\{(\theta'_n,\eta'_n)\}_{n>1}$ converges to $(\theta',\eta')$ and $SVRG_i$ is continuous for all $i$, there must exist some $N_2$ such that for all $n \geq N_2$, $||SVRG_i(\theta'_{n},\eta'_{n}) - SVRG_i(\theta',\eta')|| < \epsilon/2$ for all $i$. Without loss of generality, assume that $N_1 = N_2 \equiv N$. By assumption, $(\theta_{n},\eta_{n}) \in R(\theta'_{n},\eta'_{n})$, so $(\theta_{n},\eta_{n}) = SVRG_j(\theta'_{n},\eta'_{n})$ for some $j \in \{1,\ldots,T^M\}$. Therefore, $||(\theta_{n},\eta_{n}) - SVRG_j(\theta',\eta')|| < \epsilon/2$. Using the triangle inequality, we have:
+    
+    $$||SVRG_j(\theta',\eta') - (\theta,\eta)|| \leq ||(\theta_{n},\eta_{n}) - (\theta,\eta)|| + ||(\theta_{n},\eta_{n}) - SVRG_j(\theta',\eta')|| < \epsilon.$$
+    
+    However, we assumed that $\epsilon = \min_i ||(\theta,\eta) - SVRG_i(\theta',\eta')||$, so it is impossible for there to exist a $j$ where $||(\theta_{n},\eta_{n}) - SVRG_j(\theta',\eta')|| < \epsilon$. This is a contradiction, so it must be that $(\theta,\eta) = SVRG_i(\theta',\eta')$ for some $i$.
+    
+    We have proven that $Q(\theta, \eta \mid \theta', \eta') \in [K(\theta',\eta'),\infty)$ and that $(\theta,\eta) = SVRG_i(\theta',\eta')$ for some $i$. Therefore, $(\theta,\eta) \in R(\theta',\eta')$, which implies that $R$ is a closed point-to-set map.
+\end{proof}
+
+\begin{lemma}
+    The log-likelihood strictly increases $\Big(\log p(\bfy;\theta_{k+1},\eta_{k+1}) > \log p(\bfy;\theta_k,\eta_k)\Big)$ for all $(\theta_k,\eta_k)$ that are not stationary points of $\log p$.
+\end{lemma}
+
+\begin{proof}
+
+For shorthand, define $Q^{(k)} \equiv Q(\cdot,\cdot \mid \theta_k,\eta_k)$. Note that if $(\theta_k,\eta_k)$ is not a stationary point of $\log p$, then it must not be a local maximum of $Q^{(k)}$ because $\nabla \log p(\theta_k,\eta_k) = \nabla Q^{(k)}(\theta_k,\eta_k)$, where the gradient of the $Q-$ function is taken with respect to the first two arguments only. In other words, if $\nabla \log p(\theta_k,\eta_k) \neq 0$, then $\nabla Q^{(k)}(\theta_k,\eta_k) \neq 0$ either. This implies that one iteration of SVRG will move $(\theta_k,\eta_k)$ since we are not at a local maximum of $Q^{(k)}$.
+
+Now, for any fixed iteration $k$, one iteration of Algorithm (\ref{alg:EM-SO}) corresponds to one iteration of SVRG \citep{Johnson:2013}. Therefore, if conditions (2--6) of Theorem 1 hold, then Theorem 1 of \citet{Johnson:2013} applies. 
+%Namely, let $(\theta^*_{k+1},\eta^*_{k+1}) = \argmax_{\theta,\eta} Q^{(k)}(\theta,\eta)$
+%$\theta^*_{k+1} = \argmin_{\theta} F^{(k)}(\theta)$ and $\eta^*_{k+1} = \argmin_{\eta} G^{(k)}(\eta)$. 
+After one iteration through Algorithm (\ref{alg:EM-SO}):
+%
+\begin{align}
+    \bbE & \left[Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k+1},\eta_{k+1}) ~\Big\vert~ \theta_k, \eta_k \right] \leq \zeta \left( Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_k,\eta_k) \right), \label{eqn:SVRG_T1}
+\end{align}
+%
+for $\zeta = \max\{\zeta_F, \zeta_G\} < 1$ as defined in condition (6). Table (\ref{tbl:notation}) identifies how our notation corresponds to that of \citet{Johnson:2013}.
+%
+\begin{table}[]
+\centering
+\begin{tabular}{c|c|c}
+\citet{Johnson:2013}                  & Our notation ($F$) & Our notation ($G$) \\ \hline
+$\alpha$                              & $\zeta_F$     & $\zeta_G$       \\
+$\eta$                                & $\lambda_\theta$   & $\lambda_\theta$   \\
+$L$                                   & $L_F$              & $L_G$              \\
+$\gamma$                              & $C_F$              & $C_G$              \\
+$m$                                   & $M$                & $M$                \\
+$\tilde{w}_0$                         & $\theta_k$         & $\eta_k$          \\
+$\tilde{w}_1$                         & $\theta_{k,M}$     & $\eta_{k,M}$        \\
+$w_{*}$                               & $\theta^*_{k+1}$   & $\eta^*_{k+1}$      \\
+$P$                                   & $F$                & $G$                \\
+$\psi_i$                              & $F_t$              & $G_t$             
+\end{tabular}
+\caption{Legend connecting this paper's notation to that of \citet{Johnson:2013}.}
+\label{tbl:notation}
+\end{table}
+%
+Using Markov's inequality on (\ref{eqn:SVRG_T1}), we have:
+
+\begin{align}
+    & \bbP \Big[Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k+1},\eta_{k+1}) \geq \frac{\zeta + 1}{2} \left(Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k},\eta_{k}) \right) ~\Big\vert~ \theta_k, \eta_k \Big] \leq \ldots \\
+    %
+    & \frac{\zeta \left( Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_k,\eta_k) \right)}{(\zeta+1)/2 \left( Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_k,\eta_k) \right)} = \frac{2}{1 + 1/\zeta} < 1
+\end{align}
+
+taking the complement of the above expression:
+
+\begin{equation}
+    \bbP \Big[Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k+1},\eta_{k+1}) < \frac{\zeta + 1}{2} \left(Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k},\eta_{k}) \right) ~\Big\vert~ \theta_k, \eta_k \Big] \geq \frac{1-\zeta}{1 + \zeta} > 0 \label{eqn:markov_ineq},
+\end{equation}
+
+So there is a strictly positive probability that $Q^{(k)}(\theta_{k+1},\eta_{k+1}) > Q^{(k)}(\theta_{k},\eta_{k})$. Further, repeated iteration through Algorithm (\ref{alg:EM-SO}) corresponds to drawing \textit{independent} samples of $\theta_{k,M}$ and $\eta_{k,M}$ conditioned on $\theta_k$ and $\eta_k$. By Equation (\ref{eqn:markov_ineq}) above, $Q^{(k)}(\theta_{k+1},\eta_{k+1}) > Q^{(k)}(\theta_{k},\eta_{k})$ with some probability greater than $\frac{1-\zeta}{1+\zeta} > 0$. As a result, the number of iterations required for Algorithm 1 to move from step $k$ to step $k+1$ follows a geometric distribution with a positive success probability. Therefore, \textit{every} step $k$ of Algorithm (\ref{alg:EM-SO}) will terminate in finite time almost surely. Finally, the log-likelihood must increase as least as much as $Q^{(k)}$ at iteration $k$ of Algorithm (\ref{alg:EM-SO}) \citep{Dempster:1977}. Namely, $\log p(\bfy ; \theta_{k+1},\eta_{k+1}) > \log p(\bfy ; \theta_k,\eta_k)$, which implies that condition (b) of \citet{Wu:1983} is satisfied.
+\end{proof}
+
+Lemmas 1 and 2 prove Theorem 1.
+
+\end{proof}
+
+\section{outline of alternative proof}
+
+Here we give an outline for a proof that for all $\delta > 0$, if $\theta_k \overset{p}{\to} \theta$, then it must be that $\bbP(||\nabla L (\theta) ||) \geq \delta$.
+
+\begin{enumerate}
+    \item First, note that $\theta_k \overset{p}{\to} \theta$ since the map strictly increases the likelihood, and the likelihood is bounded (by assumption)
+    %
+    \item by definition of convergence in probability, for all $\epsilon > 0$, $\lim_{n \to \infty} \bbP(|\theta_n - \theta| < \epsilon) = 1$.
+    %
+    \item divide up that probability using whether $||\nabla L (\theta) || \geq \delta$:
+    %
+    \begin{align*}
+    \lim_{n \to \infty} & \bbP(|\theta_n - \theta| < \epsilon \mid ||\nabla L (\theta) || \geq \delta)\bbP(||\nabla L (\theta) || \geq \delta) ~ + 
+    \\ 
+    & \bbP(|\theta_n - \theta| < \epsilon \mid ||\nabla L (\theta) || < \delta)\bbP(||\nabla L (\theta) || < \delta) = 1
+    \end{align*}
+    %
+    \item Then, by way of contradiction, assume that $\bbP(||\nabla L (\theta) || \geq \delta) > 0$. Then it must be that $\lim_{n \to \infty} \bbP(|\theta_n - \theta| < \epsilon \mid ||\nabla L (\theta) || \geq \delta) = 1$.
+    %
+    \item Now, we pick $\epsilon$ to be small enough so that $\nabla Q_{\theta_k}(\theta_k) \approx \nabla Q_{\theta}(\theta) = \nabla L(\theta) \geq \delta$. Since $Q$ is Lipschitz smooth with a constant $L$ for all $\theta$, we can do this in a way that does not depend upon $\theta$.
+    %
+    \item Then, for any $\theta_k \in B_\epsilon(\theta)$, $\nabla Q_{\theta_k}(\theta_k)$ is bounded from below FOR ALL $\theta_k$ (since $||\nabla L(\theta)|| \geq \delta$), and the hessian is bounded from above FOR ALL $\theta_k$ ($Q$ is Lipschitz-smooth), so we know that the local minimum $\theta^*_{k+1}$ is outside of some ball.
+    %
+    \item Finally, for all $\epsilon_1$, there exists some $K$ such that all $k > K$ we have that 
+    $$\bbP(|\theta_k - \theta| < \epsilon) > 1-\epsilon_1$$.
+    %
+    \item However, SVRG will move $\theta_{k+1}$ outside of our $\epsilon$-ball with some positive probability since we set $\epsilon$ very small, $\theta^*_{k+1}$ is outside of our ball, and SVRG is moving towards $\theta^*_{k+1}$. If $\theta^*_{k+1}$ isn't far enough outside of the ball, shrink the ball some more. We have a lower bound on how far outside the ball $\theta^*_{k+1}$ is, so we don't need to have $\epsilon$ depend upon $\theta_{k}$.
+\end{enumerate}

@@ -1,10 +1,14 @@
 
-In addition to the simulation study, we also modelled the behaviour of eleven resident killer whales off the coast of British Columbia, Canada. The data we use were collected in August and September of 2020 and consist of tri-axial acceleration over time. Observations were collected at a rate of 50 Hz using a CATS biologger (Customizable Animal Tracking Solutions, {\em{www.cats.is}}).
+We tested our optimization algorithms by modelling the behaviour of eleven resident killer whales off the coast of British Columbia, Canada using a hierarchical HMM. The data we use were collected in August and September of 2020 and consist of tri-axial acceleration over time. Observations were collected at a rate of 50 Hz using a CATS biologger (Customizable Animal Tracking Solutions, {\em{www.cats.is}}).
 
 %Acceleration was measured in three dimensions, which together represent the complete range of movement of an animal (forward/backward, upward/downward, and right/left). Tri-axial acceleration readings are common in these types of tags and are often used to infer animal behaviour such as foraging \citep{Fehlmann:2017,Wright:2017,Cade:2017}. The act of attaching and detaching the tag caused anomalous behaviour before 1:20 p.m. and after 6:00 p.m., so observations taken during these time periods are ignored. There were also periods of time when the tag failed to record observations, resulting in data gaps between 2:25 p.m. and 2:37 p.m. and between 4:07 p.m. and 5:07 p.m. 
 
-We divide the accelerometer data into two-second windows, each consisting of 100 accelerometer readings. We then perform a Fourier transform within each two-second window, and summarize the window with two measures of ``wiggliness":
-(1) the sum of the squares of all Fourier coefficients corresponding to frequencies less than 5 Hz, and (2) the sum of the squares of all Fourier coefficients corresponding to frequencies greater than 5 Hz. We use a hierarchical hidden Markov model \citep{Barajas:2017} to test our algorithm on complicated models, and fine-scale biologging data often exhibits multi-scale behaviour \citep{Sidrow:2021}. We select a total of $N_c = 3$ coarse-scale states and $N_f^{(i)} = N_f = 3$ fine-scale states for each coarse-scale state. However, we enforce that the state-dependent fine-scale distributions are shared across coarse-scale states. In practice, the number of hidden states in a Hidden Markov model should be selected using model selection and validation techniques as well as with the help of subject-matter experts \citep{Pohle:2017}. However, we select $N_c = 3$ and $N_f = 3$ to be in line with common values in the statistical ecology literature. The preprocessed data contain a total of $T=89462$ two-second windows. We have plotted the data corresponding to one of the whales in Figure (\ref{fig:data}). The depth and wiggliness data are colour-coded by the most likely coarse- and fine-scale hidden states conditioned on the MLE parameters.
+We divided the accelerometer data into two-second windows, each consisting of 100 accelerometer readings. We then performed a Fourier transform within each two-second window, and summarized the window with two measures of ``wiggliness":
+(1) the sum of the squares of all Fourier coefficients corresponding to frequencies less than 5 Hz, and (2) the sum of the squares of all Fourier coefficients corresponding to frequencies greater than 5 Hz. The preprocessed data are contain a total of $T=89462$ two-second windows.
+
+We used a hierarchical hidden Markov model \citep{Barajas:2017} to model the killer whale biologging data for two reasons. First, fine-scale biologging data often exhibits multi-scale behaviour which can be accounted for by an HHMM \citep{Sidrow:2021}. Second, we wish to use our optimization algorithm on a more complicated model in addition to the simple Gaussian HMM from the case study. We selected a total of $N_c = 3$ coarse-scale states and $N_f^{(i)} = N_f = 3$ fine-scale states for each coarse-scale state. We enforce that the state-dependent fine-scale distributions are shared across coarse-scale states. In practice, the number of hidden states in a hidden Markov model should be selected using model selection and validation techniques as well as with the help of subject-matter experts \citep{Pohle:2017}. However, we are primarily interested in the performance of our optimization routines, so we select the number of hidden states to be in line with common values in the statistical ecology literature. 
+
+Figure (\ref{fig:data}) shows the depth and wiggliness data corresponding to one of the whales. Depth and wiggliness are colour-coded by the most likely coarse- and fine-scale hidden states conditioned on the MLE parameters.
 %
 \begin{figure}
     \centering
@@ -13,16 +17,16 @@ We divide the accelerometer data into two-second windows, each consisting of 100
     \label{fig:data}
 \end{figure}
 %
-Production states 3, 1, and 2 appear to correspond to increasing activity, respectively. Internal states 1 and 2 appear to correspond to varying level of activity when the killer whale is hunting, while internal state 3 appears to correspond to resting behaviour.
+Fine-scale states 3, 1, and 2 appear to correspond to increasing activity, respectively. Coarse-scale states 1 and 2 appear to correspond to varying level of activity when the killer whale is hunting or socializing, while internal state 3 appears to correspond to resting behaviour.
 
-We used a similar procedure to the simulation study to initialize the HMM parameters. In particular, let $\bar y$ and $\bfQ$ denote the sample mean and sample covariance of $\{y_t\}_{t=1}^T$, respectively. For inference, we initialized $\theta_0$ as
+We used a similar procedure to the simulation study to initialize the HMM parameters. In particular, let $\bar y$ and $\bfQ$ denote the sample mean and sample covariance of $\{y_t\}_{t=1}^T$, respectively. In all optimization procedures we initialized $\theta_0$ as
 %
 \begin{equation*}
     \mu^{(i)}_0 \sim \calN(\bar y, \text{diag}(\bfQ)), \quad \Sigma^{(i)}_0 = \text{diag}(\bfQ), \qquad i \in \{1,\ldots,N_f\},
 \end{equation*}
 %
 Note that we only define emission distributions for $i = 1,\ldots,N_f$ because we assume that each coarse-scale state has the same fine-scale emission distributions.
-Throughout the optimization procedure, we assume that $\Sigma^{(i)}$ is diagonal for all $i \in \{1,\ldots,N_f\}$.
+Throughout the optimization procedure, we also assume that $\Sigma^{(i)}$ is diagonal for all $i \in \{1,\ldots,N_f\}$.
 %
 We initialized $\eta_{c,0}$ as
 %
@@ -33,14 +37,14 @@ We initialized $\eta_{c,0}$ as
 \end{align*}
 %
 We initialized all elements of $\eta_{f,0}$ corresponding to the fine-scale initial distributions $\delta^{(i)}_f \in \bbR^{N_f}, i = 1,\ldots,N_c$ with a standard normal distribution, i.e. $\calN(0,1)$. We initialized all elements of $\eta_{f,0}$ corresponding to the fine-scale transition probability matrices, $\mathbf{\Gamma}^{(i)}_f \in {\bbR^{N_f \times N_f}}, i = 1,\ldots,N_c$ with a normal distribution centred at -1 with variance 1, i.e. $\calN(-1,1)$.
-
+%
 %If the 2-norm of the average estimated gradient $||\frac{1}{T}\sum_{t=1}^T \widehat \nabla F^{(k,m)}_t + \widehat \nabla G^{(k,m)}_t||$ ever fell below a tolerance of $10^{-8}$, we terminated the M-step of algorithm and moved on to the E-step. Likewise, if the relative change of the log-likelihood after one full E- and M- step of the EM algorithm ever fell below a tolerance of $10^{-10}$, we terminated the algorithm altogether. We found the ground truth MLEs by running the traditional EM algorithm until the relative change in the log-likelihood was on the order of machine precision $10^{-15}$.
-
-We estimated the parameters of the hierarchical HMM for this case study the same six new inference algorithms and three baseline algorithms from the simulation study.
+%
+Similarly to the case study, we estimated the parameters of the hierarchical HMM using our six inference algorithms and three baseline algorithms.
 %
 All algorithms were run using 50 random initializations for a total of 12 hours each on Compute Canada Cedar nodes with 16GB of RAM.
-%
-Figure (\ref{fig:ll_trace_case}) displays the log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch after 12 hours or 100 epochs (whichever came first). For each optimization algorithm we present the random initialization that resulted in the highest likelihood after 12 hours of computation.
+
+Figure (\ref{fig:ll_trace_case}) displays the log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch after 12 hours or 100 epochs (whichever came first). For each optimization algorithm we present the random initialization that resulted in the highest likelihood after 12 hours of computation. The dots correspond to the epoch and likelihood at convergence for each algorithm.  Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. 
 %
 \begin{figure}
     \centering
@@ -48,8 +52,8 @@ Figure (\ref{fig:ll_trace_case}) displays the log-likelihood (divided by $T$) of
     \caption{Optimally gap between the log-likelihood and optimal log-likelihood for the estimated parameters of the HMM from the Killer Whale case study. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
     \label{fig:ll_trace_case}
 \end{figure}
-%
-Figure (\ref{fig:boxplots_case}) shows box plots of both the number of epochs until convergence as well as the optimality gap (log likelihood divided by $T$) at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. 
+
+Figure (\ref{fig:boxplots_case}) shows box plots of both the number of epochs until convergence as well as the optimality gap (log likelihood divided by $T$) at convergence for each algorithm.
 %
 \begin{figure}
     \centering
@@ -59,8 +63,8 @@ Figure (\ref{fig:boxplots_case}) shows box plots of both the number of epochs un
 \end{figure}
 %
 All new algorithms converge to regions of lower loss on average, and all algorithms except for SAGA without a partial E-step converge in fewer epochs than BFGS.
-%
-Figure (\ref{fig:scatter_case}) displays scatter plots of the number of epochs to converge and the loss at convergence of each algorithm vs. BFGS for the same data set and parameter initialization.
+
+Figure (\ref{fig:scatter_case}) displays scatter plots of the number of epochs to converge and the loss at convergence of each algorithm vs. BFGS for the same data set and parameter initializations.
 %
 \begin{figure}
     \centering

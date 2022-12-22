@@ -38,44 +38,38 @@ The optimization problem within the M-step of the Baum Welch algorithm can be wr
 
 \begin{equation} 
     \theta_{k+1} = \argmin_{\theta} - \sum_{t=1}^T \sum_{i=1}^N \gamma^{(i)}_t(\theta_{k}, \eta_{k}) \log f^{(i)}(y_t;\theta)
-    \label{eqn:min_F}
 \end{equation}
 
 \begin{equation}
     \eta^{(\cdot,\cdot)}_{k+1} = \argmin_{\eta^{(\cdot,\cdot)}} - \sum_{t=2}^T \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t(\theta_{k}, \eta_{k}) \log \Gamma^{(i,j)}(\eta)
-    \label{eqn:min_G}
 \end{equation}
 
 \begin{equation}
     \eta^{(\cdot)}_{k+1} = \argmin_{\eta^{(\cdot)}} - \sum_{i=1}^N \gamma^{(i)}_t(\theta_{k},\eta_{k}) \log \delta^{(i)}(\eta)
-    \label{eqn:min_G}
 \end{equation}
 
-But we can separate out these optimization problems by state:
+But we can separate out these optimization problems by state. In particular, denote all parameters associated with the state-dependent distribution of state $i$ as $\theta^{(i)}$, all parameters of $\eta$ associated with the initial distribution as $\eta^{\cdot}$, and all parameters of $\eta$ associated with row $i$ of the transition probability matrix $\Gamma$ as $\eta^{(i,\cdot)}$. Then we can rewrite the three optimization problems above as $2N + 1$ individual optimization problems:
 
 \begin{equation} 
     \theta^{(i)}_{k+1} = \argmin_{\theta^{(i)}} - \sum_{t=1}^T \gamma^{(i)}_t(\theta_{k}, \eta_{k}) \log f^{(i)}(y_t;\theta^{(i)})
-    \label{eqn:min_F}
 \end{equation}
 
 \begin{equation}
     \eta^{(\cdot)}_{k+1} = \argmin_{\eta^{(\cdot)}} - \sum_{i=1}^N \gamma^{(i)}_t(\theta_{k},\eta_{k}) \log \delta^{(i)}(\eta^{(\cdot)})
-    \label{eqn:min_G}
 \end{equation}
 
 \begin{equation}
     \eta^{(i,\cdot)}_{k+1} = \argmin_{\eta^{(i,\cdot)}} - \sum_{t=2}^T \sum_{j=1}^N \xi^{(i,j)}_t(\theta_{k}, \eta_{k}) \log \Gamma^{(i,j)}(\eta^{(i,\cdot)})
-    \label{eqn:min_G}
 \end{equation}
 
-Now we have a total of $2N + 1$ individual optimization problems. As such, within Algorithms (\ref{alg:EM-SO}), (\ref{alg:EM-SO-v2}), and (\ref{alg:P-EM-SO}) we can define $2N+1$ separate step sizes, $\lambda_F^{(i)}$, $\lambda_G^{(i,\cdot)}$, and $\lambda_G^{(\cdot)}$, each of which depend upon separate Lipschitz constants $L_F^{(i)}$, $L_G^{(i,\cdot)}$, and $L_G^{(\cdot)}$, respectively. A similar procedure to that described in section 4.1 can used to adapt $L_F^{(i)}$, $L_G^{(i,\cdot)}$, and $L_G^{(\cdot)}$ over the course of the algorithm.
+As such, within algorithms (\ref{alg:EM-SO}) and (\ref{alg:P-EM-SO}) we can define $2N+1$ separate step sizes, $\lambda_F^{(i)}$, $\lambda_G^{(i,\cdot)}$, and $\lambda_G^{(\cdot)}$, each of which depend upon separate Lipschitz constants $L_F^{(i)}$, $L_G^{(i,\cdot)}$, and $L_G^{(\cdot)}$, respectively. A similar procedure to that described in Section 4.1 can used to adapt $L_F^{(i)}$, $L_G^{(i,\cdot)}$, and $L_G^{(\cdot)}$ over the course of the algorithm.
 
 \subsection{Adaptive Step Size for Lipschitz Constant}
 \label{subsec:L_divider}
 
-For all experiments, algorithms, we used step sizes of $\lambda_G = 1/(3L_G)$ and $\lambda_F = 1/(3L_F)$. However, since this step size is only recommended for SAGA \citep{Defazio:2014}, and Algorithm (\ref{alg:P-EM-SO}) combines the E- and the M-step of the Baum-Welch algorithm, it may be that $1/(3L_F)$ or $1/(3L_G)$ might produce step-sizes that are too large. To mediate this issue, we halve the true step size after each iteration through Algorithm (\ref{alg:P-EM-SO}) if the loss function does not decrease. For example, if the step sizes are $\lambda_F = 1/(3L_F)$ or $\lambda_G = 1/(3L_G)$ and one iteration of Algorithm (\ref{alg:P-EM-SO}) increases the log-likelihood, we define new step-sizes $\lambda_F \leftarrow 1/(6L_F)$ and $\lambda_G \leftarrow 1/(6L_F)$.
+For all experiments and algorithms, we used step sizes of $\lambda_G = 1/(3L_G)$ and $\lambda_F = 1/(3L_F)$. However, since this step size is only recommended for SAGA \citep{Defazio:2014}, and Algorithm (\ref{alg:P-EM-SO}) combines the E- and the M-step of the Baum-Welch algorithm, it may be that $1/(3L_F)$ or $1/(3L_G)$ might produce step-sizes that are too large, even if $L_F$ and $L_G$ are estimated accurately. To mediate this issue, we halve the true step size after each iteration through algorithm (\ref{alg:P-EM-SO}) if the loss function does not decrease. For example, if the step sizes are $\lambda_F = 1/(3L_F)$ or $\lambda_G = 1/(3L_G)$ and one iteration of algorithm (\ref{alg:P-EM-SO}) increases the log-likelihood, we define new step-sizes $\lambda_F \leftarrow 1/(6L_F)$ and $\lambda_G \leftarrow 1/(6L_F)$.
 
-\subsection{sampling for SAGA and SVRG without replacement}
+\subsection{Sampling for SAGA and SVRG Without Replacement}
 \label{subsec:wo_replacement}
 
 Finally, we sampled the random index $t_m$ \textit{without} replacement for the M-step of algorithms (\ref{alg:EM-SO}) and (\ref{alg:P-EM-SO}). This is common for many stochastic optimization algorithms since sampling without replacement ensures that each term in the objective function is visited the same number of times. \citet{Ohad:2016} gives several convergence results for SVRG when indices are sampled without replacement.

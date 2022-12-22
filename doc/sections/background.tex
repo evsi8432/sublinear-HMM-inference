@@ -61,7 +61,7 @@ One appealing feature of an HMM is that it is possible to determine the probabil
 Both $\alpha_t$ and $\beta_t$ can be defined recursively:
 %
 \begin{align}
-    \alpha_1^{(i)}(\theta,\eta) &= \delta^{(i)} f^{(i)}(y_1;\theta), & \alpha_t^{(i)}(\theta,\eta) &= \sum_{j=1}^N \alpha_{t-1}^{(j)} \Gamma^{(j,i)}(\eta) f^{(i)}(y_t;\theta^{(i)}), \quad t = 2,\ldots,T. \label{eqn:alpha} \\
+    \alpha_1^{(i)}(\theta,\eta) &= \delta^{(i)} f^{(i)}(y_1;\theta), & \alpha_t^{(i)}(\theta,\eta) &= \sum_{j=1}^N \alpha_{t-1}^{(j)} \Gamma^{(j,i)} f^{(i)}(y_t;\theta^{(i)}), \quad t = 2,\ldots,T. \label{eqn:alpha} \\
     %
     \beta_T^{(i)}(\theta,\eta) &= 1, & \beta_t^{(i)}(\theta,\eta) &= \sum_{j=1}^N \Gamma^{(i,j)} f^{(j)}(y_{t+1};\theta) \beta^{(j)}_{t+1}, \quad t = 1,\ldots,T-1. \label{eqn:beta}
 \end{align}
@@ -169,7 +169,7 @@ There is a clear connection between the Baum-Welch update from Equation (\ref{eq
 
 \subsection{Stochastic Optimization}
 
-One common type of numerical optimization is stochastic optimization. Stochastic optimization techniques can solve minimization problems that can be written as the sum of independent terms, including the one posed in (\ref{eqn:F}) and (\ref{eqn:EM_update_theta}) at step $k$ in the EM algorithm:
+Stochastic optimization techniques can solve minimization problems that can be written as the sum of independent terms, including the one posed in (\ref{eqn:F}) and (\ref{eqn:EM_update_theta}) at step $k$ in the EM algorithm:
 %
 \begin{equation*}
     \min F^{(k)}(\theta), \qquad F^{(k)}(\theta) = \frac{1}{T}\sum_{t = 1}^T F^{(k)}_t(\theta).
@@ -191,7 +191,7 @@ However, this update requires evaluating a gradient for all $t = 1,\ldots,T$, wh
 %
 for some $t_m \in \{1,\ldots,T\}$ selected uniformly at random at step $m$. Stochastic gradient descent reduces the amount of time between updates by using an unbiased estimate of the gradient to update $\theta_{m}$. However, the gradient estimates themselves can have high variance, so stochastic gradient descent requires that the step-size $\lambda_F$ decays over time to ensure convergence. In addition, SGD has slower convergence rates compared to full gradient descent \citep{Schmidt:2017}.
 
-Variance-reduced stochastic optimization techniques including (but not limited to) SAG \citep{Schmidt:2017}, SVRG \citep{Johnson:2013}, and SAGA \citep{Defazio:2014} enjoy the speed of stochastic gradient descent as well as the convergence rates of full gradient descent. These algorithms involve storing a table of gradient \textit{estimates} $\widehat \nabla F^{(k)}_t$ that are updated and stored at various stages in the optimization algorithm. The table average then approximates the full gradient $\nabla F^{(k)}(\theta_{m})$. The gradient estimate can be used to reduce the variance of future gradient estimates. In particular, SAG uses the update rule:
+Variance-reduced stochastic optimization techniques including (but not limited to) SAG \citep{Schmidt:2017}, SVRG \citep{Johnson:2013}, and SAGA \citep{Defazio:2014} enjoy the speed of stochastic gradient descent as well as the convergence rates of full gradient descent. These algorithms involve storing a table of gradient \textit{estimates} $\widehat \nabla F^{(k)}_t$ that are updated and stored at various stages in the optimization algorithm. The table average then approximates the full gradient $\nabla F^{(k)}(\theta_{m})$. The table of gradient estimates can be used to reduce the variance of future gradient estimates. In particular, SAG uses the update rule:
 %
 \begin{equation}
     \theta_{m+1} \gets \theta_{m} - \lambda_F \left[\frac{\nabla F^{(k)}_{t_m}(\theta_{m}) - \widehat \nabla F^{(k)}_{t_m}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \right], \label{eqn:SAG_update}
@@ -219,12 +219,12 @@ After updating the parameters at step $m$, SAG and SAGA simply update the table 
 \end{equation}
 %
 %After updating the table at position $t_m$ with the SAG/SAGA update rule, the table average $\frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t}$ must be updated using the previous estimate of $\widehat \nabla F^{(k)}_{t}$. 
-Both SAG and SAGA can be memory intensive because the gradient at every index must be stored. On the other hand, SVRG updates the \textit{entire} table average and stores the current parameter estimate $\tilde \theta$ once every $M$ iterations. SVRG then recalculates the table entries $\widehat \nabla F^{(k)}_{t} \equiv \nabla F^{(k)}_{t}(\tilde \theta)$ as needed. As such, SVRG saves memory since it does not store gradient estimates at each index. However, SVRG recalculates table entries at every parameter update, so it can be more computationally expensive than SAGA and SAG. In summary, SVRG is less memory intensive, but more computationally expensive compared to SAGA. This trade-off should be considered by practitioners when deciding between the two algorithms. Algorithms \ref{algo:SO_step} \ref{alg:SO} outlines SVRG and SAGA in pseudocode.
+Both SAG and SAGA can be memory intensive because the gradient at every index must be stored. On the other hand, SVRG updates the \textit{entire} table average and stores the current parameter estimate $\tilde \theta$ once every $M$ iterations. SVRG then recalculates the table entries $\widehat \nabla F^{(k)}_{t} \equiv \nabla F^{(k)}_{t}(\tilde \theta)$ as needed. As such, SVRG saves memory since it does not store gradient estimates at each index. However, SVRG recalculates table entries at every parameter update, so it can be more computationally expensive than SAGA and SAG. In summary, SVRG is less memory intensive, but more computationally expensive compared to SAGA. This trade-off should be considered by practitioners when deciding between the two algorithms. Algorithm (\ref{alg:SO}) outlines SVRG and SAGA in pseudocode.
 
 \begin{algorithm}
 \caption{\texttt{VRSO}$\left(P,z_0,\lambda,K,M\right)$}\label{alg:SO}
 \begin{algorithmic}[1]
-\Require Loss function $P = \sum_t P_t$, Initial value $z_0$, step size $\lambda$, algorithm (SAG, SVRG, or SAGA), number of full gradient updates $K$ (classically, $K = 1$ for SAGA), and iterations per full gradient update $M$.
+\Require Loss function $P = \sum_t P_t$, Initial value $z_0$, step size $\lambda$, algorithm (SVRG or SAGA), number of full gradient updates $K$ (classically, $K = 1$ for SAGA), and iterations per full gradient update $M$.
 %
 \For{$k = 0,\ldots,K-1$}
 \State Initialize gradient estimates $\widehat \nabla P_t \leftarrow \nabla P_t (z_k)$ for $t = 1, ..., T.$

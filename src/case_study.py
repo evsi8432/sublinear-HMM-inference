@@ -350,6 +350,6 @@ optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
 # save file
-fname = "../params/case_study/K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
+fname = "../params/case_study/case_study_K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

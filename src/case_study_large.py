@@ -186,6 +186,12 @@ print("")
 print("initial eta:")
 print(optim.eta)
 print("")
+print("parameter bounds:")
+print(optim.param_bounds)
+print("")
+print("length of data:")
+print(T)
+print("")
 
 # get optimal value via SAGA:
 if method == "control":

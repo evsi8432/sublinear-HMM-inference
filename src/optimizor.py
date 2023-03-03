@@ -14,6 +14,7 @@ from scipy.special import iv
 from scipy.special import expit
 from scipy.special import logit
 from scipy.special import logsumexp
+from scipy.special import digamma
 from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar
 from scipy.optimize import LinearConstraint
@@ -44,7 +45,7 @@ class Optimizor(HHMM):
         '''
 
         # get all of the stuff from HHMM
-        super().__init__(data,features,K)
+        super(Optimizor, self).__init__(data,features,K)
 
         # gradients wrt theta
         self.grad_theta_t = [deepcopy(self.theta) for _ in range(self.T)]
@@ -92,10 +93,22 @@ class Optimizor(HHMM):
                     self.grad_theta[k0][feature]['mu'] = np.zeros(self.K[1])
                     self.grad_theta[k0][feature]['log_sig'] = np.zeros(self.K[1])
 
+            elif dist['f'] == 'gamma':
+                for k0 in range(self.K[0]):
+
+                    self.grad_theta[k0][feature]['mu'] = np.zeros(self.K[1])
+                    self.grad_theta[k0][feature]['log_sig'] = np.zeros(self.K[1])
+
             elif dist['f'] == 'bern':
                 for k0 in range(self.K[0]):
 
                     self.grad_theta[k0][feature]['logit_p'] = np.zeros(self.K[1])
+
+            elif dist['f'].startswith('cat'):
+                for k0 in range(self.K[0]):
+
+                    for cat_num in range(1,int(dist[3:])):
+                        self.grad_theta[k0][feature]['psi%d'%cat_num] = np.zeros(self.K[1])
 
             else:
                 raise('only independent normal distributions supported at this time')
@@ -126,10 +139,22 @@ class Optimizor(HHMM):
                         self.grad_theta_t[t][k0][feature]['mu'] = np.zeros(self.K[1])
                         self.grad_theta_t[t][k0][feature]['log_sig'] = np.zeros(self.K[1])
 
+                if dist['f'] == 'gamma':
+                    for k0 in range(self.K[0]):
+
+                        self.grad_theta_t[t][k0][feature]['mu'] = np.zeros(self.K[1])
+                        self.grad_theta_t[t][k0][feature]['log_sig'] = np.zeros(self.K[1])
+
                 elif dist['f'] == 'bern':
                     for k0 in range(self.K[0]):
 
                         self.grad_theta_t[t][k0][feature]['logit_p'] = np.zeros(self.K[1])
+
+                elif dist['f'].startswith('cat'):
+                    for k0 in range(self.K[0]):
+
+                        for cat_num in range(1,int(dist[3:])):
+                            self.grad_theta_t[t][k0][feature]['psi%d'%cat_num] = np.zeros(self.K[1])
 
                 else:
                     raise('only independent normal distributions supported at this time')
@@ -154,7 +179,9 @@ class Optimizor(HHMM):
                 print("unidentified feature in y: %s" % feature)
                 return
 
-            if self.features[feature]['f'] == 'normal':
+            dist = self.features[feature]['f']
+
+            if dist == 'normal':
 
                 # store gradient
                 for k0 in range(self.K[0]):
@@ -203,7 +230,42 @@ class Optimizor(HHMM):
                                         grad_log_f[k0][feature]['mu'][k1] = 0.0
                                         grad_log_f[k0][feature]['log_sig'][k1] = 0.0
 
-            elif self.features[feature]['f'] == 'bern':
+
+            elif dist == 'gamma':
+
+                # store gradient
+                for k0 in range(self.K[0]):
+
+                    mu = theta[k0][feature]['mu']
+                    log_sig = theta[k0][feature]['log_sig']
+                    sig = np.exp(log_sig)
+
+                    alpha = mu**2 / sig**2
+                    beta = mu / sig**2
+
+                    if np.isnan(y[feature]):
+                        grad_log_f[k0][feature] = {'mu': 0, 'log_sig': 0}
+                    else:
+
+                        d_logp_d_alpha = np.log(beta) - digamma(alpha) + np.log(y[feature])
+                        d_logp_d_beta = alpha / beta - y[feature]
+
+                        d_alpha_d_mu = 2.0 * beta
+                        d_alpha_d_logsig = -2.0 * (alpha/sig) * log_sig
+
+                        d_beta_d_mu = 1.0 / sig**2
+                        d_beta_d_logsig = -2.0 * (beta/sig) * log_sig
+
+                        d_logp_d_mu = d_logp_d_alpha*d_alpha_d_mu
+                        d_logp_d_mu += d_logp_d_beta*d_beta_d_mu
+
+                        d_logp_d_logsig = d_logp_d_alpha*d_alpha_d_logsig
+                        d_logp_d_logsig += d_logp_d_beta*d_beta_d_logsig
+
+                        grad_log_f[k0][feature] = {'mu': d_logp_d_mu,
+                                                   'log_sig': d_logp_d_logsig}
+
+            elif dist == 'bern':
 
                 # store gradient
                 for k0 in range(self.K[0]):
@@ -211,13 +273,30 @@ class Optimizor(HHMM):
                     logit_p = theta[k0][feature]['logit_p']
 
                     if np.isnan(y[feature]):
-                        grad_log_f[k0][feature] = {'logit_p': 0}
+                        grad_log_f[k0][feature] = {'logit_p': np.zeros(self.K[1])}
                     elif y[feature] == 0:
                         grad_log_f[k0][feature] = {'logit_p': -expit(logit_p)}
                     elif y[feature] == 1:
                         grad_log_f[k0][feature] = {'logit_p': expit(-logit_p)}
                     else:
                         print("invalid data point %s for %s, which is bernoulli." % (y[feature],feature))
+
+            elif dist.startswith('cat'):
+
+                # store gradient
+                for k0 in range(self.K[0]):
+                    for k1 in range(self.K[1]):
+
+                        ncats = int(dist[3:])
+                        psis = [0.0]+[theta[k0][feature]["psi%d"%i][k1] for i in range(1,ncats)]
+                        p = np.exp(psis - logsumexp(psis))
+
+                        for i in range(1,ncats):
+
+                            if y[feature] == i:
+                                grad_log_f[k0][feature]['psi%d'%i][k1] = 1.0-p[i]
+                            else:
+                                grad_log_f[k0][feature]['psi%d'%i][k1] = -p[i]
 
             else:
                 print("unidentified emission distribution %s for %s"%(dist,feature))
@@ -395,7 +474,7 @@ class Optimizor(HHMM):
         # get gradient and weights
         #if grad_log_p_theta is None:
         #    grad_log_p_theta = self.get_grad_log_p_theta()
-        
+
         if grad_log_f is None:
             grad_log_f = self.get_grad_log_f(t)
         if p_Xt is None:
@@ -448,9 +527,7 @@ class Optimizor(HHMM):
 
         return grad_theta_t
 
-    def get_grad_eta_t(self,t,grad_eta0_log_delta=None,grad_eta_log_Gamma=None,
-                              grad_log_p_eta0=None,grad_log_p_eta=None,
-                              p_Xtm1_Xt=None):
+    def get_grad_eta_t(self,t,grad_eta0_log_delta=None,grad_eta_log_Gamma=None,grad_log_p_eta0=None,grad_log_p_eta=None,p_Xtm1_Xt=None):
 
         # initialize gradients
         grad_eta_t = [np.zeros((self.K[0],self.K[0])),

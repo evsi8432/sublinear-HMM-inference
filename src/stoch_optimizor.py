@@ -44,7 +44,7 @@ class StochOptimizor(Optimizor):
         '''
 
         # get all of the stuff from optim
-        super().__init__(data,features,K)
+        super(StochOptimizor, self).__init__(data,features,K)
 
         # copies for SVRG
         self.theta_tilde = deepcopy(self.theta)
@@ -74,7 +74,7 @@ class StochOptimizor(Optimizor):
             self.L_eta = np.infty #* np.ones((self.K_total,self.K_total))
 
         # divider of Lipshitz constant
-        self.divider = 1.0
+        self.divider = 3.0
 
         # stuff for adam to work
         self.eta0_m = deepcopy(self.grad_eta0)
@@ -88,9 +88,6 @@ class StochOptimizor(Optimizor):
 
         self.beta1 = 0.9#1.0 - np.sqrt(1.0/self.T)
         self.beta2 = 0.999#1.0 - (1.0/self.T)
-
-        print(self.beta1)
-        print(self.beta2)
 
         self.epsilon = 1e-8
 
@@ -217,7 +214,6 @@ class StochOptimizor(Optimizor):
 
     def check_L_theta(self,t):
 
-
         # get the gradients at the given time points
         grad_F_t = self.get_grad_theta_t(t)
 
@@ -234,8 +230,8 @@ class StochOptimizor(Optimizor):
                         theta_new[k0][feature][param][k1] += grad_F_t[k0][feature][param][k1] / self.L_theta[k0*self.K[1] + k1]
                         grad_F_t_norm2[k0*self.K[1] + k1] += grad_F_t[k0][feature][param][k1]**2
 
-        F_t  = -np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=deepcopy(self.theta),code="F_t"))
-        F_t_new = -np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=theta_new,code="F_t_new"))
+        F_t  = -np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=deepcopy(self.theta)))
+        F_t_new = -np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=theta_new))
 
         # add priors
         #F_t -= self.get_log_p_theta() / self.T
@@ -372,9 +368,7 @@ class StochOptimizor(Optimizor):
 
         return
 
-    def M_step(self,max_epochs=1,max_time=np.infty,alpha_theta=None,alpha_eta=None,
-               method="EM",partial_E=False,tol=1e-5,record_like=False,
-               weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
+    def M_step(self,max_epochs=1,max_time=np.infty,alpha_theta=None,alpha_eta=None,method="EM",partial_E=False,tol=1e-5,record_like=False,weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
 
         if not weight_buffer in ["coarse","fine","none"]:
             print("buffer type not understood. Setting to 'none'")
@@ -388,7 +382,7 @@ class StochOptimizor(Optimizor):
             alpha_theta = np.divide(1.0,self.divider*self.L_theta,where=self.L_theta!=0.0)
 
         if alpha_eta is None:
-            alpha_eta = 1.0/(self.divider*self.L_eta)#np.divide(1.0,self.divider*self.L_eta,where=self.L_eta!=0.0)
+            alpha_eta = np.divide(1.0,self.divider*self.L_eta,where=self.L_eta!=0.0)
 
         if method == "GD":
 
@@ -673,8 +667,8 @@ class StochOptimizor(Optimizor):
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
                                     delta = alpha_theta[inds] * (new_grad_theta_t[k0][feature][param] \
-                                                           - old_grad_theta_t[k0][feature][param] \
-                                                           + self.grad_theta_tilde[k0][feature][param]/self.T)
+                                                               - old_grad_theta_t[k0][feature][param] \
+                                                               + self.grad_theta_tilde[k0][feature][param]/self.T)
                                     self.theta[k0][feature][param] += delta
 
                     elif method == "SAGA":
@@ -770,11 +764,11 @@ class StochOptimizor(Optimizor):
                         raise("method %s not recognized" % method)
 
                     # clip values
-                    self.eta0[0] = np.clip(self.eta0[0],-1-np.log(self.T),1+np.log(self.T))
-                    self.eta[0]  = np.clip(self.eta[0], -1-np.log(self.T),1+np.log(self.T))
+                    #self.eta0[0] = np.clip(self.eta0[0],-1-np.log(self.T),1+np.log(self.T))
+                    #self.eta[0]  = np.clip(self.eta[0], -1-np.log(self.T),1+np.log(self.T))
                     for k0 in range(self.K[0]):
-                        self.eta0[1][k0] = np.clip(self.eta0[1][k0],-1-np.log(self.T),1+np.log(self.T))
-                        self.eta[1][k0]  = np.clip(self.eta[1][k0], -1-np.log(self.T),1+np.log(self.T))
+                        #self.eta0[1][k0] = np.clip(self.eta0[1][k0],-1-np.log(self.T),1+np.log(self.T))
+                        #self.eta[1][k0]  = np.clip(self.eta[1][k0], -1-np.log(self.T),1+np.log(self.T))
                         for feature in self.theta[k0]:
                             for param in self.theta[k0][feature]:
                                 self.theta[k0][feature][param] = np.clip(self.theta[k0][feature][param],
@@ -974,10 +968,7 @@ class StochOptimizor(Optimizor):
 
         return
 
-    def train_HHMM_stoch(self,num_epochs=10,max_time=np.infty,max_epochs=1,
-                         alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-5,
-                         method="EM",partial_E=False,record_like=False,
-                         weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
+    def train_HHMM_stoch(self,num_epochs=10,max_time=np.infty,max_epochs=1,alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-5,method="EM",partial_E=False,record_like=False,weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
 
         # check that the method makes sense
         if method not in ["EM","BFGS","Nelder-Mead","CG",

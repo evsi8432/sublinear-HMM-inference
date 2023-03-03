@@ -234,7 +234,7 @@ class HHMM:
 
         return
 
-    def get_log_f(self,t,theta=None,code=None):
+    def get_log_f(self,t,theta=None):
 
         if theta is None:
             theta = deepcopy(self.theta)
@@ -275,6 +275,20 @@ class HHMM:
                                               b=(b-mu)/sig,
                                               loc=mu,scale=sig)
 
+            elif dist == "gamma":
+
+                mu = np.concatenate([theta_i[feature]['mu'] for theta_i in theta])
+                log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
+                sig = np.exp(log_sig)
+
+                shape = mu**2 / sig**2
+                scale = sig**2 / mu
+
+                if np.isnan(y[feature]):
+                    pass
+                else:
+                    log_f += gamma.logpdf(y[feature],shape,scale=scale)    
+
             elif dist == 'bern':
 
                 logit_p = np.concatenate([theta_i[feature]['logit_p'] for theta_i in theta])
@@ -287,6 +301,18 @@ class HHMM:
                     log_f += np.log(expit(logit_p))
                 else:
                     print("invalid data point %s for %s, which is bernoulli"%(y[feature],feature))
+
+            elif dist.startswith("cat"):
+
+                ncats = int(dist[3:])
+
+                log_py = np.zeros(self.K_total)
+                for i in range(self.K[0]):
+                    for j in range(self.K[1]):
+                        psis = [0.0]+[theta[i][feature]["psi%d"%cat_num][j] for cat_num in range(1,ncats)]
+                        log_py[(i*K[1]) + j] = psis[y[feature]] - logsumexp(psis)
+
+                log_f += log_py
 
             else:
                 print("unidentified emission distribution %s for %s"%(dist,feature))
@@ -320,7 +346,7 @@ class HHMM:
         else:
             if eta0 is None:
                 eta0 = self.eta0
-                
+
             log_coarse_delta = np.repeat(eta0[0] - logsumexp(eta0[0]),self.K[1])
             log_fine_delta = np.concatenate([(eta01 - logsumexp(eta01)) for eta01 in eta0[1]])
 
@@ -447,7 +473,7 @@ class HHMM:
     def update_alpha(self,t):
 
         # get log_f
-        log_f = self.get_log_f(t,code='upadte_alpha')
+        log_f = self.get_log_f(t)
 
         # get initial index
         seq_num = np.argmax(self.initial_ts > t)-1
@@ -476,16 +502,16 @@ class HHMM:
         if t == self.T-1:
             self.log_betas[t] = np.zeros(self.K_total)
         elif t == tf:
-            log_f_tp1 = self.get_log_f(t+1,code='update_beta t == tf')
+            log_f_tp1 = self.get_log_f(t+1)
             self.log_betas[t] = np.ones(self.K_total) * \
                                 logsumexp(self.log_betas[t+1] + log_f_tp1 + \
                                           self.log_delta)
         elif ((t-t0) % self.jump_every == 1) or (self.jump_every == 1):
-            log_f_tp1 = self.get_log_f(t+1,code='update_beta jump')
+            log_f_tp1 = self.get_log_f(t+1)
             self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_f_tp1,
                                           np.transpose(self.log_Gamma_jump))
         else:
-            log_f_tp1 = self.get_log_f(t+1,code='update_beta no jump')
+            log_f_tp1 = self.get_log_f(t+1)
             self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_f_tp1,
                                           np.transpose(self.log_Gamma))
         return
@@ -507,7 +533,7 @@ class HHMM:
             raise("p_Xtm1_Xt not defined for t = t0")
 
         if log_f is None:
-            log_f = self.get_log_f(t,code='update_p_Xtm1_Xt')
+            log_f = self.get_log_f(t)
 
         if (t-t0) % self.jump_every == 0:
             log_Gamma = self.log_Gamma_jump

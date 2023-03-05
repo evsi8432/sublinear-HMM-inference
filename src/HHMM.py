@@ -49,13 +49,16 @@ class HHMM:
         self.K = K
         self.K_total = self.K[0]*self.K[1]
         self.T = len(data)
-        self.jump_every = 1
+        self.jump_inds = range(self.T)
         self.features = features
         self.stationary_delta = False
 
         # indices where sequences start and end
         self.initial_ts = np.array([0])
         self.final_ts = np.array([self.T-1])
+
+        # shared params
+        self.share_params = []
 
         # get log likelihood and grad ll
         self.ll = None
@@ -112,15 +115,14 @@ class HHMM:
                 theta_mus[k0][feature] = {}
                 theta_sigs[k0][feature] = {}
 
-                if settings['f'] == 'normal':
+                dist = settings['f']
 
-                    #theta[k0][feature]['mu'] = np.array([feature_data[initial_inds[k0,k1]] for k1 in range(self.K[1])])
+                if dist == 'normal':
+
                     theta[k0][feature]['mu'] = np.nanmean(feature_data)*np.ones(self.K[1])
                     theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
 
-                    #theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),0.1*np.exp(theta[k0][feature]['log_sig']))
                     theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
-                    #theta[k0][feature]['log_sig'] += norm.rvs(0.0,0.25,size=self.K[1])
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
 
                     # define priors
@@ -134,11 +136,49 @@ class HHMM:
                         param_bounds[feature]['mu'] = [min(feature_data),
                                                        max(feature_data)]
 
-                        param_bounds[feature]['log_sig'] = [np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
+                        param_bounds[feature]['log_sig'] = [-5.0,#np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
                                                             np.log(np.nanmax(feature_data) -
                                                                    np.nanmin(feature_data))]
 
-                elif settings['f'] == 'bern':
+                elif dist == 'normal_AR':
+
+                    theta[k0][feature]['mu'] = np.nanmean(feature_data)*np.ones(self.K[1])
+                    theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
+                    theta[k0][feature]['logit_rho'] = -1.0*np.ones(self.K[1])
+
+                    theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
+                    theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
+                    theta[k0][feature]['logit_rho'] += norm.rvs(np.zeros(self.K[1]),1.0)
+
+
+                    if k0 == 0:
+                        param_bounds[feature]['mu'] = [min(feature_data),
+                                                       max(feature_data)]
+
+                        param_bounds[feature]['log_sig'] = [-5.0,#np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
+                                                            np.log(np.nanmax(feature_data) -
+                                                                   np.nanmin(feature_data))]
+
+                        param_bounds[feature]['logit_rho'] = [-10.0,10.0]
+
+
+                elif dist == 'gamma':
+
+                    theta[k0][feature]['log_mu'] = np.log(np.nanmean(feature_data))*np.ones(self.K[1])
+                    theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
+
+                    theta[k0][feature]['log_mu'] *= norm.rvs(np.ones(self.K[1]),np.log(1.1))
+                    theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
+
+                    if k0 == 0:
+                        param_bounds[feature]['log_mu'] = [np.log(min(feature_data)),
+                                                           np.log(max(feature_data))]
+
+                        param_bounds[feature]['log_sig'] = [-5.0,#np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
+                                                            np.log(np.nanmax(feature_data) -
+                                                                   np.nanmin(feature_data))]
+
+                elif dist == 'bern':
 
                     theta[k0][feature]['logit_p'] = np.ones(self.K[1])*logit(np.nanmean(feature_data))
                     theta[k0][feature]['logit_p'] += norm.rvs(0.0,1.0,size=self.K[1])
@@ -259,6 +299,7 @@ class HHMM:
                 mu = np.concatenate([theta_i[feature]['mu'] for theta_i in theta])
                 log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
                 sig = np.exp(log_sig)
+
                 a = self.features[feature]['lower_bound']
                 b = self.features[feature]['upper_bound']
 
@@ -275,9 +316,29 @@ class HHMM:
                                               b=(b-mu)/sig,
                                               loc=mu,scale=sig)
 
-            elif dist == "gamma":
+            elif dist == 'normal_AR':
 
                 mu = np.concatenate([theta_i[feature]['mu'] for theta_i in theta])
+                log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
+                sig = np.exp(log_sig)
+                logit_rho = np.concatenate([theta_i[feature]['logit_rho'] for theta_i in theta])
+                rho = expit(logit_rho)
+
+                if t == 0 or np.isnan(self.data[t-1][feature]):
+                    y_tm1 = mu
+                else:
+                    y_tm1 = self.data[t-1][feature]
+
+                if np.isnan(y[feature]):
+                    pass
+                else:
+                    mu_t = rho*y_tm1 + (1.0-rho)*mu
+                    log_f += norm.logpdf(y[feature],loc=mu_t,scale=sig)
+
+            elif dist == "gamma":
+
+                log_mu = np.concatenate([theta_i[feature]['log_mu'] for theta_i in theta])
+                mu = np.exp(log_mu)
                 log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
                 sig = np.exp(log_sig)
 
@@ -287,7 +348,7 @@ class HHMM:
                 if np.isnan(y[feature]):
                     pass
                 else:
-                    log_f += gamma.logpdf(y[feature],shape,scale=scale)    
+                    log_f += gamma.logpdf(y[feature],shape,scale=scale)
 
             elif dist == 'bern':
 
@@ -484,7 +545,7 @@ class HHMM:
             self.log_alphas[t] = self.log_delta + log_f
         elif t == t0:
             self.log_alphas[t] = logsumexp(self.log_alphas[t-1]) + self.log_delta + log_f
-        elif (t-t0) % self.jump_every == 0:
+        elif t in self.jump_inds:
             self.log_alphas[t] = logdotexp(self.log_alphas[t-1],self.log_Gamma_jump) + log_f
         else:
             self.log_alphas[t] = logdotexp(self.log_alphas[t-1],self.log_Gamma) + log_f
@@ -506,7 +567,7 @@ class HHMM:
             self.log_betas[t] = np.ones(self.K_total) * \
                                 logsumexp(self.log_betas[t+1] + log_f_tp1 + \
                                           self.log_delta)
-        elif ((t-t0) % self.jump_every == 1) or (self.jump_every == 1):
+        elif t+1 in self.jump_inds:
             log_f_tp1 = self.get_log_f(t+1)
             self.log_betas[t] = logdotexp(self.log_betas[t+1] + log_f_tp1,
                                           np.transpose(self.log_Gamma_jump))
@@ -535,7 +596,7 @@ class HHMM:
         if log_f is None:
             log_f = self.get_log_f(t)
 
-        if (t-t0) % self.jump_every == 0:
+        if t in self.jump_inds:
             log_Gamma = self.log_Gamma_jump
         else:
             log_Gamma = self.log_Gamma

@@ -81,6 +81,9 @@ class Optimizor(HHMM):
         self.time_trace = []
         self.epoch_trace = []
 
+        # shared params
+        self.share_params = []
+
         return
 
     def initialize_grads(self):
@@ -93,10 +96,17 @@ class Optimizor(HHMM):
                     self.grad_theta[k0][feature]['mu'] = np.zeros(self.K[1])
                     self.grad_theta[k0][feature]['log_sig'] = np.zeros(self.K[1])
 
-            elif dist['f'] == 'gamma':
+            elif dist['f'] == 'normal_AR':
                 for k0 in range(self.K[0]):
 
                     self.grad_theta[k0][feature]['mu'] = np.zeros(self.K[1])
+                    self.grad_theta[k0][feature]['log_sig'] = np.zeros(self.K[1])
+                    self.grad_theta[k0][feature]['logit_rho'] = np.zeros(self.K[1])
+
+            elif dist['f'] == 'gamma':
+                for k0 in range(self.K[0]):
+
+                    self.grad_theta[k0][feature]['log_mu'] = np.zeros(self.K[1])
                     self.grad_theta[k0][feature]['log_sig'] = np.zeros(self.K[1])
 
             elif dist['f'] == 'bern':
@@ -112,6 +122,14 @@ class Optimizor(HHMM):
 
             else:
                 raise('only independent normal distributions supported at this time')
+
+
+        for share_param in self.share_params:
+            new_grad = 0.0
+            for feature,param,k0,k1 in product(*share_param.values()):
+                new_grad += self.grad_theta[k0][feature][param][k1]
+            for feature,param,k0,k1 in product(*share_param.values()):
+                self.grad_theta[k0][feature][param][k1] = np.copy(new_grad)
 
         # get overall gradient wrt eta
         self.grad_eta = [np.zeros((self.K[0],self.K[0])),
@@ -139,10 +157,17 @@ class Optimizor(HHMM):
                         self.grad_theta_t[t][k0][feature]['mu'] = np.zeros(self.K[1])
                         self.grad_theta_t[t][k0][feature]['log_sig'] = np.zeros(self.K[1])
 
-                if dist['f'] == 'gamma':
+                elif dist['f'] == 'normal_AR':
                     for k0 in range(self.K[0]):
 
                         self.grad_theta_t[t][k0][feature]['mu'] = np.zeros(self.K[1])
+                        self.grad_theta_t[t][k0][feature]['log_sig'] = np.zeros(self.K[1])
+                        self.grad_theta_t[t][k0][feature]['logit_rho'] = np.zeros(self.K[1])
+
+                elif dist['f'] == 'gamma':
+                    for k0 in range(self.K[0]):
+
+                        self.grad_theta_t[t][k0][feature]['log_mu'] = np.zeros(self.K[1])
                         self.grad_theta_t[t][k0][feature]['log_sig'] = np.zeros(self.K[1])
 
                 elif dist['f'] == 'bern':
@@ -158,6 +183,13 @@ class Optimizor(HHMM):
 
                 else:
                     raise('only independent normal distributions supported at this time')
+
+            for share_param in self.share_params:
+                new_grad = 0.0
+                for feature,param,k0,k1 in product(*share_param.values()):
+                    new_grad += grad_theta_t[t][k0][feature][param][k1]
+                for feature,param,k0,k1 in product(*share_param.values()):
+                    grad_theta_t[t][k0][feature][param][k1] = np.copy(new_grad)
 
         return
 
@@ -230,13 +262,43 @@ class Optimizor(HHMM):
                                         grad_log_f[k0][feature]['mu'][k1] = 0.0
                                         grad_log_f[k0][feature]['log_sig'][k1] = 0.0
 
+            elif dist == 'normal_AR':
+
+                # store gradient
+                for k0 in range(self.K[0]):
+
+                    mu = theta[k0][feature]['mu']
+
+                    log_sig = theta[k0][feature]['log_sig']
+                    sig = np.exp(log_sig)
+
+                    logit_rho = theta[k0][feature]['logit_rho']
+                    rho = expit(logit_rho)
+
+                    # get previous data point
+                    if t == 0 or np.isnan(self.data[t-1][feature]):
+                        y_tm1 = mu
+                    else:
+                        y_tm1 = self.data[t-1][feature]
+
+                    mu_t = rho*y_tm1 + (1.0-rho)*mu
+
+                    if np.isnan(y[feature]):
+                        grad_log_f[k0][feature] = {'mu': 0, 'log_sig': 0, 'logit_rho' : 0}
+                    else:
+                        grad_log_f[k0][feature] = {'mu': (1.0-rho)*(y[feature]-mu_t)/(sig**2),
+                                                   'log_sig': ((y[feature]-mu_t)/sig)**2 - 1,
+                                                   'logit_rho': rho*(1.0-rho)*(y_tm1-mu)*(y[feature]-mu_t)/(sig**2)}
+
+
 
             elif dist == 'gamma':
 
                 # store gradient
                 for k0 in range(self.K[0]):
 
-                    mu = theta[k0][feature]['mu']
+                    log_mu = theta[k0][feature]['log_mu']
+                    mu = np.exp(log_mu)
                     log_sig = theta[k0][feature]['log_sig']
                     sig = np.exp(log_sig)
 
@@ -244,25 +306,25 @@ class Optimizor(HHMM):
                     beta = mu / sig**2
 
                     if np.isnan(y[feature]):
-                        grad_log_f[k0][feature] = {'mu': 0, 'log_sig': 0}
+                        grad_log_f[k0][feature] = {'log_mu': 0, 'log_sig': 0}
                     else:
 
                         d_logp_d_alpha = np.log(beta) - digamma(alpha) + np.log(y[feature])
                         d_logp_d_beta = alpha / beta - y[feature]
 
-                        d_alpha_d_mu = 2.0 * beta
-                        d_alpha_d_logsig = -2.0 * (alpha/sig) * log_sig
+                        d_alpha_d_logmu = 2.0 * alpha
+                        d_alpha_d_logsig = -2.0 * alpha
 
-                        d_beta_d_mu = 1.0 / sig**2
-                        d_beta_d_logsig = -2.0 * (beta/sig) * log_sig
+                        d_beta_d_logmu = beta
+                        d_beta_d_logsig = -2.0 * beta
 
-                        d_logp_d_mu = d_logp_d_alpha*d_alpha_d_mu
-                        d_logp_d_mu += d_logp_d_beta*d_beta_d_mu
+                        d_logp_d_logmu = d_logp_d_alpha*d_alpha_d_logmu
+                        d_logp_d_logmu += d_logp_d_beta*d_beta_d_logmu
 
                         d_logp_d_logsig = d_logp_d_alpha*d_alpha_d_logsig
                         d_logp_d_logsig += d_logp_d_beta*d_beta_d_logsig
 
-                        grad_log_f[k0][feature] = {'mu': d_logp_d_mu,
+                        grad_log_f[k0][feature] = {'log_mu': d_logp_d_logmu,
                                                    'log_sig': d_logp_d_logsig}
 
             elif dist == 'bern':
@@ -483,47 +545,21 @@ class Optimizor(HHMM):
         # calculate gradient
         for feature,settings in self.features.items():
             for param in self.grad_theta[0][feature]:
+                for k0 in range(self.K[0]):
+                    grad_theta_t[k0][feature][param] = p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
+                                                       grad_log_f[k0][feature][param]
 
-                if settings['share_coarse'] and settings['share_fine']:
+        # combine shared parameters
+        for share_param in self.share_params:
+            new_grad = 0.0
+            for feature,param,k0,k1 in product(*share_param.values()):
+                new_grad += grad_theta_t[k0][feature][param][k1]
+            for feature,param,k0,k1 in product(*share_param.values()):
+                grad_theta_t[k0][feature][param][k1] = np.copy(new_grad)
 
-                    # get gradient for first coarse state
-                    grad_theta_t[0][feature][param] = np.zeros(self.K[1])
-                    for k0 in range(self.K[0]):
-                        grad_theta_t[0][feature][param] += np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                                  grad_log_f[k0][feature][param])
-                    # set all other coarse scale states eqaul
-                    for k0 in range(1,self.K[0]):
-                        grad_theta_t[k0][feature][param] = np.copy(grad_theta_t[0][feature][param])
-
-                elif settings['share_fine']:
-
-                    # get gradient from each fine state and sum them
-                    for k0 in range(self.K[0]):
-                        grad_theta_t[k0][feature][param] = np.ones(self.K[1]) * \
-                                                           np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                                  grad_log_f[k0][feature][param])
-
-                elif settings['share_coarse']:
-
-                    # get gradient for first coarse state
-                    grad_theta_t[0][feature][param] = np.zeros(self.K[1])
-                    for k0 in range(self.K[0]):
-                        grad_theta_t[0][feature][param] += p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                           grad_log_f[k0][feature][param]
-                    # set all other coarse scale states equal
-                    for k0 in range(1,self.K[0]):
-                        grad_theta_t[k0][feature][param] = np.copy(grad_theta_t[0][feature][param])
-
-                else:
-
-                    # simply find the gradient at each state
-                    for k0 in range(self.K[0]):
-                        grad_theta_t[k0][feature][param] = p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                           grad_log_f[k0][feature][param]
-
-                # add prior
-                #for k0 in range(self.K[0]):
-                #    grad_theta_t[k0][feature][param] += grad_log_p_theta[k0][feature][param] / self.T
+        # add prior
+        #for k0 in range(self.K[0]):
+        #    grad_theta_t[k0][feature][param] += grad_log_p_theta[k0][feature][param] / self.T
 
         return grad_theta_t
 
@@ -579,7 +615,7 @@ class Optimizor(HHMM):
 
         # get gradients of log Gamma wrt eta and eta0
         if (grad_eta0_log_delta is None) or (grad_eta_log_Gamma is None):
-            if t % self.jump_every == 0:
+            if t in self.jump_inds:
                 grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(jump=True)
             else:
                 grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(jump=False)

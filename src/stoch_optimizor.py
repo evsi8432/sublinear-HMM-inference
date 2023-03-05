@@ -319,6 +319,19 @@ class StochOptimizor(Optimizor):
                     self.theta_v[k0][feature]['mu'] = 0
                     self.theta_v[k0][feature]['log_sig'] = 0
 
+            elif dist['f'] == 'normal_AR':
+                for k0 in range(self.K[0]):
+
+                    self.theta_v[k0][feature]['mu'] = 0
+                    self.theta_v[k0][feature]['log_sig'] = 0
+                    self.theta_v[k0][feature]['logit_rho'] = 0
+
+            elif dist['f'] == 'gamma':
+                for k0 in range(self.K[0]):
+
+                    self.theta_v[k0][feature]['log_mu'] = 0
+                    self.theta_v[k0][feature]['log_sig'] = 0
+
             elif dist['f'] == 'bern':
                 for k0 in range(self.K[0]):
 
@@ -345,6 +358,27 @@ class StochOptimizor(Optimizor):
 
                         self.theta_v[k0][feature]['mu'] += \
                             self.grad_theta_t[t][k0][feature]['mu']**2
+
+                        self.theta_v[k0][feature]['log_sig'] += \
+                            self.grad_theta_t[t][k0][feature]['log_sig']**2
+
+                elif dist['f'] == 'normal_AR':
+                    for k0 in range(self.K[0]):
+
+                        self.theta_v[k0][feature]['mu'] += \
+                            self.grad_theta_t[t][k0][feature]['mu']**2
+
+                        self.theta_v[k0][feature]['log_sig'] += \
+                            self.grad_theta_t[t][k0][feature]['log_sig']**2
+
+                        self.theta_v[k0][feature]['logit_rho'] += \
+                            self.grad_theta_t[t][k0][feature]['logit_rho']**2
+
+                elif dist['f'] == 'gamma':
+                    for k0 in range(self.K[0]):
+
+                        self.theta_v[k0][feature]['log_mu'] += \
+                            self.grad_theta_t[t][k0][feature]['log_mu']**2
 
                         self.theta_v[k0][feature]['log_sig'] += \
                             self.grad_theta_t[t][k0][feature]['log_sig']**2
@@ -482,7 +516,7 @@ class StochOptimizor(Optimizor):
 
                         # get old gradients
                         grad_log_f = self.get_grad_log_f(t,theta=deepcopy(self.theta_tilde))
-                        grad_log_p_theta = self.get_grad_log_p_theta(theta=deepcopy(self.theta_tilde))
+                        #grad_log_p_theta = self.get_grad_log_p_theta(theta=deepcopy(self.theta_tilde))
 
                         # get initial index
                         seq_num = np.argmax(self.initial_ts > t)-1
@@ -495,8 +529,8 @@ class StochOptimizor(Optimizor):
                         else:
                             grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(eta=self.eta_tilde,eta0=self.eta0_tilde)
 
-                        grad_log_p_eta = self.get_grad_log_p_eta(eta=deepcopy(self.eta_tilde))
-                        grad_log_p_eta0 = self.get_grad_log_p_eta0(eta0=deepcopy(self.eta0_tilde))
+                        #grad_log_p_eta = self.get_grad_log_p_eta(eta=deepcopy(self.eta_tilde))
+                        #grad_log_p_eta0 = self.get_grad_log_p_eta0(eta0=deepcopy(self.eta0_tilde))
 
                         # get old weights
                         p_Xt = self.p_Xt_tilde[t]
@@ -505,14 +539,17 @@ class StochOptimizor(Optimizor):
                         # calculate old gradient
                         old_grad_theta_t = self.get_grad_theta_t(t,
                                                                  grad_log_f=grad_log_f,
-                                                                 grad_log_p_theta=grad_log_p_theta,
+                                                                 #grad_log_p_theta=grad_log_p_theta,
+                                                                 grad_log_p_theta=None,
                                                                  p_Xt=p_Xt)
 
                         old_grad_eta_t,old_grad_eta0_t = self.get_grad_eta_t(t,
                                                                              grad_eta0_log_delta=grad_eta0_log_delta,
                                                                              grad_eta_log_Gamma=grad_eta_log_Gamma,
-                                                                             grad_log_p_eta=grad_log_p_eta,
-                                                                             grad_log_p_eta0=grad_log_p_eta0,
+                                                                             grad_log_p_eta=None,
+                                                                             grad_log_p_eta0=None,
+                                                                             #grad_log_p_eta=grad_log_p_eta,
+                                                                             #grad_log_p_eta0=grad_log_p_eta0,
                                                                              p_Xtm1_Xt=p_Xtm1_X1)
 
                     else:

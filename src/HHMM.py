@@ -37,7 +37,7 @@ from helper_funcs import logdotexp
 
 class HHMM:
 
-    def __init__(self,data,features,K):
+    def __init__(self,data,features,share_params,K):
 
         '''
         constructor for HHMM class
@@ -58,7 +58,7 @@ class HHMM:
         self.final_ts = np.array([self.T-1])
 
         # shared params
-        self.share_params = []
+        self.share_params = share_params
 
         # get log likelihood and grad ll
         self.ll = None
@@ -204,7 +204,7 @@ class HHMM:
         self.eta_sigs = []
 
         # fill in coarse eta
-        eta_crude = -2.0 + 2.0*np.random.normal(size=(self.K[0],self.K[0]))
+        eta_crude = -3.0 + 1.0*np.random.normal(size=(self.K[0],self.K[0]))
         for i in range(self.K[0]):
             eta_crude[i,i] = 0
         self.eta.append(eta_crude)
@@ -218,7 +218,7 @@ class HHMM:
         eta_fine_mus = []
         eta_fine_sigs = []
         for _ in range(self.K[0]):
-            eta_fine_k = -1.0 + np.random.normal(size=(self.K[1],self.K[1]))
+            eta_fine_k = -1.0 + 1.0*np.random.normal(size=(self.K[1],self.K[1]))
             eta_fine_mu_k = np.zeros((self.K[1],self.K[1]))
             eta_fine_sig_k = (np.log(self.T)/3.0) * np.ones((self.K[1],self.K[1]))
             for i in range(self.K[1]):
@@ -252,19 +252,7 @@ class HHMM:
 
     def initialize_nparams(self):
 
-        self.nparams = 0
-
-        # add params from theta
-        for feature,settings in self.features.items():
-            for param in self.theta[0][feature]:
-                if settings['share_coarse'] and settings['share_fine']:
-                    self.nparams += 1
-                elif settings['share_coarse']:
-                    self.nparams += self.K[1]
-                elif settings['share_fine']:
-                    self.nparams += self.K[0]
-                else:
-                    self.nparams += self.K[0]*self.K[1]
+        self.nparams = len(self.share_params)
 
         self.nparams += self.K[0]**2 # eta-coarse
         self.nparams += self.K[0]*self.K[1]**2 # eta-fine
@@ -316,6 +304,7 @@ class HHMM:
                                               b=(b-mu)/sig,
                                               loc=mu,scale=sig)
 
+
             elif dist == 'normal_AR':
 
                 mu = np.concatenate([theta_i[feature]['mu'] for theta_i in theta])
@@ -347,6 +336,8 @@ class HHMM:
 
                 if np.isnan(y[feature]):
                     pass
+                elif y[feature] <= 0:
+                    raise("data to fit Gamma distribution has negative value")
                 else:
                     log_f += gamma.logpdf(y[feature],shape,scale=scale)
 
@@ -622,33 +613,10 @@ class HHMM:
         ind = 0
 
         # update theta
-        for feature,settings in self.features.items():
-
-            if settings['share_coarse'] and settings['share_fine']:
-                for param in self.theta[0][feature]:
-                    for k0,k1 in product(range(self.K[0]),range(self.K[1])):
-                        self.theta[k0][feature][param][k1] = x[ind]
-                    ind += 1
-
-            elif settings['share_fine']:
-                for param in self.theta[0][feature]:
-                    for k0 in range(self.K[0]):
-                        for k1 in range(self.K[1]):
-                            self.theta[k0][feature][param][k1] = x[ind]
-                        ind += 1
-
-            elif settings['share_coarse']:
-                for param in self.theta[0][feature]:
-                    for k1 in range(self.K[1]):
-                        for k0 in range(self.K[0]):
-                            self.theta[k0][feature][param][k1] = x[ind]
-                        ind += 1
-
-            else:
-                for param in self.theta[0][feature]:
-                    for k0,k1 in product(range(self.K[0]),range(self.K[1])):
-                        self.theta[k0][feature][param][k1] = x[ind]
-                        ind += 1
+        for share_param in self.share_params:
+            for feature,param,k0,k1 in product(*share_param.values()):
+                self.theta[k0][feature][param][k1] = np.copy(x[ind])
+            ind += 1
 
         # update eta coarse
         for i in range(self.K[0]):
@@ -704,33 +672,10 @@ class HHMM:
         ind = 0
 
         # update theta
-        for feature,settings in self.features.items():
-
-            if settings['share_coarse'] and settings['share_fine']:
-                for param in self.theta[0][feature]:
-                    for k0,k1 in product(range(1),range(1)):
-                        x[ind] = self.theta[k0][feature][param][k1]
-                    ind += 1
-
-            elif settings['share_fine']:
-                for param in self.theta[0][feature]:
-                    for k0 in range(self.K[0]):
-                        for k1 in range(1):
-                            x[ind] = self.theta[k0][feature][param][k1]
-                        ind += 1
-
-            elif settings['share_coarse']:
-                for param in self.theta[0][feature]:
-                    for k1 in range(self.K[1]):
-                        for k0 in range(1):
-                            x[ind] = self.theta[k0][feature][param][k1]
-                        ind += 1
-
-            else:
-                for param in self.theta[0][feature]:
-                    for k0,k1 in product(range(self.K[0]),range(self.K[1])):
-                        x[ind] = self.theta[k0][feature][param][k1]
-                        ind += 1
+        for share_param in self.share_params:
+            for feature,param,k0,k1 in product(*share_param.values()):
+                x[ind] = np.copy(self.theta[k0][feature][param][k1])
+            ind += 1
 
         # update eta coarse
         for i in range(self.K[0]):

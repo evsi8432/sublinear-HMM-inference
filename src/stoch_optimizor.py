@@ -37,14 +37,14 @@ from helper_funcs import log_delta_2_eta0
 
 class StochOptimizor(Optimizor):
 
-    def __init__(self,data,features,K):
+    def __init__(self,data,features,share_params,K):
 
         '''
         constructor for optimizor class
         '''
 
         # get all of the stuff from optim
-        super(StochOptimizor, self).__init__(data,features,K)
+        super(StochOptimizor, self).__init__(data,features,share_params,K)
 
         # copies for SVRG
         self.theta_tilde = deepcopy(self.theta)
@@ -67,10 +67,10 @@ class StochOptimizor(Optimizor):
 
         # Lipshitz constants
         if self.step_size != 0:
-            self.L_theta = 1.0/(3.0*self.step_size) * np.ones(self.K_total)
+            self.L_theta = 1.0/(3.0*self.step_size) #* np.ones(self.K_total)
             self.L_eta = 1.0/(3.0*self.step_size) #* np.ones((self.K_total,self.K_total))
         else:
-            self.L_theta = np.infty * np.ones(self.K_total)
+            self.L_theta = np.infty #* np.ones(self.K_total)
             self.L_eta = np.infty #* np.ones((self.K_total,self.K_total))
 
         # divider of Lipshitz constant
@@ -217,73 +217,53 @@ class StochOptimizor(Optimizor):
         # get the gradients at the given time points
         grad_F_t = self.get_grad_theta_t(t)
 
-        # initialize gradient norm and new theta
-        grad_F_t_norm2 = np.zeros(self.K_total)
+        # get the new theta
         theta_new = deepcopy(self.theta)
-
         for feature,settings in self.features.items():
             for param in grad_F_t[0][feature]:
-
-                # update new theta and record grad norm
                 for k0 in range(self.K[0]):
                     for k1 in range(self.K[1]):
-                        theta_new[k0][feature][param][k1] += grad_F_t[k0][feature][param][k1] / self.L_theta[k0*self.K[1] + k1]
-                        grad_F_t_norm2[k0*self.K[1] + k1] += grad_F_t[k0][feature][param][k1]**2
+                        theta_new[k0][feature][param][k1] += grad_F_t[k0][feature][param][k1] / self.L_theta
 
-        F_t  = -np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=deepcopy(self.theta)))
-        F_t_new = -np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=theta_new))
+        # find gradient norm (don't double count shared parameters)
+        grad_F_t_norm2 = 0.0
+        for share_param in self.share_params:
+            k0 = share_param['K_coarse'][0]
+            feature = share_param['features'][0]
+            param = share_param['params'][0]
+            k1 = share_param['K_fine'][0]
+            grad_F_t_norm2 += grad_F_t[k0][feature][param][k1]**2
+
+        F_t  = np.sum(-np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=deepcopy(self.theta))))
+        F_t_new = np.sum(-np.nan_to_num(self.p_Xt[t] * self.get_log_f(t,theta=theta_new)))
 
         # add priors
         #F_t -= self.get_log_p_theta() / self.T
         #F_t_new -= self.get_log_p_theta(theta=theta_new) / self.T
 
-        # make F_t[k0,k1] equal to F_t[\cdot,\cdot] for share states, etc.
-        if settings['share_coarse'] and settings['share_fine']:
-
-            F_t_total = np.sum(F_t)
-            F_t_new_total = np.sum(F_t_new)
-            for k0 in range(self.K[0]):
-                for k1 in range(self.K[1]):
-                    ind = k0*self.K[1] + k1
-                    F_t[ind] = F_t_total
-                    F_t_new[ind] = F_t_new_total
-
-        elif settings['share_fine']:
-
-            for k0 in range(self.K[0]):
-                F_t_total = np.sum([F_t[k0*self.K[1] + k1] for k1 in range(self.K[1])])
-                F_t_new_total = np.sum([F_t_new[k0*self.K[1] + k1] for k1 in range(self.K[1])])
-                for k1 in range(self.K[1]):
-                    ind = k0*self.K[1] + k1
-                    F_t[ind] = F_t_total
-                    F_t_new[ind] = F_t_new_total
-
-        elif settings['share_coarse']:
-
-            for k1 in range(self.K[1]):
-                F_t_total = np.sum([F_t[k0*self.K[1] + k1] for k0 in range(self.K[0])])
-                F_t_new_total = np.sum([F_t_new[k0*self.K[1] + k1] for k0 in range(self.K[0])])
-                for k0 in range(self.K[0]):
-                    ind = k0*self.K[1] + k1
-                    F_t[ind] = F_t_total
-                    F_t_new[ind] = F_t_new_total
-
-        else:
-            pass
-
         # check for inequality
         check_again = False
 
-        for k0 in range(self.K[0]):
-            for k1 in range(self.K[1]):
-                ind = k0*self.K[1] + k1
-                if grad_F_t_norm2[ind] < 1e-8:
-                    pass
-                elif F_t_new[ind] > F_t[ind] - grad_F_t_norm2[ind] / (2*self.L_theta[ind]):
-                    self.L_theta[ind] *= 2
-                    check_again = True
-                else:
-                    self.L_theta[ind] *= 2**(-1/self.T)
+        if grad_F_t_norm2 < 1e-8:
+            pass
+        elif F_t_new > F_t - grad_F_t_norm2 / (2*self.L_theta):
+            self.L_theta *= 2
+            check_again = True
+        else:
+            self.L_theta *= 2**(-1/self.T)
+
+        #for k0 in range(self.K[0]):
+        #    for k1 in range(self.K[1]):
+        #        ind = k0*self.K[1] + k1
+        #        if grad_F_t_norm2[ind] < 1e-8:
+        #            pass
+        #        elif F_t_new[ind] > F_t[ind] - grad_F_t_norm2[ind] / (2*self.L_theta[ind]):
+        #            self.L_theta[ind] *= 2
+        #            check_again = True
+        #        else:
+        #            self.L_theta[ind] *= 2**(-1/self.T)
+
+        #print(self.L_theta)
 
         if check_again:
             self.check_L_theta(t)
@@ -413,7 +393,7 @@ class StochOptimizor(Optimizor):
             buffer = "none"
 
         if alpha_theta is None:
-            alpha_theta = np.divide(1.0,self.divider*self.L_theta,where=self.L_theta!=0.0)
+            alpha_theta = 1.0 / self.L_theta #np.divide(1.0,self.divider*self.L_theta,where=self.L_theta!=0.0)
 
         if alpha_eta is None:
             alpha_eta = np.divide(1.0,self.divider*self.L_eta,where=self.L_eta!=0.0)
@@ -439,7 +419,7 @@ class StochOptimizor(Optimizor):
                 inds = slice(self.K[1]*k0,self.K[1]*(k0+1))
                 for feature in self.grad_theta[k0]:
                     for param in self.grad_theta[k0][feature]:
-                        delta = alpha_theta[inds] * self.grad_theta[k0][feature][param]
+                        delta = alpha_theta * self.grad_theta[k0][feature][param]
                         self.theta[k0][feature][param] += delta
 
             # clip values
@@ -637,7 +617,7 @@ class StochOptimizor(Optimizor):
                             inds = slice(self.K[1]*k0,self.K[1]*(k0+1))
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
-                                    delta = alpha_theta_m[inds] * new_grad_theta_t[k0][feature][param]
+                                    delta = alpha_theta_m * new_grad_theta_t[k0][feature][param]
                                     self.theta[k0][feature][param] += delta
 
                     elif method == "SAG":
@@ -669,7 +649,7 @@ class StochOptimizor(Optimizor):
                             inds = slice(self.K[1]*k0,self.K[1]*(k0+1))
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
-                                    delta = alpha_theta[inds] * (new_grad_theta_t[k0][feature][param] \
+                                    delta = alpha_theta * (new_grad_theta_t[k0][feature][param] \
                                                          - old_grad_theta_t[k0][feature][param] \
                                                          + self.grad_theta[k0][feature][param])/self.T
                                     self.theta[k0][feature][param] += delta
@@ -703,7 +683,7 @@ class StochOptimizor(Optimizor):
                             inds = slice(self.K[1]*k0,self.K[1]*(k0+1))
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
-                                    delta = alpha_theta[inds] * (new_grad_theta_t[k0][feature][param] \
+                                    delta = alpha_theta * (new_grad_theta_t[k0][feature][param] \
                                                                - old_grad_theta_t[k0][feature][param] \
                                                                + self.grad_theta_tilde[k0][feature][param]/self.T)
                                     self.theta[k0][feature][param] += delta
@@ -737,7 +717,7 @@ class StochOptimizor(Optimizor):
                             inds = slice(self.K[1]*k0,self.K[1]*(k0+1))
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
-                                    delta = alpha_theta[inds] * (new_grad_theta_t[k0][feature][param] \
+                                    delta = alpha_theta * (new_grad_theta_t[k0][feature][param] \
                                                                - old_grad_theta_t[k0][feature][param] \
                                                                + self.grad_theta[k0][feature][param]/self.T)
                                     self.theta[k0][feature][param] += delta

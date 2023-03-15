@@ -38,14 +38,14 @@ from helper_funcs import log_delta_2_eta0
 
 class Optimizor(HHMM):
 
-    def __init__(self,data,features,K):
+    def __init__(self,data,features,share_params,K):
 
         '''
         constructor for optimizor class
         '''
 
         # get all of the stuff from HHMM
-        super(Optimizor, self).__init__(data,features,K)
+        super(Optimizor, self).__init__(data,features,share_params,K)
 
         # gradients wrt theta
         self.grad_theta_t = [deepcopy(self.theta) for _ in range(self.T)]
@@ -80,9 +80,6 @@ class Optimizor(HHMM):
 
         self.time_trace = []
         self.epoch_trace = []
-
-        # shared params
-        self.share_params = []
 
         return
 
@@ -124,12 +121,12 @@ class Optimizor(HHMM):
                 raise('only independent normal distributions supported at this time')
 
 
-        for share_param in self.share_params:
-            new_grad = 0.0
-            for feature,param,k0,k1 in product(*share_param.values()):
-                new_grad += self.grad_theta[k0][feature][param][k1]
-            for feature,param,k0,k1 in product(*share_param.values()):
-                self.grad_theta[k0][feature][param][k1] = np.copy(new_grad)
+#        for share_param in self.share_params:
+#            new_grad = 0.0
+#            for feature,param,k0,k1 in product(*share_param.values()):
+#                new_grad += self.grad_theta[k0][feature][param][k1]
+#            for feature,param,k0,k1 in product(*share_param.values()):
+#                self.grad_theta[k0][feature][param][k1] = np.copy(new_grad)
 
         # get overall gradient wrt eta
         self.grad_eta = [np.zeros((self.K[0],self.K[0])),
@@ -184,12 +181,12 @@ class Optimizor(HHMM):
                 else:
                     raise('only independent normal distributions supported at this time')
 
-            for share_param in self.share_params:
-                new_grad = 0.0
-                for feature,param,k0,k1 in product(*share_param.values()):
-                    new_grad += grad_theta_t[t][k0][feature][param][k1]
-                for feature,param,k0,k1 in product(*share_param.values()):
-                    grad_theta_t[t][k0][feature][param][k1] = np.copy(new_grad)
+#            for share_param in self.share_params:
+#                new_grad = 0.0
+#                for feature,param,k0,k1 in product(*share_param.values()):
+#                    new_grad += grad_theta_t[t][k0][feature][param][k1]
+#                for feature,param,k0,k1 in product(*share_param.values()):
+#                    grad_theta_t[t][k0][feature][param][k1] = np.copy(new_grad)
 
         return
 
@@ -715,30 +712,10 @@ class Optimizor(HHMM):
         ind = 0
 
         # update theta
-        for feature,settings in self.features.items():
-
-            if settings['share_coarse'] and settings['share_fine']:
-                for param in self.grad_theta[0][feature]:
-                    xprime[ind] = self.grad_theta[0][feature][param][0]
-                    ind += 1
-
-            elif settings['share_fine']:
-                for param in self.grad_theta[0][feature]:
-                    for k0 in range(self.K[0]):
-                        xprime[ind] = self.grad_theta[k0][feature][param][0]
-                        ind += 1
-
-            elif settings['share_coarse']:
-                for param in self.grad_theta[0][feature]:
-                    for k1 in range(self.K[1]):
-                        xprime[ind] = self.grad_theta[0][feature][param][k1]
-                        ind += 1
-
-            else:
-                for param in self.grad_theta[0][feature]:
-                    for k0,k1 in product(range(self.K[0]),range(self.K[1])):
-                        xprime[ind] = self.grad_theta[k0][feature][param][k1]
-                        ind += 1
+        for share_param in self.share_params:
+            for feature,param,k0,k1 in product(*share_param.values()):
+                xprime[ind] = np.copy(self.grad_theta[k0][feature][param][k1])
+            ind += 1
 
         # update eta coarse
         for i in range(self.K[0]):

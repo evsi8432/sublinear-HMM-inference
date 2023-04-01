@@ -430,6 +430,23 @@ class HHMM:
         for i in range(self.K[0]):
             for j in range(self.K[0]):
 
+                '''
+                This is stuff if we restart at delta for every switch
+                if jump:
+                    log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                              (self.K[1]*j):(self.K[1]*(j+1))] += log_coarse_Gamma[i,j]
+                    #if i != j:
+                    log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                              (self.K[1]*j):(self.K[1]*(j+1))] += np.tile(log_fine_deltas[j],[self.K[1],1])
+                else:
+                    if i == j:
+                        log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                                  (self.K[1]*j):(self.K[1]*(j+1))] += log_fine_Gammas[j]
+                    else:
+                        log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
+                                  (self.K[1]*j):(self.K[1]*(j+1))] += -np.infty
+                '''
+
                 # add fine-scale Gamma
                 if i == j:
                     log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),

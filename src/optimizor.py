@@ -38,14 +38,18 @@ from helper_funcs import log_delta_2_eta0
 
 class Optimizor(HHMM):
 
-    def __init__(self,data,features,share_params,K):
+    def __init__(self,data,features,share_params,K,
+                 fix_theta=None,fix_eta=None,fix_eta0=None):
 
         '''
         constructor for optimizor class
         '''
 
         # get all of the stuff from HHMM
-        super(Optimizor, self).__init__(data,features,share_params,K)
+        super(Optimizor, self).__init__(data,features,share_params,K,
+                                        fix_theta=fix_theta,
+                                        fix_eta=fix_eta,
+                                        fix_eta0=fix_eta0)
 
         # gradients wrt theta
         self.grad_theta_t = [deepcopy(self.theta) for _ in range(self.T)]
@@ -259,6 +263,7 @@ class Optimizor(HHMM):
                                         grad_log_f[k0][feature]['mu'][k1] = 0.0
                                         grad_log_f[k0][feature]['log_sig'][k1] = 0.0
 
+
             elif dist == 'normal_AR':
 
                 # store gradient
@@ -286,8 +291,6 @@ class Optimizor(HHMM):
                         grad_log_f[k0][feature] = {'mu': (1.0-rho)*(y[feature]-mu_t)/(sig**2),
                                                    'log_sig': ((y[feature]-mu_t)/sig)**2 - 1,
                                                    'logit_rho': rho*(1.0-rho)*(y_tm1-mu)*(y[feature]-mu_t)/(sig**2)}
-
-
 
             elif dist == 'gamma':
 
@@ -361,38 +364,49 @@ class Optimizor(HHMM):
                 print("unidentified emission distribution %s for %s"%(dist,feature))
                 return
 
+        # set gradients of fixed values to zero
+        for k0 in range(self.K[0]):
+            for feature in self.fix_theta[k0]:
+                for param in self.fix_theta[k0][feature]:
+                    for k1 in range(self.K[1]):
+                        if not (self.fix_theta[k0][feature][param][k1] is None):
+                            grad_log_f[k0][feature][param][k1] = 0.0
+
         return grad_log_f
 
     def get_grad_log_delta(self,eta0=None,eta=None):
 
+        if eta0 is None:
+            eta0 = self.eta0
+
+        log_delta = eta0_2_log_delta(eta0)
+        coarse_delta = np.exp(log_delta[0])
+        fine_deltas = [np.exp(log_delta1) for log_delta1 in log_delta[1]]
+
+        # delta does not depend upon eta
         grad_eta_log_delta = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
                               [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
 
-        grad_eta0_log_delta = [np.zeros((self.K[0],self.K[0])),
-                               [np.zeros((self.K[1],self.K[1])) for _ in range(self.K[0])]]
+        grad_eta0_log_delta = [np.eye(self.K[0]) - np.tile(coarse_delta,[self.K[0],1]),
+                               [np.eye(self.K[1]) - np.tile(fine_delta,[self.K[1],1]) \
+                                for fine_delta in fine_deltas]]
 
-        if self.stationary_delta:
+        # set some gradients to zero for identifiability
+        grad_eta0_log_delta[0][:,0] = 0
+        for k0 in range(self.K[0]):
+            grad_eta0_log_delta[1][k0][:,0] = 0
 
-            if eta is None:
-                eta = self.eta
+        # set gradients to zero that are fixed
+        for k0 in range(self.K[0]):
 
-        else:
+            # coarse-scale delta
+            if not (self.fix_eta0[0][k0] is None):
+                grad_eta0_log_delta[0][:,k0] = 0.0
 
-            if eta0 is None:
-                eta0 = self.eta0
-
-            log_delta = eta0_2_log_delta(eta0)
-            coarse_delta = np.exp(log_delta[0])
-            fine_deltas = [np.exp(log_delta1) for log_delta1 in log_delta[1]]
-
-            grad_eta0_log_delta = [np.eye(self.K[0]) - np.tile(coarse_delta,[self.K[0],1]),
-                                   [np.eye(self.K[1]) - np.tile(fine_delta,[self.K[1],1]) \
-                                    for fine_delta in fine_deltas]]
-
-            # set some gradients to zero for identifiability
-            grad_eta0_log_delta[0][:,0] = 0
-            for k0 in range(self.K[0]):
-                grad_eta0_log_delta[1][k0][:,0] = 0
+            # fine-scale deltas
+            for k1 in range(self.K[1]):
+                if not (self.fix_eta0[1][k0][k1] is None):
+                    grad_eta0_log_delta[1][k0][:,k1] = 0.0
 
         return grad_eta0_log_delta,grad_eta_log_delta
 
@@ -427,34 +441,45 @@ class Optimizor(HHMM):
         for i in range(self.K[0]):
             for j in range(self.K[0]):
                 for l in range(self.K[0]):
-                    if not jump:
+                    if not jump: # if we aren't jumping then the coarse-scale Gamma doesn't matter
                         pass
-                    elif i == l:
+                    elif not (self.fix_eta[0][i,l] is None): # skip if eta_il is fixed
                         pass
-                    elif j == l:
+                    elif i == l: # the diagonals are set to zero
+                        pass
+                    elif j == l: # d log_Gamma_ij / d eta_il = 1-Gamma_ij
                         grad_eta_log_Gamma[0][i,j,i,l] = 1.0-Gammas[0][i,l]
-                    else:
+                    else: # d log_Gamma_ij / d eta_il = 1-Gamma_il
                         grad_eta_log_Gamma[0][i,j,i,l] = -Gammas[0][i,l]
 
         # grad from fine_Gamma
-        for n in range(self.K[0]):
+        for k0 in range(self.K[0]):
             for i in range(self.K[1]):
                 for j in range(self.K[1]):
                     for l in range(self.K[1]):
-                        if i == l:
+                        if jump: # if we are jumping then the fine-scale Gamma doesn't matter
                             pass
-                        elif j == l:
-                            grad_eta_log_Gamma[1][n][i,j,i,l] = 1.0-Gammas[1][n][i,l]
-                        else:
-                            grad_eta_log_Gamma[1][n][i,j,i,l] = -Gammas[1][n][i,l]
+                        elif not (self.fix_eta[1][k0][i,l] is None): # skip if eta_il is fixed
+                            pass
+                        elif i == l: # the diagonals are set to zero
+                            pass
+                        elif j == l: # d log_Gamma_ij / d eta_ij = 1-Gamma_ij
+                            grad_eta_log_Gamma[1][k0][i,j,i,l] = 1.0-Gammas[1][k0][i,l]
+                        else: # d log_Gamma_ij / d eta_il = -Gamma_il
+                            grad_eta_log_Gamma[1][k0][i,j,i,l] = -Gammas[1][k0][i,l]
 
         # grad from fine_delta
         for k0 in range(self.K[0]):
-            if not jump:
-                pass
-            else:
-                grad_eta0_log_delta[1][k0] = np.eye(self.K[1]) - np.tile(fine_deltas[k0],[self.K[1],1])
-                grad_eta0_log_delta[1][k0][:,0] = 0.0
+            for k1 in range(self.K[1]):
+                if not jump: # if we aren't jumping then the coarse-scale Gamma doesn't matter
+                    pass
+                elif not (self.fix_eta0[1][k0][k1] is None): # fixed
+                    pass
+                elif k1 == 0: # first element is always zero
+                    pass
+                else:
+                    grad_eta0_log_delta[1][k0][:,k1] = -fine_deltas[k0][k1]
+                    grad_eta0_log_delta[1][k0][k1,k1] += 1.0
 
         return grad_eta0_log_delta,grad_eta_log_Gamma
 
@@ -588,17 +613,17 @@ class Optimizor(HHMM):
                 grad_eta0_log_delta,_ = self.get_grad_log_delta()
 
             p_Xt = self.p_Xt[t]
-            p_Xt_coarse = [np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))]) for k0 in range(self.K[0])]
 
             # add coarse-scale delta
+            p_Xt_coarse = [np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))]) for k0 in range(self.K[0])]
             for k0 in range(self.K[0]):
                 grad_eta0_t[0][k0] = np.sum(p_Xt_coarse * grad_eta0_log_delta[0][:,k0])
 
             # add fine-scale delta
             for k0 in range(self.K[0]):
+                p_Xt_fine = p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))]
                 for k1 in range(self.K[1]):
-                    grad_eta0_t[1][k0][k1] += np.sum(p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                      grad_eta0_log_delta[1][k0][:,k1])
+                    grad_eta0_t[1][k0][k1] += np.sum(p_Xt_fine * grad_eta0_log_delta[1][k0][:,k1])
 
             # add prior
             #grad_eta_t[0] += grad_log_p_eta[0] / self.T
@@ -629,20 +654,14 @@ class Optimizor(HHMM):
 
         # add gradient from fine-scale delta
         for k0 in range(self.K[0]):
-
-            # get prob of moving from a different coarse state to given fine
-            p_Xt_jump = np.sum(p_Xtm1_Xt[:,(self.K[1]*k0):(self.K[1]*(k0+1))],0)
-            p_Xt_jump = p_Xt_jump - np.sum(p_Xtm1_Xt[(self.K[1]*k0):(self.K[1]*(k0+1)),
-                                                     (self.K[1]*k0):(self.K[1]*(k0+1))],0)
-
-            for i in range(self.K[1]):
-                grad_eta0_t[1][k0][i] += np.sum(p_Xt_jump * grad_eta0_log_delta[1][k0][:,i])
-
+            p_Xt_fine = np.sum(p_Xtm1_Xt[:,(self.K[1]*k0):(self.K[1]*(k0+1))],0)
+            for k1 in range(self.K[1]):
+                grad_eta0_t[1][k0][k1] += np.sum(p_Xt_fine * grad_eta0_log_delta[1][k0][:,k1])
 
         # add gradient from coarse-scale Gamma
         for i in range(self.K[0]):
             for j in range(self.K[0]):
-                grad_eta_t[0][i,j] = np.sum(p_Xtm1_Xt_coarse * grad_eta_log_Gamma[0][:,:,i,j])
+                grad_eta_t[0][i,j] += np.sum(p_Xtm1_Xt_coarse * grad_eta_log_Gamma[0][:,:,i,j])
 
         # add gradient from fine-scale Gamma
         for k0 in range(self.K[0]):
@@ -650,7 +669,7 @@ class Optimizor(HHMM):
                 for j in range(self.K[1]):
                     grad_eta_t[1][k0][i,j] += np.sum(p_Xtm1_Xt[(self.K[1]*k0):(self.K[1]*(k0+1)),
                                                                (self.K[1]*k0):(self.K[1]*(k0+1))] * \
-                                                       grad_eta_log_Gamma[1][k0][:,:,i,j])
+                                                     grad_eta_log_Gamma[1][k0][:,:,i,j])
 
         # add prior
         #grad_eta_t[0] += grad_log_p_eta[0] / self.T
@@ -779,13 +798,6 @@ class Optimizor(HHMM):
             print(self.theta)
             print(self.eta)
             print(self.eta0)
-            print("")
-
-            # show prior means
-            print("current prior means:")
-            print(self.theta_mus)
-            print(self.eta_mus)
-            print(self.eta0_mus)
             print("")
 
             # show current gradients

@@ -37,14 +37,18 @@ from helper_funcs import log_delta_2_eta0
 
 class StochOptimizor(Optimizor):
 
-    def __init__(self,data,features,share_params,K):
+    def __init__(self,data,features,share_params,K,
+                 fix_theta=None,fix_eta=None,fix_eta0=None):
 
         '''
         constructor for optimizor class
         '''
 
         # get all of the stuff from optim
-        super(StochOptimizor, self).__init__(data,features,share_params,K)
+        super(StochOptimizor, self).__init__(data,features,share_params,K,
+                                             fix_theta=fix_theta,
+                                             fix_eta=fix_eta,
+                                             fix_eta0=fix_eta0)
 
         # copies for SVRG
         self.theta_tilde = deepcopy(self.theta)
@@ -166,9 +170,11 @@ class StochOptimizor(Optimizor):
 
         # get gradient and its norm
         grad_G_eta_t,grad_G_eta0_t = self.get_grad_eta_t(t)
+
         grad_G_t_norm2 = np.sum(grad_G_eta_t[0]**2)
         for k0 in range(self.K[0]):
             grad_G_t_norm2 += np.sum(grad_G_eta_t[1][k0]**2)
+
         grad_G_t_norm2 += np.sum(grad_G_eta0_t[0]**2)
         for k0 in range(self.K[0]):
             grad_G_t_norm2 += np.sum(grad_G_eta0_t[1][k0]**2)
@@ -191,11 +197,14 @@ class StochOptimizor(Optimizor):
 
         # Evaluate G for eta and eta_new
         if t == t0:
-            G_t  = -np.sum(np.nan_to_num(self.p_Xt[t] * self.get_log_delta(eta0=self.eta0)))
             G_t_new = -np.sum(np.nan_to_num(self.p_Xt[t] * self.get_log_delta(eta0=eta0_new)))
+            G_t  = -np.sum(np.nan_to_num(self.p_Xt[t] * self.get_log_delta(eta0=self.eta0)))
+        elif t in self.jump_inds:
+            G_t_new = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=eta_new,eta0=eta0_new,jump=True)))
+            G_t  = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=self.eta,eta0=self.eta0,jump=True)))
         else:
-            G_t  = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=self.eta,eta0=self.eta0)))
-            G_t_new = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=eta_new,eta0=eta0_new)))
+            G_t_new = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=eta_new,eta0=eta0_new,jump=False)))
+            G_t  = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=self.eta,eta0=self.eta0,jump=False)))
 
         # add priors
         #G_t -= self.get_log_p_eta() / self.T + \
@@ -204,12 +213,19 @@ class StochOptimizor(Optimizor):
         #          self.get_log_p_eta0(eta0=eta0_new) / self.T
 
         # check inequality
+        check_again = False
+
         if grad_G_t_norm2 < 1e-8:
             pass
         elif G_t_new > G_t - grad_G_t_norm2 / (2*self.L_eta):
             self.L_eta *= 2
+            check_again = True
         else:
             self.L_eta *= 2**(-1/(self.T-1))
+
+        if check_again:
+            self.check_L_theta(t)
+
         return
 
     def check_L_theta(self,t):
@@ -506,8 +522,14 @@ class StochOptimizor(Optimizor):
                             grad_eta0_log_delta,_ = self.get_grad_log_delta(eta0=self.eta0_tilde)
                             grad_eta_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
                                                   [np.zeros((self.K[1],self.K[1],self.K[1],self.K[1])) for _ in range(self.K[0])]]
+                        elif t in self.jump_inds:
+                            grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(eta=self.eta_tilde,
+                                                                                             eta0=self.eta0_tilde,
+                                                                                             jump=True)
                         else:
-                            grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(eta=self.eta_tilde,eta0=self.eta0_tilde)
+                            grad_eta0_log_delta,grad_eta_log_Gamma = self.get_grad_log_Gamma(eta=self.eta_tilde,
+                                                                                             eta0=self.eta0_tilde,
+                                                                                             jump=False)
 
                         #grad_log_p_eta = self.get_grad_log_p_eta(eta=deepcopy(self.eta_tilde))
                         #grad_log_p_eta0 = self.get_grad_log_p_eta0(eta0=deepcopy(self.eta0_tilde))
@@ -963,9 +985,9 @@ class StochOptimizor(Optimizor):
                     self.eta_trace.append(deepcopy(self.eta))
                     self.eta0_trace.append(deepcopy(self.eta0))
 
-                    # record log likelihood
+                    # record log-likelihood
                     ll, grad_norm = self.get_ll_keep_params()
-                    #print("current log likelihood: %f" % ll)
+                    #print("current log-likelihood: %f" % ll)
                     # print("")
                     self.grad_norm_trace.append(grad_norm / self.T)
                     self.log_like_trace.append(ll / self.T)
@@ -1069,15 +1091,15 @@ class StochOptimizor(Optimizor):
             #ll_new += self.get_log_p_theta()
             #ll_new += self.get_log_p_eta()
             #ll_new += self.get_log_p_eta0()
-            print("current log likelihood: %f" % ll_new)
+            print("current log-likelihood: %f" % ll_new)
             print("")
 
             # check for convergence
             if (ll_new < ll_old) or np.isnan(ll_new):
 
-                print("log likelihood decreased.")
-                print("old log likelihood: %f" % ll_old)
-                print("new log likelihood: %f" % ll_new)
+                print("log-likelihood decreased.")
+                print("old log-likelihood: %f" % ll_old)
+                print("new log-likelihood: %f" % ll_new)
 
                 if method == "GD":
                     self.L_theta *= 2.0
@@ -1110,12 +1132,12 @@ class StochOptimizor(Optimizor):
                 #ll_new += self.get_log_p_eta()
                 #ll_new += self.get_log_p_eta0()
 
-                print("returned log likelihood: %f" % ll_new)
+                print("returned log-likelihood: %f" % ll_new)
                 print("Trying again...")
 
             elif ((ll_new - ll_old)/np.abs(ll_old)) < tol:
 
-                print("relative change of log likelihood is less than %.1E. returning..." % tol)
+                print("relative change of log-likelihood is less than %.1E. returning..." % tol)
                 self.train_time += time.time() - self.start_time
                 return
 

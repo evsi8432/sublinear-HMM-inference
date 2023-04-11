@@ -7,14 +7,46 @@
 %\def\bibfont{\large}
 \usepackage{appendix}
 
+%\title{More efficient inference for hidden Markov models using variance-reduced stochastic optimization}
+
 \title{Variance-reduced stochastic optimization for hidden Markov models}
 
 \author{
-  Evan Sidrow \\
+  \textbf{Evan Sidrow} \\
   Department of Statistics\\
   University of British Columbia\\
   Vancouver, Canada \\
-  \texttt{evan.sidrow@stat.ubc.ca} \\
+  %\texttt{evan.sidrow@stat.ubc.ca} \\
+  %
+  \and
+  %
+  \textbf{Nancy Heckman} \\
+  Department of Statistics \\
+  University of British Columbia \\
+  Vancouver, Canada \\
+  %
+  \and
+  %
+  \textbf{Sarah M. E. Fortune} \\
+  Department of Oceanography \\
+  Dalhousie University \\
+  Halifax, Canada \\
+  %
+  \and
+  %
+  \textbf{Andrew Trites} \\
+  Department of Zoology \\
+  Institute for the Oceans and Fisheries \\
+  University of British Columbia \\
+  Vancouver, Canada \\
+  %
+  \and
+  %
+  \textbf{Marie Auger-M\'eth\'e} \\
+  Department of Statistics \\
+  Institute for the Oceans and Fisheries \\
+  University of British Columbia \\
+  Vancouver, Canada \\
 }
 
 \begin{document}
@@ -22,6 +54,14 @@
 \maketitle
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abstract}
+
+    Inference methods for hidden Markov models (HMMs) with a finite, discrete latent spaces usually require iterating through the entirety of an underlying data set for every parameter update. In particular, numerical optimization methods require a full pass of the data set to evaluate the full gradient of the likelihood. Alternatively, the EM algorithm requires a full pass of the data to perform its E-step, and often requires numerical optimization if its M-step has no closed-form solution. We propose two optimization algorithms based on variance-reduced stochastic optimization which update the parameters of an HMM without iterating through the entire data set. We prove convergence of the first algorithm and theoretical justification for the second. We also apply both algorithms to perform inference on HMMs for a simulated data set as well as kinematic data from a northern resident killer whale ({\em{Orcinus orca}}) off the western coast of Canada. For both data sets, our algorithm converges to parameters estimates with higher likelihood in fewer epochs compared to standard numerical optimization techniques.
+
+    %Data sets composed of sequences of curves sampled at high frequencies in time are increasingly common in practice, but they can exhibit complicated dependence structures that cannot be modelled using common methods in functional data analysis. We detail a hierarchical approach that treats the curves as observations from a hidden Markov model. The distribution of each curve is then defined by another fine-scale model that may involve autoregression and require data transformations using moving-window summary statistics or Fourier analysis. This approach is broadly applicable to sequences of curves exhibiting intricate dependence structures. As a case study, we use this framework to model the fine-scale kinematic movements of a northern resident killer whale ({\em{Orcinus orca}}) off the western coast of Canada. Through simulations, we show that our model produces more interpretable state estimation and more accurate parameter estimates compared to existing methods.
+
+    %We propose a generic stochastic expectation-maximization (EM) algorithm for the estimation of high-dimensional latent variable models. At the core of our algorithm is a novel semi-stochastic variance-reduced gradient designed for the Q-function in the EM algorithm. Under a mild condition on the initialization, our algorithm is guaranteed to attain a linear convergence rate to the unknown parameter of the latent variable model, and achieve an optimal statistical rate up to a logarithmic factor for parameter estimation. Compared with existing high-dimensional EM algorithms, our algorithm enjoys a better computational complexity and is therefore more efficient. We apply our generic algorithm to two illustrative latent variable models: Gaussian mixture model and mixture of linear regression, and demonstrate the advantages of our algorithm by both theoretical analysis and numerical experiments. We believe that the proposed semi-stochastic gradient is of independent interest for general nonconvex optimization problems with bivariate structures.
+\end{abstract}
 
 \section{Introduction}
 \input sections/intro.tex
@@ -29,7 +69,7 @@
 \section{Background}
 \input sections/background.tex
 
-\section{Model}
+\section{Stochastic Optimization for HMM Inference}
 \input sections/model.tex
 
 \section{Practical Considerations}
@@ -44,6 +84,13 @@
 
 \section{Discussion}
 \input sections/discussion.tex
+
+\section*{Acknowledgements}
+All killer whale data was collected under University of British Columbia Animal Care Permit no. A19-0053 and Fisheries and Oceans Canada Marine Mammal Scientific License for Whale Research no. XMMS 6 2019.
+We acknowledge the support of the Natural Sciences and Engineering Research Council of Canada (NSERC) as well as the support of Fisheries and Oceans Canada (DFO). This project was supported in part by a financial contribution from the DFO and NSERC (Whale Science for Tomorrow).
+This research was enabled in part by support provided by WestGrid (www.westgrid.ca) and Compute Canada (www.computecanada.ca).
+Marie Auger-M\'eth\'e and Nancy Heckman thank the NSERC Discovery program, and Marie Auger-M\'eth\'e additionally thanks the Canadian Research Chair program.
+Evan Sidrow thanks the University of British Columbia for funding provided via the Four-Year Doctoral Fellowship program.
 
 \newpage
 

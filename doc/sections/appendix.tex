@@ -1,65 +1,76 @@
-\section{Appendix A: Proof of Theorem 1}
+\section{Proof of Theorem 1}
 
 \begin{proof}
 
-First, let $i \in \{1,\ldots,T^M\}$ index all possible outcomes of performing SVRG on the objective function $Q(\cdot, \cdot \mid \theta, \eta)$ starting at $\{\theta,\eta\}$. Namely, let $SVRG_i(\theta,\eta)$ correspond to the mapping from performing one iteration of $M$ steps of SVRG with objective function $Q(\cdot, \cdot \mid \theta, \eta)$ and random realization $i$. Note that $SVRG_i(\theta,\eta)$ is continuous in $(\theta,\eta)$ because $Q(\cdot, \cdot \mid \theta, \eta)$ is continuously differentiable by conditions (2) and (3) of theorem 1.
+First, let $I \in \{1,\ldots,T\}^M$ be an $M$-dimensional vector of indices which corresponds to one of the $M^T$ possible outcomes from performing SVRG on the objective function $Q(\cdot \mid \phi')$ starting at $\phi'$. Namely, let $SVRG(I,\phi')$ correspond to the mapping that results from performing $M$ steps of SVRG with objective function $Q(\cdot \mid \phi')$ and random realization $I$. Note that $SVRG(I,\phi')$ is continuous in $\phi'$ because $Q(\phi \mid \phi')$ is continuously differentiable in $\phi'$ for all $\phi$ by conditions (2) and (3) of theorem 1. Continuity of SVRG implies that small perturbations in $\phi'$ will result in small perturbations in $SVRG(I,\phi')$ as well.
 
-Given this, let $R(\theta,\eta)$ be a point-to-set map corresponding to one iteration of version 2 of Algorithm (\ref{alg:EM-SO}). In particular, we can define $R(\theta,\eta)$ as follows:
+Given this, let $R$ be a point-to-set map corresponding to one iteration of version 2 of Algorithm (\ref{alg:EM-SO}). In particular, we can define $R(\phi')$ as follows:
 
 \begin{align}
-    R(\theta',\eta') := \Bigg\{(\theta,\eta) ~ : ~ & (\theta,\eta) = SVRG_i(\theta',\eta') ~ \text{for some} ~ i \in \{1,\ldots,T^M\}, \nonumber \\
-    & Q(\theta, \eta \mid \theta', \eta') \geq Q^*(\theta', \eta') - \frac{\zeta + 1}{2} \Big( Q^*(\theta', \eta') - Q(\theta', \eta' \mid \theta', \eta') \Big)\Bigg\}
+    R(\phi') := \Bigg\{\phi ~ : ~ & \phi = SVRG(I,\phi') ~ \text{for some} ~ I \in \{1,\ldots,T\}^M, \nonumber \\
+    & Q(\phi \mid \phi') \geq Q^*(\phi') - \frac{1 + \zeta}{2} \Big( Q^*(\phi') - Q(\phi' \mid \phi') \Big)\Bigg\}
 \end{align}
 
 Our Theorem 1 is a direct application of Theorem 1 of \citet{Wu:1983}, which requires the following conditions:
 
 \begin{enumerate}[label=(\alph*)]
-    \item $R$ is a closed point-to-set map for all non-stationary points. In particular, $R$ is closed at a point $(\theta',\eta')$ if $(\theta'_{n},\eta'_{n}) \to (\theta',\eta')$ and $(\theta_{n},\eta_{n}) \to (\theta,\eta)$ with $(\theta_{n},\eta_{n}) \in R(\theta'_{n},\eta'_{n})$, implies that $(\theta,\eta) \in R(\theta',\eta')$. 
-    \item The log-likelihood strictly increases $\Big(\log p(\bfy;\theta_{k+1},\eta_{k+1}) > \log p(\bfy;\theta_k,\eta_k)\Big)$ for all $(\theta_k,\eta_k)$ that are not stationary points of $\log p$.
+    \item $R$ is a closed point-to-set map for all non-stationary points. In particular, $R$ is closed at a point $\phi'$ if $\phi'_{n} \to \phi'$ and $\phi_{n} \to \phi$ with $\phi_{n} \in R(\phi'_{n})$, implies that $\phi \in R(\phi')$. 
+    %
+    \item The log-likelihood is non-decreasing for all $\phi_k \in \Phi$ $\Big(\log p(\bfy;\phi_{k+1}) \geq \log p(\bfy;\phi_k)\Big)$, and it is \textit{strictly} increasing for all $\phi_k$ that are not stationary points of $\log p$ $\Big(\log p(\bfy;\phi_{k+1}) > \log p(\bfy;\phi_k)\Big)$.
 \end{enumerate}
 
-In what follows, we demonstrate that the conditions from our Theorem 1 imply conditions (a) and (b) from Theorem 1 of \citet{Wu:1983}.
+Supposing that the conditions above are true, then algorithm (\ref{alg:EM-SO}) corresponds to sampling $\phi_{k+1}$ uniformly at random from $R(\phi_k)$. Then, it is almost surely the case that $\phi_{k+1} \in R(\phi_k)$ for all $k$, $R$ is a closed point-to-set map for all non-stationary points, $\{\phi_k\}$ is a GEM sequence, and $\log p(\bfy;\phi_{k+1}) > \log p(\bfy;\phi_k)$. All of these conditions are precisely the conditions of Theorem 1 of \citet{Wu:1983}. Therefore, it is almost surely the case that all limit points of $\{\phi_{k}\}_{k=0}^\infty$ are stationary points of $\log p(\bfy;\phi)$ and $\log p(\bfy;\phi_{k})$ converges monotonically to $\log p^* = \log p(\bfy;\phi^*)$ for some stationary point of $\log p$, $\phi^*$. 
+
+In the following two lemmas, we demonstrate that the conditions from our Theorem 1 imply conditions (a) and (b) from Theorem 1 of \citet{Wu:1983}. The second lemma also shows that $\bbP(\ell^*(k) < \infty) = 1$ for all $k \geq 0$.
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold. Then $R$ is a closed point-to-set map for all non-stationary points.
+    Suppose all conditions from Theorem 1 hold. Then $R$ is a closed point-to-set map for all non-stationary points in $\{\phi' : \nabla_{\phi'} \log p(\bfy ; \phi') \neq 0\}$.
 \end{lemma}
 
 \begin{proof}
-     Denote $Q^*(\theta', \eta') - \frac{\zeta + 1}{2} \Big( Q^*(\theta', \eta') - Q(\theta', \eta' \mid \theta', \eta') \Big) \equiv K(\theta',\eta')$. Given a point $(\theta',\eta')$, suppose there exits some sequence $(\theta'_{n},\eta'_{n}) \to (\theta',\eta')$ as well as another sequence $(\theta_{n},\eta_{n}) \to (\theta,\eta)$ with $(\theta_{n},\eta_{n}) \in R(\theta'_{n},\eta'_{n})$. In order for $(\theta,\eta) \in R(\theta',\eta')$, we must have:
+     Denote $Q^*(\phi') - \frac{1 + \zeta}{2} \Big( Q^*(\phi') - Q(\phi' \mid \phi') \Big) \equiv K(\phi')$. Given a point $\phi'$, suppose there exits some sequence $\phi'_{n} \to \phi'$ as well as another sequence $\phi_{n} \to \phi$ with $\phi_{n} \in R(\phi'_{n})$. In order for $\phi \in R(\phi')$, we must have:
     \begin{enumerate}
-        \item $Q(\theta, \eta \mid \theta', \eta') \in [K(\theta',\eta'),\infty)$ and
-        \item $(\theta,\eta) = SVRG_i(\theta',\eta')$ for some $i \in \{1,\ldots,T^M\}$
+        \item $Q(\phi \mid \phi') \in [K(\phi'),\infty)$ and
+        \item $\phi = SVRG(I,\phi')$ for some $i \in \{1,\ldots,T\}^M$
     \end{enumerate}
     %
-    We start with the first condition. If $(\theta_{n},\eta_{n}) \to (\theta,\eta)$, then $Q(\theta_{n},\eta_{n} \mid \theta',\eta') \to Q(\theta,\eta \mid \theta',\eta')$ by continuity of $Q$. Further, $Q(\theta_{n},\eta_{n} \mid \theta',\eta') \in [K(\theta',\eta'),\infty)$, and $[K(\theta',\eta'),\infty)$ is a closed set, so by definition $Q(\theta,\eta \mid \theta',\eta') \in [K(\theta',\eta'),\infty)$ as well.
+    We start with the first condition. If $\phi_{n} \to \phi$ and $\phi'_{n} \to \phi'$, then $Q(\phi_{n} \mid \phi'_{n}) \to Q(\phi \mid \phi')$ by continuity of $Q$ in all of its arguments. Likewise, $K(\phi'_{n}) \to K(\phi')$, also by continuity of $Q$. Finally, $Q(\phi_{n} \mid \phi'_{n}) \geq K(\phi'_{n})$, so taking the limit of both sides as $n \to \infty$ gives $Q(\phi \mid \phi') \geq K(\phi')$ since limits preserve weak inequalities. Therefore, we have that $Q(\phi \mid \phi') \in [K(\phi'),\infty)$.
     
-    Moving on to the (more difficult) second condition. By way of contradiction, assume that $(\theta,\eta) \neq SVRG_i(\theta',\eta')$ for any value of $i$. Then define $\epsilon = \min_i ||(\theta,\eta) - SVRG_i(\theta',\eta')|| > 0$. Because the sequence $\{(\theta_n,\eta_n)\}_{n>1}$ converges to $(\theta,\eta)$, there must exist some $N_1$ such that for all $n \geq N_1$, $||(\theta_{n},\eta_{n}) - (\theta,\eta)|| < \epsilon/2$. Further, since $\{(\theta'_n,\eta'_n)\}_{n>1}$ converges to $(\theta',\eta')$ and $SVRG_i$ is continuous for all $i$, there must exist some $N_2$ such that for all $n \geq N_2$, $||SVRG_i(\theta'_{n},\eta'_{n}) - SVRG_i(\theta',\eta')|| < \epsilon/2$ for all $i$. Without loss of generality, assume that $N_1 = N_2 \equiv N$. By assumption, $(\theta_{n},\eta_{n}) \in R(\theta'_{n},\eta'_{n})$, so $(\theta_{n},\eta_{n}) = SVRG_j(\theta'_{n},\eta'_{n})$ for some $j \in \{1,\ldots,T^M\}$. Therefore, $||(\theta_{n},\eta_{n}) - SVRG_j(\theta',\eta')|| < \epsilon/2$. Using the triangle inequality, we have:
+    Moving on to the (more difficult) second condition. By way of contradiction, assume that $\phi \neq SVRG(I,\phi')$ for any value of $I$. Then define $\epsilon = \min_I ||\phi - SVRG(I,\phi')|| > 0$. Because the sequence $\{(\phi_n)\}_{n>1}$ converges to $\phi$, there must exist some $N_1$ such that for all $n \geq N_1$, $||\phi_{n} - \phi|| < \epsilon/2$. Further, since $\{\phi'_{n}\}_{n>1}$ converges to $\phi'$ and $SVRG_i$ is continuous for all $I$, there must exist some $N_2$ such that for all $n \geq N_2$, $||SVRG(I,\phi'_{n}) - SVRG(I,\phi')|| < \epsilon/2$ for all $I$. Now pick an arbitrary $n > \max\{N_1,N_2\}$. By assumption, $\phi_{n} \in R(\phi'_{n})$, so $\phi_{n} = SVRG(J,\phi'_{n})$ for some $J \in \{1,\ldots,T\}^M$. Therefore, $||\phi_{n} - SVRG(J,\phi')|| < \epsilon/2$. Using the triangle inequality, we have:
     
-    $$||SVRG_j(\theta',\eta') - (\theta,\eta)|| \leq ||(\theta_{n},\eta_{n}) - (\theta,\eta)|| + ||(\theta_{n},\eta_{n}) - SVRG_j(\theta',\eta')|| < \epsilon.$$
+    $$||SVRG(J,\phi') - \phi|| \leq ||\phi_{n} - \phi|| + ||\phi_{n} - SVRG(J,\phi')|| < \epsilon.$$
     
-    However, we assumed that $\epsilon = \min_i ||(\theta,\eta) - SVRG_i(\theta',\eta')||$, so it is impossible for there to exist a $j$ where $||(\theta_{n},\eta_{n}) - SVRG_j(\theta',\eta')|| < \epsilon$. This is a contradiction, so it must be that $(\theta,\eta) = SVRG_i(\theta',\eta')$ for some $i$.
+    However, we assumed that $\epsilon = \min_I ||\phi - SVRG(I,\phi')||$, so it is impossible for there to exist a $J$ where $||\phi_{n} - SVRG(J,\phi')|| < \epsilon$. This is a contradiction, so it must be that $\phi = SVRG(I,\phi')$ for some $I$.
     
-    We have proven that $Q(\theta, \eta \mid \theta', \eta') \in [K(\theta',\eta'),\infty)$ and that $(\theta,\eta) = SVRG_i(\theta',\eta')$ for some $i$. Therefore, $(\theta,\eta) \in R(\theta',\eta')$, which implies that $R$ is a closed point-to-set map.
+    We have proven that $Q(\phi \mid \phi') \in [K(\phi'),\infty)$ and that $\phi = SVRG(I,\phi')$ for some $I$. Therefore, $\phi \in R(\phi')$, which implies that $R$ is a closed point-to-set map.
 \end{proof}
 
 \begin{lemma}
-    The log-likelihood strictly increases $\Big(\log p(\bfy;\theta_{k+1},\eta_{k+1}) > \log p(\bfy;\theta_k,\eta_k)\Big)$ for all $(\theta_k,\eta_k)$ that are not stationary points of $\log p$.
+    Suppose all conditions from Theorem 1 hold. Then, $\{\log p(\bfy;\phi_k)\}_{k}$ is non-decreasing for all $\phi_k \in \Phi$, and $\{\log p(\bfy;\phi_k)\}_{k}$ is \textit{strictly} increasing for all $\phi_k$ that are not stationary points of $\log p$. Further, $\bbP(\ell^*(k) < \infty) = 1$ for all $k \geq 0$.
 \end{lemma}
 
 \begin{proof}
 
-For shorthand, define $Q^{(k)} \equiv Q(\cdot,\cdot \mid \theta_k,\eta_k)$. Note that if $(\theta_k,\eta_k)$ is not a stationary point of $\log p$, then it must not be a local maximum of $Q^{(k)}$ because $\nabla \log p(\theta_k,\eta_k) = \nabla Q^{(k)}(\theta_k,\eta_k)$, where the gradient of the $Q-$ function is taken with respect to the first two arguments only. In other words, if $\nabla \log p(\theta_k,\eta_k) \neq 0$, then $\nabla Q^{(k)}(\theta_k,\eta_k) \neq 0$ either. This implies that one iteration of SVRG will move $(\theta_k,\eta_k)$ since we are not at a local maximum of $Q^{(k)}$.
+We begin with the case where $\phi_k$ is a stationary point of $\log p$. In this case, $\phi_k$ is also a stationary point of $Q^{(k)}$ since $\nabla \log p(\phi_k) = \nabla Q^{(k)}(\phi_k) = 0$. Then, note that the update rules (\ref{eqn:update_F}) and (\ref{eqn:update_G}) do not change the parameters $\phi_{k,0,m}$ for all $m = 1,\ldots,M$ and $t_{k,0,m} = 1,\ldots,T$. This is because $\frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_t = \nabla F^{(k)}(\theta_k) = 0$, and $\widehat \nabla_\theta F^{(k)}_t = \nabla_\theta F^{(k)}_t(\theta_{k,0,0})$. Therefore, $\phi_{k,0,0} = \phi_{k,0,1} = \cdots = \phi_{k,0,M}$. Further, since $Q^{(k)}$ is continuously differentiable and concave, $\nabla Q^{(k)}(\phi_k) = 0 \implies Q^{(k)}(\phi_k) = Q^*(\phi_k)$. Finally, the condition to move from $k \to k+1$ within Algorithm (\ref{alg:EM-SO}) is satisfied because 
+%
+$$0 = Q^*(\phi_k) - Q^{(k)}(\phi_{k,0,M}) \leq \frac{\zeta+1}{2} \Big(Q^*(\phi_k) - Q^{(k)}(\phi_{k})\Big) = 0,$$
+%
+so $\phi_{k+1} = \phi_{k}$, which implies that $\log p(\bfy;\phi_{k+1}) \geq \log p(\bfy;\phi_k)$. Therefore, the M-step of Algorithm (\ref{alg:EM-SO}) will terminate after $\ell^*(k) = 1$ steps almost surely:
 
-Now, for any fixed iteration $k$, one iteration of Algorithm (\ref{alg:EM-SO}) corresponds to one iteration of SVRG \citep{Johnson:2013}. Therefore, if conditions (2--6) of Theorem 1 hold, then Theorem 1 of \citet{Johnson:2013} applies. 
-%Namely, let $(\theta^*_{k+1},\eta^*_{k+1}) = \argmax_{\theta,\eta} Q^{(k)}(\theta,\eta)$
-%$\theta^*_{k+1} = \argmin_{\theta} F^{(k)}(\theta)$ and $\eta^*_{k+1} = \argmin_{\eta} G^{(k)}(\eta)$. 
-After one iteration through Algorithm (\ref{alg:EM-SO}):
+$$\bbP\Big(\ell^*(k) = 1 < \infty \mid \nabla \log p(\bfy;\phi_k) = 0\Big) = 1.$$
+
+Next, we focus on if $\phi_k$ is \textit{not} a stationary point of $\log p$. In this case, then $\phi_k$ it must not be a local maximum of $Q^{(k)}$ because $\nabla \log p(\phi_k) = \nabla Q^{(k)}(\phi_k) \neq 0$.
+%where the gradient of the $Q-$ function is taken with respect to the first two arguments only. 
+%In other words, if $\nabla \log p(\phi_k) \neq 0$, then $\nabla Q^{(k)}(\phi_k) \neq 0$. 
+Therefore, $Q^{(k)}(\phi_{k}) \neq Q^{*}(\phi_{k})$ since $Q^{(k)}$ is continuously differentiable and concave. %This implies that one iteration of SVRG will move $(\phi_k)$ since we are not at a local maximum of $Q^{(k)}$.
+
+Now, for any fixed $k$, if conditions (2--6) of Theorem 1 hold, then Theorem 1 of \citet{Johnson:2013} applies for one iteration through $M$ steps of SVRG. In particular, for all $\ell \geq 0$:
 %
 \begin{align}
-    \bbE & \left[Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k+1},\eta_{k+1}) ~\Big\vert~ \theta_k, \eta_k \right] \leq \zeta \left( Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_k,\eta_k) \right), \label{eqn:SVRG_T1}
+    \bbE & \left[Q^*(\phi_{k}) - Q^{(k)}(\phi_{k,\ell,M}) ~\Big\vert~ \phi_{k} \right] \leq \zeta \left( Q^*(\phi_{k}) - Q^{(k)}(\phi_k) \right), \label{eqn:SVRG_T1}
 \end{align}
 %
-for $\zeta = \max\{\zeta_F, \zeta_G\} < 1$ as defined in condition (6). Table (\ref{tbl:notation}) identifies how our notation corresponds to that of \citet{Johnson:2013}.
+where $\zeta$ is defined in condition (6) of Theorem 1. Table (\ref{tbl:notation}) identifies how our notation corresponds to that of \citet{Johnson:2013}.
 %
 \begin{table}[]
 \centering
@@ -83,49 +94,92 @@ $\psi_i$                              & $F_t$              & $G_t$
 Using Markov's inequality on (\ref{eqn:SVRG_T1}), we have:
 
 \begin{align}
-    & \bbP \Big[Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k+1},\eta_{k+1}) \geq \frac{\zeta + 1}{2} \left(Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k},\eta_{k}) \right) ~\Big\vert~ \theta_k, \eta_k \Big] \leq \ldots \\
+    & \bbP \Big[Q^*(\phi_{k}) - Q^{(k)}(\phi_{k+1}) \geq \frac{1 + \zeta}{2} \left(Q^*(\phi_{k}) - Q^{(k)}(\phi_{k}) \right) ~\Big\vert~ \phi_{k} \Big] \leq \ldots \\
     %
-    & \frac{\zeta \left( Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_k,\eta_k) \right)}{(\zeta+1)/2 \left( Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_k,\eta_k) \right)} = \frac{2}{1 + 1/\zeta} < 1
+    & \frac{\zeta \left( Q^*(\phi_{k}) - Q^{(k)}(\phi_k) \right)}{(1+\zeta)/2 \left( Q^*(\phi_{k}) - Q^{(k)}(\phi_k) \right)} = \frac{2}{1 + 1/\zeta} < 1
 \end{align}
 
-taking the complement of the above expression:
+taking the complement of the above expression and rearranging terms in the probability gives:
 
 \begin{equation}
-    \bbP \Big[Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k+1},\eta_{k+1}) < \frac{\zeta + 1}{2} \left(Q^*(\theta_{k},\eta_{k}) - Q^{(k)}(\theta_{k},\eta_{k}) \right) ~\Big\vert~ \theta_k, \eta_k \Big] \geq \frac{1-\zeta}{1 + \zeta} > 0 \label{eqn:markov_ineq},
+    \bbP \Big[Q^{(k)}(\phi_{k+1}) > \frac{1 + \zeta}{2} Q^{(k)}(\phi_{k}) + \frac{1 - \zeta}{2} Q^*(\phi_{k}) ~\Big\vert~ \phi_{k} \Big] \geq \frac{1-\zeta}{1 + \zeta} > 0 \label{eqn:markov_ineq},
 \end{equation}
 
-So there is a strictly positive probability that $Q^{(k)}(\theta_{k+1},\eta_{k+1}) > Q^{(k)}(\theta_{k},\eta_{k})$. Further, repeated iteration through Algorithm (\ref{alg:EM-SO}) corresponds to drawing \textit{independent} samples of $\theta_{k,M}$ and $\eta_{k,M}$ conditioned on $\theta_k$ and $\eta_k$. By Equation (\ref{eqn:markov_ineq}) above, $Q^{(k)}(\theta_{k+1},\eta_{k+1}) > Q^{(k)}(\theta_{k},\eta_{k})$ with some probability greater than $\frac{1-\zeta}{1+\zeta} > 0$. As a result, the number of iterations required for Algorithm 1 to move from step $k$ to step $k+1$ follows a geometric distribution with a positive success probability. Therefore, \textit{every} step $k$ of Algorithm (\ref{alg:EM-SO}) will terminate in finite time almost surely. Finally, the log-likelihood must increase as least as much as $Q^{(k)}$ at iteration $k$ of Algorithm (\ref{alg:EM-SO}) \citep{Dempster:1977}. Namely, $\log p(\bfy ; \theta_{k+1},\eta_{k+1}) > \log p(\bfy ; \theta_k,\eta_k)$, which implies that condition (b) of \citet{Wu:1983} is satisfied.
+So with some probability greater than or equal to $\frac{1-\zeta}{1+\zeta}$, $Q^{(k)}(\phi_{k+1}) > \frac{1 + \zeta}{2} Q^{(k)}(\phi_{k}) + \frac{1 - \zeta}{2} Q^*(\phi_{k}) > Q^{(k)}(\phi_k)$. Further, repeated iteration through Algorithm (\ref{alg:EM-SO}) corresponds to drawing \textit{independent} samples of $\phi_{k,\ell,M}$ conditioned on $\phi_k$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k$. Therefore, 
+
+$$\bbP\Big(\ell^*(k) < \infty \mid \nabla \log p(\bfy;\phi_k) \neq 0 \Big) = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1$$
+
+Finally, $\log p(\bfy ; \cdot)$ must increase as least as much as $Q^{(k)}$ at iteration $k$ of Algorithm (\ref{alg:EM-SO}) \citep{Dempster:1977}. Namely, $\log p(\bfy ; \phi_{k+1}) > \log p(\bfy ; \phi_k)$, which implies that condition (b) of \citet{Wu:1983} is satisfied.
 \end{proof}
 
 Lemmas 1 and 2 prove Theorem 1.
 
 \end{proof}
 
-\section{outline of alternative proof}
+\section{Outline of alternative proof}
 
-Here we give an outline for a proof that for all $\delta > 0$, if $\theta_k \overset{p}{\to} \theta$, then it must be that $\bbP(||\nabla L (\theta) ||) \geq \delta$.
+Here we give an outline for a proof that for all $\delta > 0$ and all $\epsilon > 0$, $\lim_{k \to \infty} \bbP(||\nabla L (\phi_k) || > \delta) < \epsilon$.
 
 \begin{enumerate}
-    \item First, note that $\theta_k \overset{p}{\to} \theta$ since the map strictly increases the likelihood, and the likelihood is bounded (by assumption)
+    \item By way of contradiction, assume that for some $\delta > 0$ and $\epsilon > 0$, for all $K$ there exists some $k > K$ such that $\bbP \left(||\nabla \log p(\phi_k)|| > \delta \right) > \epsilon$.
     %
-    \item by definition of convergence in probability, for all $\epsilon > 0$, $\lim_{n \to \infty} \bbP(|\theta_n - \theta| < \epsilon) = 1$.
+    \item Note that $\log p(\phi_k)\overset{p}{\to} \log p^*$ for some $\log p^*$ by the monotone convergence theorem since the map strictly increases the likelihood, and the likelihood is bounded (by assumption).
     %
-    \item divide up that probability using whether $||\nabla L (\theta) || \geq \delta$:
+    \item By definition of convergence in probability, for the $\delta > 0$ and $\epsilon > 0$ from step 1, there exists some $K$ such that for all $k > K$:
+    $$\bbP\left(|\log p(\phi_{k}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L}\right) < \frac{1-\zeta}{2}\epsilon$$
+    %
+    \item Pick the $k > K$ such that $\bbP \left(||\nabla \log p(\phi_k)|| > \delta \right) > \epsilon$. Create a lower bound on the probability above applied to $\phi_{k+1}$:
     %
     \begin{align*}
-    \lim_{n \to \infty} & \bbP(|\theta_n - \theta| < \epsilon \mid ||\nabla L (\theta) || \geq \delta)\bbP(||\nabla L (\theta) || \geq \delta) ~ + 
-    \\ 
-    & \bbP(|\theta_n - \theta| < \epsilon \mid ||\nabla L (\theta) || < \delta)\bbP(||\nabla L (\theta) || < \delta) = 1
+        &\bbP\left(|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L}\right) \\ 
+        %
+        &\geq \bbP\Big(|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L}, |\log p(\phi_k) - \log p^*| < \frac{\delta^2(1-\zeta)}{8L}, ||\nabla \log p(\phi_k)|| > \delta \Big) \\
+        %
+        &= \bbP\Big(|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L} \Big| |\log p(\phi_k) - \log p^*| < \frac{\delta^2(1-\zeta)}{8L}, ||\nabla \log p(\phi_k)|| > \delta \Big) \\
+        %
+        & * \bbP\left( |\log p(\phi_k) - \log p^*| < \frac{\delta^2(1-\zeta)}{8L}, ||\nabla \log p(\phi_k)|| > \delta \right) \\ 
+        %
+        & > \bbP\Big(|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L} \Big| |\log p(\phi_k) - \log p^*| < \frac{\delta^2(1-\zeta)}{8L}, ||\nabla \log p(\phi_k)|| > \delta \Big) \\
+        %
+        & * \bbP \left(||\nabla \log p(\phi_k)|| \geq \delta \right) - \bbP\left( |\log p(\phi_k) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L}\right) \\
+        %
+        & \geq \bbP\Big(|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L} \Big| |\log p(\phi_k) - \log p^*| < \frac{\delta^2(1-\zeta)}{8L}, ||\nabla \log p(\phi_k)|| > \delta \Big) * (\epsilon - \epsilon(\frac{1-\zeta}{2})) \\
+        %
+        & = \bbP\Big(|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L} \Big| |\log p(\phi_k) - \log p^*| < \frac{\delta^2(1-\zeta)}{8L}, ||\nabla \log p(\phi_k)|| > \delta \Big) * \epsilon(\frac{1+\zeta}{2})
     \end{align*}
     %
-    \item Then, by way of contradiction, assume that $\bbP(||\nabla L (\theta) || \geq \delta) > 0$. Then it must be that $\lim_{n \to \infty} \bbP(|\theta_n - \theta| < \epsilon \mid ||\nabla L (\theta) || \geq \delta) = 1$.
+    \item Now focus on the long conditional probability, and denote it as $\bbP_k$. Start with Markov's inequality for the SVRG condition:
     %
-    \item Now, we pick $\epsilon$ to be small enough so that $\nabla Q_{\theta_k}(\theta_k) \approx \nabla Q_{\theta}(\theta) = \nabla L(\theta) \geq \delta$. Since $Q$ is Lipschitz smooth with a constant $L$ for all $\theta$, we can do this in a way that does not depend upon $\theta$.
+    $$\bbP_k\left[Q_{\phi_k}(\phi^*_{k+1}) - Q_{\phi_k}(\phi_{k+1}) < \frac{1+\zeta}{2}\left(Q_{\phi_k}(\phi^*_{k+1}) - Q_{\phi_k}(\phi_{k})\right)\right] > \frac{1-\zeta}{1+\zeta},$$
     %
-    \item Then, for any $\theta_k \in B_\epsilon(\theta)$, $\nabla Q_{\theta_k}(\theta_k)$ is bounded from below FOR ALL $\theta_k$ (since $||\nabla L(\theta)|| \geq \delta$), and the hessian is bounded from above FOR ALL $\theta_k$ ($Q$ is Lipschitz-smooth), so we know that the local minimum $\theta^*_{k+1}$ is outside of some ball.
+    and do some algebra with two assumptions: $Q_{\phi_k}(\phi^*_{k+1}) \geq Q_{\phi_k}(\phi_k) + \frac{\delta^2}{2L}$, and $\log p(\phi_{k+1}) - \log p(\phi_{k}) > Q_{\phi_k}(\phi_{k+1}) - Q_{\phi_k}(\phi_{k})$. Then we get to
     %
-    \item Finally, for all $\epsilon_1$, there exists some $K$ such that all $k > K$ we have that 
-    $$\bbP(|\theta_k - \theta| < \epsilon) > 1-\epsilon_1$$.
+    \begin{align*}
+        \bbP_k\left[Q_{\phi_k}(\phi^*_{k+1}) - Q_{\phi_k}(\phi_{k+1}) < \frac{1+\zeta}{2}\left(Q_{\phi_k}(\phi^*_{k+1}) - Q_{\phi_k}(\phi_{k})\right)\right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[- Q_{\phi_k}(\phi_{k+1}) < \left(1-\frac{1+\zeta}{2}\right)\left(-Q_{\phi_k}(\phi^*_{k+1})\right) + \left(\frac{1+\zeta}{2}\right) \left(-Q_{\phi_{k}}(\phi_{k})\right)\right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[-Q_{\phi_k}(\phi_{k+1}) < \left(1-\frac{1+\zeta}{2}\right)\left(-Q_{\phi_k}(\phi_{k}) - \frac{\delta^2}{2L}\right) + \left(\frac{1+\zeta}{2}\right) \left(-Q_{\phi_{k}}(\phi_{k})\right) \right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[-Q_{\phi_k}(\phi_{k+1}) < -Q_{\phi_k}(\phi_{k}) - \left(\frac{\delta^2(1-\zeta)}{4L}\right) \right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[Q_{\phi_k}(\phi_{k+1}) - Q_{\phi_k}(\phi_{k}) >  \left(\frac{\delta^2(1-\zeta)}{4L}\right) \right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[\log p(\phi_{k+1}) - \log p(\phi_{k}) >  \left(\frac{\delta^2(1-\zeta)}{4L}\right) \right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[|\log p(\phi_{k+1}) -\log p^*| + |\log p^* - \log p(\phi_{k})| >  \left(\frac{\delta^2(1-\zeta)}{4L}\right) \right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[|\log p(\phi_{k+1}) -\log p^*| + \left(\frac{\delta^2(1-\zeta)}{8L}\right) >  \left(\frac{\delta^2(1-\zeta)}{4L}\right) \right] &> \frac{1-\zeta}{1+\zeta} \\
+        %
+        \bbP_k\left[|\log p(\phi_{k+1}) - \log p^*| >  \left(\frac{\delta^2(1-\zeta)}{8L}\right) \right] &> \frac{1-\zeta}{1+\zeta}
+    \end{align*}
     %
-    \item However, SVRG will move $\theta_{k+1}$ outside of our $\epsilon$-ball with some positive probability since we set $\epsilon$ very small, $\theta^*_{k+1}$ is outside of our ball, and SVRG is moving towards $\theta^*_{k+1}$. If $\theta^*_{k+1}$ isn't far enough outside of the ball, shrink the ball some more. We have a lower bound on how far outside the ball $\theta^*_{k+1}$ is, so we don't need to have $\epsilon$ depend upon $\theta_{k}$.
+    \item This leaves the following inequality:
+    \begin{equation}
+        \bbP\left[|\log p(\phi_{k+1}) - \log p^*| > \frac{\delta^2(1-\zeta)}{8L} \right] > (\frac{1-\zeta}{1+\zeta})(\frac{1+\zeta}{2})\epsilon = \frac{1-\zeta}{2} \epsilon \label{eqn:eps_2}
+    \end{equation}
+    %
+    However, this a contradiction since we assumed the exact opposite in step 3.
 \end{enumerate}
+
+Since $\delta > 0$ and $\epsilon$ was arbitrary, and we know that $\log p(\phi_k) \overset{p}{\to} \log p^*$ by the monotone convergence theorem, we know that $\log p(\phi_k)$ converges to $\log p(\phi^*)$, and $||\nabla \log p(\phi_k)|| \overset{p}{\to}||\nabla \log p(\phi^*)|| = 0$

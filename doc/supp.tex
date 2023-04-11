@@ -1,0 +1,112 @@
+\documentclass{article}
+\pdfoutput=1
+
+\input{header}
+\input{defs}
+
+%\def\bibfont{\large}
+\usepackage{appendix}
+
+\title{Variance-reduced stochastic optimization for hidden Markov models: Supplementary Plots}
+
+\author{
+  Evan Sidrow \\
+  Department of Statistics\\
+  University of British Columbia\\
+  Vancouver, Canada \\
+  \texttt{evan.sidrow@stat.ubc.ca} \\
+}
+
+\begin{document}
+
+\maketitle
+
+The figures in this supplement display the log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch of a selected run of each optimization algorithm after 12 hours or 150 epochs (whichever came first) for four data sets of all experiments. For each optimization algorithm and data set, we display the random initialization that resulted in the highest likelihood after 12 hours. The dots on each figure correspond to the likelihood at convergence. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. 
+
+\newpage
+
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-3-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-3-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-3-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-3-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{5}$, $N=3$ and $d=3$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-6-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-6-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-6-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-3-1-d-6-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{5}$, $N=3$ and $d=6$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-3-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-3-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-3-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-3-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{5}$, $N=6$ and $d=3$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-6-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-6-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-6-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-100000-K-6-1-d-6-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{5}$, $N=6$ and $d=6$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-3-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-3-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-3-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-3-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{3}$, $N=3$ and $d=3$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-6-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-6-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-6-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-3-1-d-6-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{3}$, $N=3$ and $d=6$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-3-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-3-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-3-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-3-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{3}$, $N=6$ and $d=3$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-6-001.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-6-002.png}
+    \\
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-6-003.png}
+    \includegraphics[width=3in]{../plt/log-like_v_epoch_T-1000-K-6-1-d-6-004.png}   
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the simulation studies with $T=10^{3}$, $N=6$ and $d=6$, for four different simulated data sets. One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+\end{figure}
+
+\end{document}

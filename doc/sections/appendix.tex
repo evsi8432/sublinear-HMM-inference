@@ -183,3 +183,35 @@ Here we give an outline for a proof that for all $\delta > 0$ and all $\epsilon 
 \end{enumerate}
 
 Since $\delta > 0$ and $\epsilon$ was arbitrary, and we know that $\log p(\phi_k) \overset{p}{\to} \log p^*$ by the monotone convergence theorem, we know that $\log p(\phi_k)$ converges to $\log p(\phi^*)$, and $||\nabla \log p(\phi_k)|| \overset{p}{\to}||\nabla \log p(\phi^*)|| = 0$
+
+\section{Description of Case Study}
+
+\subsection{Data Collection and Preprocessing}
+
+The data we use were collected in August and September of 2020 and consist of depth over time. Observations were collected at a rate of 50 Hz using a CATS time-depth recorder, or TDR (Customizable Animal Tracking Solutions, {\em{www.cats.is}}). We down-sampled the depth readings to a frequency of 0.5 Hz, and then treated change in depth as the observation from the HMM. Depth was calibrated using the MATLAB package developed by \citet{Cade:2021}, and a dive was defined as any sequence of depth readings under 0.5 meters that lasted for at least two seconds. 
+
+%Acceleration was measured in three dimensions, which together represent the complete range of movement of an animal (forward/backward, upward/downward, and right/left). Tri-axial acceleration readings are common in these types of tags and are often used to infer animal behaviour such as foraging \citep{Fehlmann:2017,Wright:2017,Cade:2017}. The act of attaching and detaching the tag caused anomalous behaviour before 1:20 p.m. and after 6:00 p.m., so observations taken during these time periods are ignored. There were also periods of time when the tag failed to record observations, resulting in data gaps between 2:25 p.m. and 2:37 p.m. and between 4:07 p.m. and 5:07 p.m. 
+
+%We divided the depth data into two-second windows, each consisting of 100 depth readings. We  We then performed a Fourier transform within each two-second window, and summarized the window  with two measures of ``wiggliness": (1) the sum of the squares of all Fourier coefficients corresponding to frequencies less than 5 Hz, and (2) the sum of the squares of all Fourier coefficients corresponding to frequencies greater than 5 Hz. The processed data set contains a total of $T=89462$ two-second windows.
+
+\subsection{Hierarchical hidden Markov models}
+
+Hierarchical HMMs involve some coarse-scale hidden process that evolves over time. While the coarse-scale state remains in the same state, a fine-scale hidden process evolves simultaneously. Observations are then generated according to a distribution that depends jointly on both the hidden coarse-scale state and the hidden fine-scale state. However, once the coarse-scale process changes states, the fine-scale process restarts and evolves depending upon that new coarse-scale state.
+
+The parameters of an HHMM are defined to enforce this hierarchical structure for the hidden Markov chain. In particular, define a coarse-scale Markov chain $\{X^{(c)}_t\}_{t=1}^T$ parameterized by a pre-determined number of coarse-scale hidden states $N^{(c)} \in \bbN$, a coarse-scale initial distribution $\delta^{(c)} \in \bbR^{N^{(c)}}$ and coarse-scale probability transition matrix $\boldsymbol{\Gamma}^{(c)} \in \bbR^{{N^{(c)}} \times {N^{(c)}}}$. For each coarse-scale state $i$, we yet define another fine-scale Markov chain with states $X^{(f)}_t$ whose length is randomly determined by the dwell time of the coarse-scale Markov chain in state $i$. The $i^{th}$ fine-scale Markov chain is parameterized by a pre-determined number of fine-scale states $N^{(f,i)} \in \bbN$. It also has initial distribution $\delta^{(f,i)} \in \bbR^{N^{(f,i)}}$, and a fine-scale transition probability matrix $\boldsymbol{\Gamma}^{(f,i)} \in \bbR^{N^{(f,i)} \times N^{(f,i)}}$. In summary, 
+%
+\begin{gather}
+    \delta^{(c,i)} = \bbP\left( X_1^{(c)} = i \right) \qquad 
+    \Gamma^{(c,i,j)} = \bbP\left( X_{t+1}^{(c)} = j | X_{t}^{(c)} = i \right) \\
+    %
+    \delta^{(f,i,i')} = \bbP\left( X_{t+1}^{(f)} = i' | X_{t}^{(c)} \neq i, X_{t+1}^{(c)} = i \right) \qquad 
+    \Gamma^{(f,i,i',j')} = \bbP\left( X_{t+1}^{(f)} = j' | X_{t}^{(f)} = i', X_{t}^{(c)} = i, X_{t+1}^{(c)} = i \right).
+\end{gather}
+
+\subsection{Model formulation}
+
+We assume that there are $N = 3$ dive types, which is consistent with work from \citet{Barajas:2017} on harbour porpoises. We also select $N^{(f)} = 3$ dive phases per dive type, where each dive type corresponds to descent, bottom, and ascent. This results in a total of $N = 9$ dive phases, each corresponding to a dive-type, dive-phase combination. We assume that, conditioned on the dive type and dive dive phase, the change in depth follows a log-normal distribution with
+
+\subsection{Model results}
+
+One run of Algorithm (\ref{alg:EM-SO}) with SAGA and $M=T$ resulted in the model with the highest log-likelihood, so we present the results from that model here.

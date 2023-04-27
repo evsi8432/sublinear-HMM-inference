@@ -1,10 +1,26 @@
 
-Both the E step and the M step of the Baum-Welch algorithm are expensive when the length of the observation sequence ($T$) from an HMM is large. The E step is expensive because $\gamma_t$ and $\xi_t$ must be calculated for $t = 1,\ldots,T$ to define $F^{(k)}$ and $G^{(k)}$. The M step is also expensive if closed-form solutions to (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_eta}) are not readily available. In particular, standard gradient descent requires evaluating gradients of $F^{(k)}_t(\theta)$ and $G^{(k)}_t(\eta)$ for $t = 1,\ldots,T$. We introduce an algorithm to address the expensive M step in section \ref{subsec:stoch_M}, and we extend this algorithm to address the expensive E step in section \ref{subsec:stoch_E}. The SVRG variant of Algorithm (\ref{alg:EM-SO}) introduced in section \ref{subsec:stoch_M} is similar to the algorithm from \citet{Zhu:2017} with a focus on applications to HMMs. However, to the best of our knowledge, our focus on applying SVRG and SAGA to the Baum-Welch algorithm is original, and our implementation of a partial E step in the Baum-Welch algorithm is also original. 
+Both the E step and the M step of the Baum-Welch algorithm are expensive when the length of the observation sequence ($T$) from an HMM is large. The E step is expensive because $\gamma_t$ and $\xi_t$ must be calculated for $t = 1,\ldots,T$ to define $F^{(k)}$. The M step is also expensive if closed-form solutions to (\ref{eqn:BW_update}) are not readily available. In particular, standard gradient descent requires evaluating gradients of $F^{(k)}_t(\phi)$ for $t = 1,\ldots,T$. We introduce an algorithm to address the expensive M step in section \ref{subsec:stoch_M}, and we extend this algorithm to address the expensive E step in section \ref{subsec:stoch_E}. The SVRG variant of Algorithm (\ref{alg:EM-SO}) introduced in section \ref{subsec:stoch_M} is similar to the algorithm from \citet{Zhu:2017} with a focus on applications to HMMs. However, to the best of our knowledge, our focus on applying SVRG and SAGA to the Baum-Welch algorithm is original, and our implementation of a partial E step in the Baum-Welch algorithm is also original. 
 
 \subsection{Variance-Reduced Stochastic M Step}
 \label{subsec:stoch_M}
 
-We implement variance-reduced stochastic optimization techniques to speed up the M step of the Baum-Welch algorithm. Namely, Algorithm (\ref{alg:EM-SO}) below is a specific instance of the generalized EM algorithm \citep{Dempster:1977} in which either SVRG or SAGA is implemented to perform the M step. 
+It is straightforward to re-frame the M step of iteration $k$ of the Baum Welch algorithm from Equation (\ref{eqn:BW_update}) to look like Equation (\ref{eqn:stoch_opt}) above. To do so, define a new loss function $F^{(k)}$ as follows:
+%
+\begin{gather}
+    F_1(\phi \mid \gamma_1,\xi_1) \equiv - \sum_{i=1}^N \gamma^{(i)}_1 \log f^{(i)}(y_t;\theta^{(i)}) - \sum_{i=1}^N \gamma^{(i)}_1 \log \delta^{(i)}(\eta) \\
+    %
+    F_t(\phi \mid \gamma_t , \xi_t) \equiv - \sum_{i=1}^N \gamma^{(i)}_t \log f^{(i)}(y_t;\theta^{(i)}) - \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t \log \Gamma^{(i,j)}(\eta), \quad t \geq 2 \\
+    %
+    F(\phi \mid \gamma, \xi) \equiv \frac{1}{T}\sum_{t=1}^T F_t(\phi \mid \gamma_t , \xi_t). \\
+    %
+    F_t^{(k)}(\phi) \equiv F_t(\phi \mid \gamma_t(\phi_k) , \xi_t(\phi_k)) \qquad F^{(k)}(\phi) \equiv F(\phi \mid \gamma(\phi_k), \xi(\phi_k))
+\end{gather}
+%
+%Similar logic can be applied to optimizing $\eta$ in Equation (\ref{eqn:EM_update_eta}).
+%
+The two functions $F$ and $Q$ are closely related to one another, as $F^{(k)}(\phi) = F(\phi \mid \gamma(\phi_k), \xi(\phi_k)) = - \frac{1}{T} Q(\phi \mid \phi_k)$. However, we make a distinction between the two to bridge the gap between existing EM literature (which uses $Q$) and stochastic optimization literature (which uses $F$).
+
+We implement variance-reduced stochastic optimization to speed up the M step of the Baum-Welch algorithm. Namely, Algorithm (\ref{alg:EM-SO}) below is a specific instance of the generalized EM algorithm \citep{Dempster:1977} in which either SVRG or SAGA is implemented to perform the M step. 
 
 %It is natural to incorporate SVRG and SAGA into the Baum-Welch algorithm because the gradient estimates $\widehat \nabla_\theta F_t^{(k)}$ \textit{used} during the M step can be \textit{evaluated} during the E step. The E step of the Baum-Welch algorithm involves a full pass of the data set to evaluate and store the weights $\{\gamma_t^{(i)}(\phi_k)\}_{t=1}^T$ and $\{\xi_t^{(i,j)}(\phi_k)\}\}_{t=1}^T$ to define $Q(\phi \mid \phi_k)$. As such, the E step of the EM algorithm has space and time complexity of $\calO(T)$ in $T$. Both SAGA and SVRG have time and space complexities no worse than $\calO(T)$ in $T$, so incorporating them into the M step of the Baum-Welch algorithm does not represent a significant additional computational burden as $T$ grows large. 
 
@@ -12,123 +28,65 @@ We implement variance-reduced stochastic optimization techniques to speed up the
 
 %Alternatively, SAGA involves storing gradient estimates at each data point $t = 1,\ldots,T$, which can be storage-intensive for large $T$. However, the EM algorithm also requires storing the weights $\{\gamma_t^{(i)}(\phi_k)\}_{t=1}^T$ and $\{\xi_t^{(i,j)}(\phi_k)\}\}_{t=1}^T$ to define $Q^{(k)}(\phi)$. Therefore, storing gradient estimates in addition to these weights adds minimal additional storage cost at each E step (depending upon the number of parameters in the model).
 
-Algorithm (\ref{alg:EM-SO}) has two versions. To move from step $k$ to $k+1$, version 1 requires that the likelihood does not decrease (i.e. $\log p(\bfy,\phi_{k,\ell,M}) \geq \log p(\bfy,\phi_{k})$), but version 2 of the algorithm requires that the likelihood \textit{strictly} increases by some threshold. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice (e.g. $\zeta$ and $Q^*(\phi_{k})$). Therefore, we use version 1 in our simulation and case studies. Our experimental results show that version 1 of Algorithm (\ref{alg:EM-SO}) converges to local maxima of the log-likelihood function.
+Algorithm (\ref{alg:EM-SO}) has two versions. To exit the while loop that defines the M step of the algorithm, version 1 requires that the likelihood does not decrease (i.e. $\log p(\bfy;\phi_{k,\ell}) \geq \log p(\bfy;\phi_{k})$), but version 2 of the algorithm requires that the likelihood \textit{strictly} increases by some threshold. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice (e.g. $\zeta$ and $Q^*(\phi_{k})$). Therefore, we use version 1 in our simulation and case studies and only present version 1 in the main text. See the appendix for version 2 of the algorithm. Our experimental results show that version 1 of Algorithm (\ref{alg:EM-SO}) converges to local maxima of the log-likelihood function in practice. 
 
 \begin{algorithm}
-\caption{EM algorithm with variance-reduced stochastic M step}\label{alg:EM-SO}
+\caption{\texttt{EM-VRSO}$(\phi_0,\lambda, A, M, K)$}\label{alg:EM-SO}
 \begin{algorithmic}[1]
-\Require Initial parameters ($\phi_{0}$), step sizes ($\lambda_F$ and $\lambda_G$), algorithm (SVRG or SAGA), iterations per update ($M$), and gradient tolerance ($\epsilon$)
+\Require Initial parameters ($\phi_{0}$), step size ($\lambda$), algorithm $A \in \{\text{SVRG, SAGA}\}$, iterations per update ($M$), and number of updates ($K$).
 %
-\State $k \gets 0$
-%
-\vspace{10pt}
-%
-\State Initialize $F^{(k)} = \frac{1}{T} \sum_t F_t^{(k)}$ and $G^{(k)} = \frac{1}{T} \sum_t G_t^{(k)}$ using (\ref{eqn:F}) and (\ref{eqn:G})
-%
-\Comment{E step}
-%
-\vspace{10pt}
+\vspace{5pt}
+\For{$k = 0,\ldots,K-1$}
+% 
+\State $\{\alpha_t,\beta_t\}_{t=1}^{T} \gets \texttt{E}(\phi_{k})$ \Comment{E step}
 %
 \State $\ell \gets 0$
 %
-\vspace{10pt}
+%\State $\log p(\bfy;\phi_{k,\ell}) \gets -\infty$
 %
-\State Initialize gradients $\widehat \nabla_\theta F_t^{(k)} \gets \nabla_\theta F_t^{(k)} (\theta_k)$ and $\widehat \nabla_\eta G_t^{(k)} \gets \nabla_\eta G_t^{(k)} (\eta_k)$ for all $t$
+\While{$\ell = 0$ or $\log p(\bfy; \phi_{k,\ell}) < \log p(\bfy;\phi_{k})$} \Comment{M step}
+\State $\ell \gets \ell+1$
+\State $\phi_{k,\ell} \gets \texttt{VRSO}(\{\alpha_t,\beta_t\}_{t=1}^{T},\phi_{k},\lambda,A,M)$
 %
-\vspace{10pt}
-%
-\If{$\nabla_{\phi} Q^{(k)}(\phi_{k}) < \epsilon$}:
-    \State return $\phi_{k}$
-\EndIf
-%
-\vspace{10pt}
-%
-\State $\phi_{k,\ell,0} \gets \phi_k$
-\Comment{initialize M step}
-%
-\vspace{10pt}
-%
-\For{$m = 0,1,\ldots,M-1$}:
-    %
-    \State Pick $t_{k,\ell,m} \in \{1,\ldots,T\}$ uniformly at random.
-    \State
-    \Comment{update parameters}
-    \begin{gather}
-        \theta_{k,\ell,m+1} = \theta_{k,\ell,m} - \lambda_F \left[\nabla_\theta F_{t_{k,\ell,m}}^{(k)}(\theta_{k,\ell,m}) - \widehat \nabla_\theta F_{t_{k,\ell,m}}^{(k)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_{t} \right] \label{eqn:update_F} \\
-        %
-        \eta_{k,\ell,m+1} = \eta_{k,\ell,m} - \lambda_G \left[\nabla_\eta G_{t_{k,\ell,m}}^{(k)}(\eta_{k,\ell,m}) - \widehat \nabla_\eta G_{t_{k,\ell,m}}^{(k)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\eta G^{(k)}_{t} \right] \label{eqn:update_G} 
-    \end{gather}
-    %
-    \If{using SAGA}:
-        \Comment{update table at index $t_{k,\ell,m}$}
-        \begin{gather}
-            \widehat \nabla_\theta F_{t_{k,\ell,m}}^{(k)} \gets \nabla_\theta F_{t_{k,\ell,m}}^{(k)}(\theta_{k,\ell,m}) \\
-            \widehat \nabla_\eta G_{t_{k,\ell,m}}^{(k)} \gets \nabla_\eta G_{t_{k,\ell,m}}^{(k)}(\eta_{k,\ell,m})
-        \end{gather}
-    \EndIf
-    %
+\EndWhile
+\State $\phi_{k+1} \gets \phi_{k,\ell}$
 \EndFor
-%
-\vspace{10pt}
-%
-\If{using version 1 and $\log p(\bfy;\phi_{k,\ell,M}) \geq \log p(\bfy;\phi_{k})$}:
-    \Comment{move to next iteration}
-    \State $\phi_{k+1} \gets \phi_{k,\ell,M}$
-    \State $k \gets k+1$
-    \State return to step 2
-\ElsIf{using version 2 and $Q^*(\phi_{k}) - Q\big(\phi_{k,\ell,M} ~ \big| ~ \phi_{k}\big) \leq \frac{\zeta + 1}{2} \Big(Q^*(\phi_{k}) - Q \big(\phi_{k} ~ \big| ~ \phi_{k}\big) \Big)$}
-    \State $\phi_{k+1} \gets \phi_{k,\ell,M}$
-    \State $k \gets k+1$
-    \State return to step 2
-\Else
-    \State $\ell \gets \ell+1$
-    \State return to step 4
-\EndIf
-%
-\vspace{10pt}
-%
+\State \Return $\phi_K$
 \end{algorithmic}
 \end{algorithm}
 
-At first it seems troubling that Algorithm (\ref{alg:EM-SO}) involves evaluating $\log p(\bfy;\phi_{k,\ell,M})$ after each M step because full likelihood evaluation takes $\calO(T)$ time. However, note that evaluating $\log p(\bfy;\phi_{k,\ell,M})$ and initializing $F^{(k+1)}$ and $G^{(k+1)}$ can be done simultaneously if $\phi_{k,\ell,M} = \phi_{k+1}$. This is because $\alpha_T^{(i)}(\phi_{k+1})$ is required both to define $F^{(k+1)}$ and $G^{(k+1)}$, as well as evaluate $\log p(\bfy;\phi_{k,\ell,M})$.
+%At first it seems troubling that Algorithm (\ref{alg:EM-SO}) involves evaluating $\log p(\bfy;\phi_{k,\ell})$ after each M step because evaluating the full likelihood takes $\calO(TN^2)$ time. However, note that evaluating $\texttt{E}(\phi_{k,\ell})$ involves calculating $\alpha_T(\phi_{k,\ell})$, and $\log p(\bfy;\phi_{k,\ell}) = \log(\sum_{i=1}^{N}\alpha_T(\phi_{k,\ell}))$, and  $F_T^{(k+1)} = $, as well as evaluate $\log p(\bfy;\phi_{k,\ell})$.
 
-It also seems troubling that certain conditions must be met to move from iteration $k$ to iteration $k+1$ in Algorithm (\ref{alg:EM-SO}). In particular, we must have $\log p(\bfy;\phi_{k,\ell,M}) \geq \log p(\bfy;\phi_{k})$ for version 1, or $Q^*(\phi_k) - Q(\phi_{k,\ell,M} \mid \phi_k) \leq (\zeta+1)/2 \left(Q^*(\phi_k) - Q(\phi_{k} \mid \phi_k) \right)$ for version 2. If these conditions can not be met for any given value of $k$, then Algorithm (\ref{alg:EM-SO}) will get stuck in an infinite loop. Denote $\ell^*(k)$ as the (random) maximum value obtained by $\ell$ within Algorithm (\ref{alg:EM-SO}) for a fixed value of $k$. We prove in Theorem 1 below that for all $k > 0$, $\ell^*(k)$ follows a geometric distribution with a strictly positive probability of success, thus $\bbP(\ell^*(k) < \infty) = 1$. The condition for version 2 of the algorithm implies the condition for version 1.
+At first it seems troubling that certain conditions must be met to exit the while loop in Algorithm (\ref{alg:EM-SO}). In particular, we must have $\log p(\bfy;\phi_{k,\ell}) \geq \log p(\bfy;\phi_{k})$. %for version 1, or $Q^*(\phi_k) - Q(\phi_{k,\ell,M} \mid \phi_k) \leq (\zeta+1)/2 \left(Q^*(\phi_k) - Q(\phi_{k} \mid \phi_k) \right)$ for version 2. 
+If these conditions can not be met for any given value of $k$, then Algorithm (\ref{alg:EM-SO}) will get stuck in an infinite loop. Denote $\ell^*(k)$ as the (random) maximum value obtained by $\ell$ within Algorithm (\ref{alg:EM-SO}) for a fixed value of $k$. We prove in Theorem 1 below that for all $k > 0$, $\ell^*(k)$ follows a geometric distribution with a strictly positive probability of success, thus $\bbP(\ell^*(k) < \infty) = 1$. %The condition for version 2 of the algorithm implies the condition for version 1.
 
-One final concern is whether Algorithm (\ref{alg:EM-SO}) converges at all. %it is well-known that the EM algorithm converges under certain regularity conditions \citep{Wu:1983}, but algorithm (\ref{alg:EM-SO}) does not complete the M step of the EM-algorithm, which complicates convergence analysis. Under standard regularity conditions, 
+One final concern is whether Algorithm (\ref{alg:EM-SO}) converges at all as $K \to \infty$. %it is well-known that the EM algorithm converges under certain regularity conditions \citep{Wu:1983}, but algorithm (\ref{alg:EM-SO}) does not complete the M step of the EM-algorithm, which complicates convergence analysis. Under standard regularity conditions, 
 Theorem 1 below shows that the algorithm converges under standard regularity conditions. %Unfortunately there is no guarantee that this stationary point will be a global (or even local) minimum, but this issue is well known in the EM literature \citep{Wu:1983}.
 
 %%%%%
     
 \begin{theorem}
 
-    Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for both $F^{(k)}$ and $G^{(k)}$. In particular:
+    Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for all possible $F^{(k)}$. In particular:
     
     \begin{enumerate}
-        \item For fixed $\theta$ and $\eta$, both $F(\theta,\phi')$ and $G(\eta,\phi')$ are continuous in $\phi'$.
+        \item $F_t(\phi \mid \gamma_t(\phi'), \xi_t(\phi'))$ is uniformly Lipschitz-smooth with respect to $\phi$ for all $t$ and $\phi'$ with constant $L > 0$. Namely, for all $t$, $\phi$, $\phi_0$ and $\phi'$:
         %
-        \item $F_t(\theta,\phi')$ is uniformly Lipschitz-smooth with respect to $\theta$ for all $t$ and $\phi'$ with constant $L_F > 0$. Namely, for all $t$, $\theta$, $\theta_0$ and $\phi'$:
+        $$F_t(\phi \mid \gamma_t(\phi'), \xi_t(\phi')) \leq F_t(\phi_0 \mid \gamma_t(\phi'), \xi_t(\phi')) + \nabla_\phi F_t(\phi_0 \mid \gamma_t(\phi'), \xi_t(\phi'))^T(\phi-\phi_0) + \frac{L}{2} ||\phi - \phi_0||_2^2.$$ 
         %
-        $$F_t(\theta, \phi') \leq F_t(\theta_0,\phi') + \nabla_\theta F_t(\theta_0, \phi')^T(\theta-\theta_0) + \frac{L_F}{2} ||\theta - \theta_0||_2^2.$$ 
+        \item $F_t(\phi \mid \gamma_t(\phi'), \xi_t(\phi'))$ is convex with respect to $\phi$ and $F(\phi \mid \gamma(\phi'), \xi(\phi'))$ is strongly convex with respect to $\phi$ for all $\phi'$ with constant $C > 0$. Namely, for all $\phi$, $\phi_0$ and $\phi'$:
         %
-        \item $G_t(\eta,\phi')$ is uniformly Lipschitz-smooth with respect to $\eta$ for all $t$ and $\phi'$ with constant $L_G > 0$. Namely, for all $t$, $\eta$, $\eta_0$ and $\phi'$:
+        $$F(\phi \mid \gamma(\phi'), \xi(\phi')) \geq F(\phi_0 \mid \gamma(\phi'), \xi(\phi')) + \nabla_\phi F(\phi_0 \mid \gamma(\phi'), \xi(\phi'))^T(\phi-\phi_0) + \frac{C}{2} ||\phi - \phi_0||_2^2.$$ 
         %
-        $$G_t(\eta, \phi') \leq G_t(\eta_0,\phi') + \nabla_\eta G_t(\eta_0,\phi')^T(\eta-\eta_0) + \frac{L_G}{2} ||\eta - \eta_0||_2^2.$$
-        %
-        \item $F_t(\theta,\phi')$ is convex with respect to $\theta$ and $F(\theta,\phi')$ is strongly convex with respect to $\theta$ for all $\theta'$ and $\eta'$ with constant $C_F > 0$. Namely, for all $\theta$, $\theta_0$ and $\phi'$:
-        %
-        $$F(\theta, \phi') \geq F(\theta_0,\phi') + \nabla_\theta F(\theta_0, \phi')^T(\theta-\theta_0) + \frac{C_F}{2} ||\theta - \theta_0||_2^2.$$ 
-        %
-        \item $G_t(\eta,\phi')$ is convex with respect to $\eta$ and $G(\eta,\phi')$ is strongly convex with respect to $\eta$ for all $\theta'$ and $\eta'$ with constant $C_G > 0$. Namely, for all $\eta$, $\eta_0$ and $\phi'$:
-        %
-        $$G(\eta, \phi') \geq G(\eta_0,\phi') + \nabla_\eta G(\eta_0, \phi')^T (\eta-\eta_0) + \frac{C_G}{2} ||\eta - \eta_0||_2^2.$$ 
-        %
-        \item The step sizes $\lambda_F$ and $\lambda_G$ are sufficiently small and $M$ is sufficiently large such that 
-        $$\zeta \equiv \max \left\{\frac{1}{C_F \lambda_F(1-2L_F\lambda_F)M} + \frac{2L_F\lambda_F}{1-(2L_F\lambda_F)}, \frac{1}{C_G \lambda_G(1-2L_G\lambda_G)M} + \frac{2L_G\lambda_G}{1-(2L_G\lambda_G)}\right\} < 1.$$
+        \item The step size $\lambda$ is sufficiently small and $M$ is sufficiently large such that 
+        $$\zeta \equiv \frac{1}{C \lambda(1-2L\lambda)M} + \frac{2L\lambda}{1-2L\lambda} < 1.$$
     \end{enumerate}
 
     In addition, suppose that the following assumptions from \citet{Wu:1983} hold:
 
     \begin{enumerate}
+        \item For fixed $\phi$, $F(\phi \mid \gamma(\phi'), \xi(\phi'))$ is continuous in $\phi'$.
+        %
         \item The parameter space $\Phi$ (i.e. $\phi \in \Phi$) is a subset of $r$-dimensional Euclidean space $\bbR^r$ for some $r$.
         \item $\Phi_{\phi_0} = \{\phi \in \Phi: \log p(\bfy;\phi) \geq \log p(\bfy;\phi_0)\}$ is compact for any $\log p(\bfy;\phi_0) > -\infty$.
         \item $\log p(\bfy;\phi_0)$ is continuous in $\Phi$ and differentiable in the interior of $\Phi$.
@@ -144,7 +102,7 @@ Theorem 1 below shows that the algorithm converges under standard regularity con
 
 %Finally, SAGA has the best theoretical guarantees of convergence rate of the three algorithms. Like SVRG, it also has unbiased gradient estimates. However, its advantages over SVRG are modest and it requires gradients to be stored for all $t = 1,\ldots,T$.
 
-Conditions (1--6) from \citet{Johnson:2013} are standard assumptions used to prove common properties of stochastic optimization algorithms. Likewise, conditions (1--3) from \citet{Wu:1983} are standard assumptions needed to prove the convergence of the EM algorithm. 
+Conditions (1--3) from \citet{Johnson:2013} are standard assumptions used to prove common properties of stochastic optimization algorithms. Likewise, conditions (1--4) from \citet{Wu:1983} are standard assumptions needed to prove the convergence of the EM algorithm. 
 
 Unfortunately, condition (2) from \citet{Wu:1983} can be restrictive, and is often violated in common settings. Namely, the likelihood of an HMM with Gaussian emissions is unbounded when estimating variance components. Condition (2) of \citet{Johnson:2013} is also violated when estimating the variance of state-dependent distributions within an HMM. This issue is well-known for maximum likelihood estimation in mixture models \citep{Chen:2009,Liu:2015b}. It can be avoided by setting lower bounds on the variance components \citep{Zucchini:2016}. %or by jittering the parameters $\phi$ if it appears that the likelihood is growing without bound.
 
@@ -182,88 +140,53 @@ Unfortunately, condition (2) from \citet{Wu:1983} can be restrictive, and is oft
 \subsection{Stochastic E Step}
 \label{subsec:stoch_E}
 
-While Algorithm (\ref{alg:EM-SO}) reduces the computational burden of the expensive M step, the E step still has a time complexity of $\calO(T)$, which can be prohibitive for large $T$. To decrease the computational burden, \citet{Neal:1998} justify a partial E step within the EM algorithm for general latent variable models. Many of their results assume that observations are independent, but we use their method as inspiration nonetheless. For HMMs, a partial E step involves updating only a subset of the weights $\{\gamma_t,\xi_t\}_{t=1}^T$ 
+While Algorithm (\ref{alg:EM-SO}) reduces the computational burden of the expensive M step, the E step still has a time complexity of $\calO(T)$, which can be prohibitive for large $T$. To decrease the computational burden, \citet{Neal:1998} justify a partial E step within the EM algorithm for general latent variable models. %Many of their results assume that observations are independent, but we use their method as inspiration nonetheless. 
+For HMMs, a partial E step involves updating only a subset of the weights $\{\gamma_t,\xi_t\}_{t=1}^T$ 
 %as defined in Equations (\ref{eqn:gamma}) and (\ref{eqn:xi}) 
-at each E step. Using this intuition, we combine the partial E step of \citet{Neal:1998} with the partial M step from the previous section. For example, if the parameters $\phi$ are updated using a gradient estimate based on a random time index $t_{k,\ell,m}$, it is natural to update $G_{t_{k,\ell,m}}^{(k)}$ and $F_{t_{k,\ell,m}}^{(k)}$ via $\xi_{t_{k,\ell,m}}$ and $\gamma_{t_{k,\ell,m}}$ at the same time. As such, we introduce the notation $F^{(k,\ell,m)}$ and $G^{(k,\ell,m)}$ to denote the current objective function at step $k$ through the EM algorithm, attempt $\ell$ through the M step of the algorithm, and step $m$ within the inner-loop of M step $\ell$. We describe the full procedure in Algorithm (\ref{alg:P-EM-SO}). Algorithm (\ref{alg:P-EM-SO}) takes a partial E step before each parameter update. As a result, each parameter update and partial E step takes $\calO(1)$ time.
+at each E step. Using this intuition, we combine the partial E step of \citet{Neal:1998} with the partial M step from the previous section. In particular, if the parameters $\phi$ are updated using a gradient estimate based on a random time index $t_{m}$, it is natural to update $F_{t_{m}}^{(k)}$ via $\xi_{t_{m}}$ and $\gamma_{t_{m}}$ at the same time. As such, we introduce the notation $F^{(k,\ell,m)}$ and $G^{(k,\ell,m)}$ to denote the current objective function at step $k$ through the EM algorithm, attempt $\ell$ through the M step of the algorithm, and step $m$ within the inner-loop of M step $\ell$. We describe the full procedure in Algorithm (\ref{alg:P-EM-SO}). Algorithm (\ref{alg:P-EM-SO}) takes a partial E step before each parameter update. As a result, each parameter update and partial E step takes $\calO(1)$ time.
 
 %show that the EM algorithm can be thought of as maximizing some auxiliary function $H$ with respect to both the parameters $\{\eta,\theta\}$ as well as some auxiliary distribution $\tilde p (\bf X; \gamma; \xi)$ with respect to the parameters $\gamma$ and $\xi$. In this context, $\gamma$ and $\xi$ are not functions of the parameters $\{\eta,\theta\}$, but instead parameters that define the auxiliary distribution $\tilde p$. However, note that in order for $\tilde p$ to be a valid probability distribution, $\gamma_t$ and $\xi_t$ must be consistent with one another. Therefore, if $\gamma$ and $\xi$ are allowed to vary independently from one another, $\tilde p$ will not be valid. Nonetheless, we can use the intuition from \citet{Neal:1998} to mix the E and the M steps of the EM algorithm. 
 
+
 \begin{algorithm}
-\caption{EM algorithm with variance-reduced stochastic M step and stochastic E step}\label{alg:P-EM-SO}
+\caption{\texttt{VRSO-PE}$(\{\alpha_t,\beta_t\}_{t=1}^T,\phi_0,\lambda,A,M)$}\label{alg:SO}
 \begin{algorithmic}[1]
-\Require Initial parameters ($\phi_{0}$), step sizes ($\lambda_F$ and $\lambda_G$), algorithm (SVRG or SAGA), iterations per update ($M$), and gradient tolerance ($\epsilon$)
+\Require forward and backward weights $\{\alpha_t,\beta_t\}_{t=1}^T$, initial parameter $\phi_0$, step size $\lambda$, algorithm $A \in \{\text{SVRG, SAGA}\}$, and number of iterations $M$.
 %
-\vspace{10pt}
+\vspace{5pt}
+\For{$t = 1,\ldots,T$}
+\State $\gamma_t \gets \tilde \gamma_t(\alpha_t,\beta_t)$
+\State $\xi_t \gets \tilde \xi_t(\alpha_{t-1},\beta_{t},\phi_0)$
+\State $\widehat \nabla F_t \leftarrow \nabla F_t (\phi_0 \mid \gamma_t,\xi_t)$
+\Comment{initialize gradients}
+\EndFor
+\State $\widehat \nabla F \gets \frac{1}{T} \sum_{t=1}^T \widehat \nabla F_{t}$
+\Comment{initialize table average}
 %
-\State $k \gets 0$
-%
-\vspace{10pt}
-%
-\State $\ell \gets 0$
-%
-\vspace{10pt}
-%
-\State Initialize $F^{(k,\ell,0)} = \frac{1}{T} \sum_t F_t^{(k)}$ and $G^{(k,\ell,0)} = \frac{1}{T} \sum_t G_t^{(k)}$ using (\ref{eqn:F}) and (\ref{eqn:G})
-\Comment{E step}
-%
-\vspace{10pt}
-%
-\State Initialize gradient estimates $\widehat \nabla_\theta F_t^{(k)} \gets \nabla_\theta F_t^{(k)} (\theta_{k})$ and $\widehat \nabla_\eta G_t^{(k)} \gets \nabla_\eta G_t^{(k)} (\eta_{k})$ for all $t$
-\Comment{initialize M step}
-%
-\vspace{10pt}
-%
-\If{$\nabla_{\phi} Q^{(k)}(\phi_{k}) < \epsilon$}:
-    \State return $\phi_{k}$
-\EndIf
-%
-\vspace{10pt}
-%
-\State $\theta_{k,\ell,0} \gets \theta_k$ and $\eta_{k,\ell,0} \gets \eta_k$
-%
-\vspace{10pt}
-%
-\For{$m = 0,1,\ldots,M-1$}:
+\For{$m = 1,\ldots,M$}:
     %
-    \State Pick $t_{k,\ell,m} \in \{1,\ldots,T\}$ uniformly at random.
+    \State Pick $t_{m} \in \{1,\ldots,T\}$ uniformly at random.
     %
-    \State Update $\gamma_{t_{k,\ell,m}}$ and $\xi_{t_{k,\ell,m}}$ via $\alpha_{t_{k,\ell,m}}$ and $\beta_{t_{k,\ell,m}}$ using Equations (\ref{eqn:alpha}) -- (\ref{eqn:xi}).
-    %
-    \State Define $F^{(k,\ell,m+1)}$ and $G^{(k,\ell,m+1)}$ using Equations (\ref{eqn:F}) and (\ref{eqn:G}) with $\xi_{t_{k,\ell,m}}$ and $\gamma_{t_{k,\ell,m}}$.
+    \State $\alpha_{t_m} \gets \tilde \alpha_{t_m}(\alpha_{t_m-1},\phi_{m-1})$ \Comment{partial E step}
+    \State $\beta_{t_m} \gets \tilde \beta_{t_m}(\beta_{t_m+1},\phi_{m-1})$ 
+    \State $\gamma_{t_m} \gets \tilde \gamma_{t_m}(\alpha_{t_m},\beta_{t_m})$
+    \State $\xi_{t_m} \gets \tilde \xi_{t_m}(\alpha_{t_m-1},\beta_{t_m},\phi_{m-1})$
     %
     \State \Comment{update parameters}
-    %
     \begin{gather}
-        \theta_{k,\ell,m+1} \gets \theta_{k,\ell,m} - \lambda_F \left[\nabla_\theta F_{t_{k,\ell,m}}^{(k,\ell,m+1)}(\theta_{k,\ell,m}) - \widehat \nabla_\theta F_{t_{k,\ell,m}}^{(k)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\theta F^{(k)}_{t} \right] \\
-        %
-        \eta_{k,\ell,m+1} \gets \eta_{k,\ell,m} - \lambda_G \left[\nabla_\eta G_{t_{k,\ell,m}}^{(k,\ell,m+1)}(\eta_{k,\ell,m}) - \widehat \nabla_\eta G_{t_{k,\ell,m}}^{(k)} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla_\eta G^{(k)}_{t} \right]
+        \phi_{m} = \phi_{m-1} - \lambda \left[\nabla F_{t_m}(\phi_{m-1} \mid \gamma_{t_m}, \xi_{t_m}) - \widehat \nabla F_{t_{m}} + \widehat \nabla F \right]
+        \label{eqn:SAGA_update0}
     \end{gather}
     %
-    \If{using SAGA}:
-        \Comment{update table at index $t_{k,\ell,m}$}
+    \If{$A$ = SAGA}:
+    \Comment{update table average and table at index $t_{m}$}
         \begin{gather}
-            \widehat \nabla_\theta F_{t_{k,\ell,m}}^{(k)} \gets \nabla_\theta F_{t_{k,\ell,m}}^{(k,\ell,m+1)}(\theta_{k,\ell,m}) \\
-            \widehat \nabla_\eta G_{t_{k,\ell,m}}^{(k)} \gets \nabla_\eta G_{t_{k,\ell,m}}^{(k,\ell,m+1)}(\eta_{k,\ell,m})
+            \widehat \nabla F \gets \widehat \nabla F + \frac{1}{T} \left( \nabla F_{t_m}(\phi_{m-1} \mid \gamma_{t_m}, \xi_{t_m}) - \widehat \nabla F_{t_{m}}\right), \\
+            \widehat \nabla F_{t_{m}} \gets \nabla F_{t_m}(\phi_{m-1} \mid \gamma_{t_m}, \xi_{t_m}).
         \end{gather}
     \EndIf
-    %
 \EndFor
-%
-\vspace{10pt}
-%
-\If{$\log p(\bfy;\phi_{k,\ell,M}) \geq \log p(\bfy;\phi_{k})$}:
-    \Comment{check to move to next $k$}
-    \State $\phi_{k+1} \gets \phi_{k,\ell,M}$
-    \State $k \gets k+1$
-    \State return to step 2.
-\Else
-    \State $\ell \gets \ell + 1$
-    \State return to step 3.
-\EndIf
-%
-\vspace{10pt}
-%
-
+\State \Return $\phi_M$
 \end{algorithmic}
 \end{algorithm}
 

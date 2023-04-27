@@ -43,99 +43,39 @@ Alternatively, the marginal likelihood of the observed data $\bfY$ alone is
 where $\mathbf{1}_N$ is an $N$-dimensional column vector of ones and $P(y_t;\theta)$ is an $N \times N$ diagonal matrix with the $(i,i)^{th}$ entry $f^{(i)}(y_t; \theta^{(i)})$. For a more complete introduction to HMMs, see \citet{Zucchini:2016}.
 
 
-\subsection{Variations of Hidden Markov Models}
-\label{subsec:HHMM}
-
-Hidden Markov models rely on several assumptions that are often violated in real-world applications. For example, high-frequency data often violates the assumption that the underlying state process of an HMM is time-homogeneous %, and that the observations are independent when conditioned on the hidden state process 
-\citep{Sidrow:2021}. As such, researchers have introduced several variations, such as incorporating covariates into the transition probability matrix $\Gamma$ to account for changing dynamics in the transition matrix \citep{McClintock:2018}. In addition, if a sequence of observations displays multi-scale dependence structure, then it may be more appropriate to use a \textit{hierarchical} hidden Markov model, or HHMM \citep{Barajas:2017,Adam:2019,Sidrow:2021}. Hierarchical HMMs are useful because they capture dependence structures of the hidden process on multiple time scales. There are many different particular ways to define a Hierarchical HMM, such as the formulations in \citet{Barajas:2017}, \citet{Adam:2019}, and \citet{Sidrow:2021}. As presented here, Hierarchical HMMs involve some coarse-scale hidden process that evolves over time. While the coarse-scale state remains in the same state, a fine-scale hidden process evolves simultaneously. Observations are then generated according to a distribution that depends jointly on both the hidden coarse-scale state and the hidden fine-scale state. However, once the coarse-scale process changes states, the fine-scale process restarts and evolves depending upon that new coarse-scale state.
-
-The parameters of an HHMM are defined to enforce this hierarchical structure for the hidden Markov chain. In particular, define a coarse-scale Markov chain $\{X^{(c)}_t\}_{t=1}^T$ parameterized by a pre-determined number of coarse-scale hidden states $N^{(c)} \in \bbN$, a coarse-scale initial distribution $\delta^{(c)} \in \bbR^{N^{(c)}}$ and coarse-scale probability transition matrix $\boldsymbol{\Gamma}^{(c)} \in \bbR^{{N^{(c)}} \times {N^{(c)}}}$. For each coarse-scale state $i$, we yet define another fine-scale Markov chain with states $X^{(f)}_t$ whose length is randomly determined by the dwell time of the coarse-scale Markov chain in state $i$. The $i^{th}$ fine-scale Markov chain is parameterized by a pre-determined number of fine-scale states $N^{(f,i)} \in \bbN$. It also has initial distribution $\delta^{(f,i)} \in \bbR^{N^{(f,i)}}$, and a fine-scale transition probability matrix $\boldsymbol{\Gamma}^{(f,i)} \in \bbR^{N^{(f,i)} \times N^{(f,i)}}$. In summary, 
-%
-\begin{gather}
-    \delta^{(c,i)} = \bbP\left( X_1^{(c)} = i \right) \qquad 
-    \Gamma^{(c,i,j)} = \bbP\left( X_{t+1}^{(c)} = j | X_{t}^{(c)} = i \right) \\
-    %
-    \delta^{(f,i,i')} = \bbP\left( X_{t+1}^{(f)} = i' | X_{t}^{(c)} \neq i, X_{t+1}^{(c)} = i \right) \qquad 
-    \Gamma^{(f,i,i',j')} = \bbP\left( X_{t+1}^{(f)} = j' | X_{t}^{(f)} = i', X_{t}^{(c)} = i, X_{t+1}^{(c)} = i \right).
-\end{gather}
-%
-Define the matrix $\boldsymbol{\Pi}^{(f,i)}$ as an $N^{(f,i)} \times N^{(f,i)}$ matrix with identical row entries $\delta^{(f,i)}$. Using this parameterization, the set of pairs $\{(X^{(c)}_t,X^{(f)}_t)\}_{t=1}^T$ is itself Markov chain. It has a total of $N \equiv \sum_{i=1}^{N^{(c)}} N^{(f,i)}$ hidden states, a global initial distribution of
-%
-\begin{equation} 
-\boldsymbol{\delta} = 
-\begin{pmatrix}
-\delta^{(c,1)}\boldsymbol{\delta}^{(f,1)} & \delta^{(c,2)}\boldsymbol{\delta}^{(f,2)}    & \cdots & \delta^{(c,N^{(c)})}\boldsymbol{\delta}^{(f,N^{(c)})}
-\end{pmatrix},
-\label{eqn:global_delta}
-\end{equation}
-%
-and a global probability transition matrix of %\textcolor{red}{I stole this from Vianey}:
-%
-\begin{equation} 
-\boldsymbol{\Gamma} = 
-\begin{pmatrix}
-\Gamma^{(c,1,1)}\boldsymbol{\Gamma}^{(f,1)}     & \Gamma^{(c,1,2)} \boldsymbol{\Pi}^{(f,2)}     & \cdots & \Gamma^{(c,1,N^{(c)})}\boldsymbol{\Pi}^{(f,N^{(c)})}  \cr
-\Gamma^{(c,2,1)}\boldsymbol{\Pi}^{(f,1)} & \Gamma^{(c,2,2)} \boldsymbol{\Gamma}^{(f,2)}  & \cdots & \Gamma^{(c,2,N^{(c)})}\boldsymbol{\Pi}^{(f,N^{(c)})} \cr
-\vdots & \vdots & \ddots & \vdots \cr 
-\Gamma^{(c,N^{(c)},1)}\boldsymbol{\Pi}^{(f,1)} & \Gamma^{(c,N^{(c)},2)}\boldsymbol{\Pi}^{(f,2)}      & \cdots & \Gamma^{(c,N^{(c)},N^{(c)})} \boldsymbol{\Gamma}^{(f,N^{(c)})} 
-\end{pmatrix}.
-\label{exptpm2}
-\end{equation}
-%
-%corresponds to the probability that the initial coarse-scale hidden state is $i$, and $\Gamma^{(c,i,j)}$ corresponds to the probability that the coarse-scale hidden state will transition to coarse-scale state $j$ given that the current coarse-scale state is $i$. Further, $\delta^{(f,i,i')}$ corresponds to the probability that the initial fine-scale hidden state is $i'$ after transitioning to state $i$ from another state. Finally, $\Gamma^{(f,i,i',j')}$ corresponds to the probability that the fine-scale hidden state will transition to state $j'$ given that the current coarse-scale state is $i$ and the current fine-scale state is $i'$.
-%
-%Namely, $\delta^{(c,i)} = \bbP\left(X_1^{(c)}\right)$ corresponds to the probability that the initial coarse-scale hidden state is $i$, and $\Gamma^{(c,i,j)}$ corresponds to the probability that the coarse-scale hidden state will transition to coarse-scale state $j$ given that the current coarse-scale state is $i$. Further, $\delta^{(f,i,i')}$ corresponds to the probability that the initial fine-scale hidden state is $i'$ after transitioning to state $i$ from another state. Finally, $\Gamma^{(f,i,i',j')}$ corresponds to the probability that the fine-scale hidden state will transition to state $j'$ given that the current coarse-scale state is $i$ and the current fine-scale state is $i'$.
-%
-The transition probability matrix $\boldsymbol{\Gamma}$ and initial distribution $\boldsymbol{\delta}$ of a hierarchical HMM is simply a more restricted version of the same parameters for a standard HMM. A visualization of a hierarchical Markov chain with $N^{(c)} = 2$ and $N^{(f,1)} = N^{(f,2)} = 2$ is shown in Figure (\ref{fig:HHMM}).
-%
-\begin{figure}
-    \centering
-    \includegraphics{plt/HHMM.png}
-    \caption{Visualization of the underlying Markov chain for a hierarchical HMM with $N^{(c)} = 2$ and $N^{(f,1)} = N^{(f,2)} = 2$. Solid thick lines correspond to entries of $\boldsymbol{\Gamma}^{(c)}$. Solid thin lines correspond to entries of $\boldsymbol{\Gamma}^{(f,i)}$ for $i = 1,2$, which describes the distribution of $X_{t+1}^{(f)}$ if $X^{(c)}_{t} = X^{(c)}_{t+1} = i$. Dashed thin lines correspond to entries of $\boldsymbol{\delta}^{(f,i)}$ for $i = 1,2$, which describes the distribution of $X_{t+1}^{(f)}$ if $X^{(c)}_{t} \neq X^{(c)}_{t+1} = i$.}
-    \label{fig:HHMM}
-\end{figure}
-
-The coarse-scale and fine-scale initial distributions and transition probability matrices are parameterized similarly to Equation (\ref{eqn:reparam}). In particular, $\boldsymbol{\Gamma}^{(c)}$ and $\boldsymbol{\delta}^{(c)}$ are parameterized via $\eta^{(c)}$ as follows:
-%
-\begin{equation}
-    \Gamma^{(c,i,j)}(\eta^{(c)}) = \frac{\exp(\eta^{(c,i,j)})}{\sum_{k=1}^N \exp(\eta^{(c,i,k)})}, \qquad \delta^{(c,i)}(\eta^{(c)}) = \frac{\exp(\eta^{(c,i)})}{\sum_{k=1}^N \exp(\eta^{(c,k)})}
-    \label{eqn:reparam_coarse}
-\end{equation}
-%
-Likewise, $\boldsymbol{\Gamma}^{(f,i)}$ and $\delta^{(f,i)}$ are parameterized via $\eta^f$ as follows:
-%
-\begin{equation}
-    \Gamma^{(f,i,i',j')}(\eta^f) = \frac{\exp(\eta^{(f,i,i',j')})}{\sum_{k'=1}^N \exp(\eta^{(f,i,i',k')})}, \qquad \delta^{(f,i,i')}(\eta^{f}) = \frac{\exp(\eta^{(f,i,i')})}{\sum_{k'=1}^N \exp(\eta^{(f,i,k')})}.
-    \label{eqn:reparam_fine}
-\end{equation}
-%
-%Finding closed-form solutions to the M-step for an HHMM is not straightforward, so it may be preferable to use numerical maximization techniques. We therefore review different methods for numerical maximization via stochastic optimization.
-
-
 \subsection{State Decoding}
 
-One appealing feature of HMMs is that it is simple to determine the probability distribution of the hidden state at time $t$, $X_t$, conditional of the set of observations $Y_t$. Define the probability density of the observations between times $s$ and $t$ as $p(y_{s:t};\phi)$. Likewise, define \textit{forward probabilities} $\alpha^{(i)}_t = p(y_{1:t},X_t = i;\phi)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T$) and \textit{backward probabilities} $\beta^{(i)}_t = p(y_{(t+1):T}|X_t = i;\phi)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T-1$). By convention, $\beta^{(i)}_T = 1$ for $i = 1,\ldots,N$. 
-Both $\alpha_t$ and $\beta_t$ can be defined recursively:
+One appealing feature of HMMs is that it is simple to determine the probability distribution of the hidden state at time $t$, $X_t$, conditional of the set of observations $Y_t$. Define the probability density of the observations between times $s$ and $t$ as $p(y_{s:t};\phi)$. Likewise, define \textit{forward probabilities} $\alpha^{(i)}_t = p(y_{1:t},X_t = i;\phi)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T$) and \textit{backward probabilities} $\beta^{(i)}_t = p(y_{(t+1):T}|X_t = i;\phi)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T-1$). By convention, $\beta^{(i)}_T = 1$ for $i = 1,\ldots,N$. Both $\alpha_t$ and $\beta_t$ can be calculated using a recursion. We define the mapping from $\alpha_{t-1}$ and $\phi$ to $\alpha_t$ as $\tilde \alpha_t(\alpha_{t-1},\phi)$, but the value itself is simply $\alpha_t(\phi)$ because $\alpha_t$ is a function of $\phi$ alone. Likewise, we define the mapping from $\beta_{t+1}$ and $\phi$ to $\beta_{t}$ as $\tilde \beta_t(\alpha_{t+1},\phi)$ and the value itself as $\beta_t(\phi)$. 
 %
 \begin{align}
-    \alpha_1^{(i)}(\phi) &= \delta^{(i)} f^{(i)}(y_1;\theta^{(i)}), & \alpha_t^{(i)}(\phi) &= \sum_{j=1}^N \alpha_{t-1}^{(j)} \Gamma^{(j,i)} f^{(i)}(y_t;\theta^{(i)}), \quad t = 2,\ldots,T. \label{eqn:alpha} \\
+    \alpha_1^{(i)}(\phi) = \tilde \alpha_1^{(i)}(\phi) \quad &= \quad  \delta^{(i)} ~ f^{(i)} ~ (y_1;\theta^{(i)}), \\
     %
-    \beta_T^{(i)}(\phi) &= 1, & \beta_t^{(i)}(\phi) &= \sum_{j=1}^N \Gamma^{(i,j)} f^{(j)}(y_{t+1};\theta) \beta^{(j)}_{t+1}, \quad t = 1,\ldots,T-1. \label{eqn:beta}
+    \alpha_t^{(i)}(\phi) = \tilde \alpha_t^{(i)}(\alpha_{t-1}(\phi),\phi) \quad &= \quad \sum_{j=1}^N ~ \alpha_{t-1}^{(j)}(\phi) ~ \Gamma^{(j,i)} ~ f^{(i)}(y_t;\theta^{(i)}), \quad t = 2,\ldots,T, \label{eqn:alpha} \\
+    %
+    \beta_T^{(i)}(\phi) = \tilde \beta_T^{(i)}(\phi) \quad &= \quad  1, \\
+    %
+    \beta_t^{(i)}(\phi) = \tilde \beta_t^{(i)}(\beta_{t+1}(\phi), \phi) \quad &= \quad \sum_{j=1}^N ~ \Gamma^{(i,j)} ~ f^{(j)}(y_{t+1};\theta) ~ \beta^{(j)}_{t+1}(\phi), \quad t = 1,\ldots,T-1. \label{eqn:beta}
 \end{align}
+%
+%It is important to note that $\alpha_t$ and $\beta_t$ are functions of $\phi$ alone. We nonetheless abuse notation and write $\alpha_t$ and $\beta_t$ as functions of $\alpha_{t-1}$ and $\beta_{t+1}$ as well to illustrate the recursion. In addition, it takes $\calO(N^2)$ time to calculate $\alpha_{t}$ and $\beta_{t}$ if $\alpha_{t-1}$, $\beta_{t+1}$, and $\phi$ are known. However, it takes $\calO(TN^2)$ time to calculate $\alpha_{t}$ and $\beta_{t}$ if only $\phi$ is known, as the recursions starting from $\alpha_1$ and $\beta_T$ must be performed.
+%
+Note that it takes $\calO(N^2)$ time to evaluate $\tilde \alpha_t$ and $\tilde \beta_t$, but $\calO(TN^2)$ time to evaluate $\alpha_t(\phi)$ and $\beta_t(\phi)$. In future sections we abuse notation and write $\alpha_t(\phi)$ and $\beta_t(\phi)$ as $\alpha_t$ and $\beta_t$ for brevity. 
 
 We denote the probability that $X_t = i$ given all observations $\bfY$ and parameters $\phi$ as $\gamma_t^{(i)}(\phi)$ for $t = 1,\ldots,T$ and $i = 1,\ldots,N$. Further, we denote the probability that $X_{t-1} = i$ and $X_t = j$ given all observations $\bfY$ and parameters $\phi$ as $\xi_t^{(i,j)}(\phi)$ for $t = 2,\ldots,T$ and $i,j = 1,\ldots,N$. Namely,
 %
 \begin{gather}
-    \gamma_t^{(i)}(\phi) = \bbP(X_t = i \mid \bfY ~;~ \phi), \\ \xi_t^{(i,j)}(\phi) = \bbP(X_{t-1} = i, X_t = j \mid \bfY ~;~ \phi). \nonumber
+    \gamma_t^{(i)}(\phi) = \bbP(X_t = i \mid \bfY ~;~ \phi), \\ \xi_t^{(i,j)}(\phi) = \bbP(X_{t-1} = i, X_t = j \mid \bfY ~;~ \phi).
 \end{gather}
 %
-Both $\gamma_t$ and $\xi_t$ can be calculated from $\alpha_{t-1}$, $\alpha_t$, and $\beta_t$:
+Both $\gamma_t$ and $\xi_t$ can be calculated from $\alpha_{t-1}$, $\alpha_t$, $\beta_t$, and $\phi$:
 %
-\begin{gather}
-    \gamma_{t}^{(i)}(\phi) = \frac{\alpha_{t}^{(i)} ~ \beta_{t}^{(i)}}{\sum_{i'} \alpha_{t}^{(i')} ~ \beta_{t}^{(i')}}, \label{eqn:gamma} \\
+\begin{align}
+    \gamma_t^{(i)}(\phi) = \tilde \gamma_{t}^{(i)}(\alpha_t,\beta_t) \quad &= \quad   \frac{\alpha_{t}^{(i)} ~ \beta_{t}^{(i)}}{\sum_{i'} \alpha_{t}^{(i')} ~ \beta_{t}^{(i')}}, \label{eqn:gamma} \\
     %
-    \xi_{t}^{(i,j)}(\phi) = \frac{\alpha_{t-1}^{(i)} ~ \Gamma^{(i,j)} ~ f^{(j)}(y_{t} ~ ; ~\theta) ~ \beta_{t}^{(j)}}{\sum_{i',j'} ~ \alpha_{t-1}^{(i')} ~ \Gamma^{(i',j')} ~ f^{(j')}(y_{t} ~ ; ~\theta) ~ \beta_{t}^{(j')}} \label{eqn:xi},
-\end{gather}
+    \xi_{t}^{(i,j)}(\phi) = \tilde \xi_{t}^{(i,j)}(\alpha_{t-1},\beta_{t},\phi) \quad &= \quad \frac{\alpha_{t-1}^{(i)} ~ \Gamma^{(i,j)} ~ f^{(j)}(y_{t} ~ ; ~\theta) ~ \beta_{t}^{(j)}}{\sum_{i',j'} ~ \alpha_{t-1}^{(i')} ~ \Gamma^{(i',j')} ~ f^{(j')}(y_{t} ~ ; ~\theta) ~ \beta_{t}^{(j')}} \label{eqn:xi}.
+\end{align}
+%
+It takes $\calO(N^2)$ time to evaluate $\tilde \gamma_{t}(\alpha_t,\beta_t)$ and $\tilde \xi_{t}^{(i,j)}(\alpha_{t-1},\beta_{t},\phi)$, but $\calO(TN^2)$ time to evaluate $\gamma_t(\phi)$ and $\xi_t(\phi)$. In future sections we abuse notation and write $\gamma_t(\phi)$ and $\xi_t(\phi)$ as $\gamma_t$ and $\xi_t$ for brevity. 
 
 \subsection{The Baum-Welch Algorithm}
 
@@ -149,80 +89,116 @@ The Baum-Welch algorithm is a specific instance of the EM algorithm used to esti
     \phi_{k+1} = \argmax_{\phi} Q(\phi \mid \phi_{k}). \label{eqn:BW_update}
 \end{gather}
 %
-When the EM algorithm is applied to HMMs, it is called the \textit{Baum-Welch} algorithm. We can combine Equation (\ref{eqn:Q}) with Equation (\ref{eqn:like}) to separate the expected value into three convenient terms:
+When the EM algorithm is applied to HMMs, it is called the \textit{Baum-Welch} algorithm. We combine Equation (\ref{eqn:Q}) with Equation (\ref{eqn:like}) to write $Q$ into separate terms: %separate the expected value into three convenient terms:
 \begin{align}
     Q(\phi \mid \phi_{k}) &\equiv \bbE_{\phi_{k}}\left[\log p(\bfY,\bfX;\phi) \mid \bfY \right] \\
+    %
     &= \bbE_{\phi_{k}} \left[\sum_{t=1}^T \log f^{(X_t)}(y_t;\theta^{(X_t)}) + \log \delta^{(X_1)} + \sum_{t=2}^{T} \log \Gamma^{(X_{t-1},X_{t})} \mid \bfY \right] \\
     %
     &= \sum_{t = 1}^T \bbE_{\phi_{k}} \left[ \log f^{(X_t)}(y_t;\theta^{(X_t)}) \mid \bfY \right]  \\
     & \qquad + \bbE_{\phi_{k}} \Big[\log \delta_{X_1} \mid \bfY \Big] + \sum_{t=2}^{T} \bbE_{\phi_{k}} \left[ \log \Gamma^{(X_{t-1},X_{t})} \mid \bfY \right] \\
     %
     &= \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_t(\phi_{k}) \log f^{(i)}(y_t;\theta^{(i)}) \\
-    & \qquad + \sum_{i=1}^N \gamma^{(i)}_1(\phi_{k}) \log \delta^{(i)} + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\phi_{k}) \log \Gamma^{(i,j)}.
+    & \qquad + \sum_{i=1}^N \gamma^{(i)}_1(\phi_{k}) \log \delta^{(i)} + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\phi_{k}) \log \Gamma^{(i,j)}
 \end{align}
+%The first term and last two terms on the right-hand side of the equation above only depend upon $\theta$ and $\eta$, respectively. The maximization problem in Equation (\ref{eqn:BW_update}) can thus be divided into two separate sub-problems as follows. Note that we define the objective functions $F$ and $G$ below so that the M-step of the EM algorithm is a minimization problem consistent with existing optimization literature.
+%
+%\begin{gather}
+%    F_t^{(k)}(\theta) \equiv F_t(\theta, \phi_{k}) \equiv - \sum_{i=1}^N \gamma^{(i)}_t(\phi_{k}) \log f^{(i)}(y_t;\theta^{(i)}), \\
+    %
+%    F^{(k)}(\theta) \equiv F(\theta, \phi_{k}) \equiv \frac{1}{T} \sum_{t=1}^T F^{(k)}_t(\theta), \label{eqn:F} \\
+    %
+%    \theta_{k+1} = \argmin_{\theta} F^{(k)}(\theta), \label{eqn:EM_update_theta} \\ \nonumber \\
+    %
+    %
+%    G_1^{(k)}(\eta) \equiv G_1(\eta, \phi_{k}) \equiv - \sum_{i=1}^N \gamma^{(i)}_1(\phi_{k})\log \delta^{(i)}(\eta) \\
+    %
+%    G_t^{(k)}(\eta) \equiv G_t(\eta, \phi_{k}) \equiv - \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t(\phi_{k}) \log \Gamma^{(i,j)}(\eta), \quad t \geq 2 \\
+    %
+%    G^{(k)}(\eta) \equiv G(\eta, \phi_{k}) = \frac{1}{T} \sum_{t=1}^{T} G_t(\eta, \phi_{k}), \label{eqn:G}\\
+    %
+%    \eta_{k+1} = \argmin_{\eta} G(\eta,\phi_{k}). \label{eqn:EM_update_eta}
+%\end{gather}
+%In addition, note that 
+%\begin{equation}
+%   Q(\phi \mid \phi_{k}) = -T ~ \left[F(\theta, \phi_{k}) + G(\eta, \phi_{k})\right].
+%\end{equation}
+%
+More detailed pseudo code for the E and the M step are given in Algorithms (\ref{alg:E}) and (\ref{alg:EM}) below.
 
-The first term and last two terms on the right-hand side of the equation above only depend upon $\theta$ and $\eta$, respectively. The maximization problem in Equation (\ref{eqn:BW_update}) can thus be divided into two separate sub-problems as follows. Note that we define the objective functions $F$ and $G$ below so that the M-step of the EM algorithm is a minimization problem consistent with existing optimization literature.
+\begin{algorithm}
+\caption{\texttt{E}($\phi_k$)}\label{alg:E}
+\begin{algorithmic}[1]
+\Require Parameter value $\phi_k$.
 %
-\begin{gather}
-    F_t^{(k)}(\theta) \equiv F_t(\theta, \phi_{k}) \equiv - \sum_{i=1}^N \gamma^{(i)}_t(\phi_{k}) \log f^{(i)}(y_t;\theta^{(i)}), \\
-    %
-    F^{(k)}(\theta) \equiv F(\theta, \phi_{k}) \equiv \frac{1}{T} \sum_{t=1}^T F^{(k)}_t(\theta), \label{eqn:F} \\
-    %
-    \theta_{k+1} = \argmin_{\theta} F^{(k)}(\theta), \label{eqn:EM_update_theta} \\ \nonumber \\
-    %
-    %
-    G_1^{(k)}(\eta) \equiv G_1(\eta, \phi_{k}) \equiv - \sum_{i=1}^N \gamma^{(i)}_1(\phi_{k}) \log \delta^{(i)}(\eta) \\
-    %
-    G_t^{(k)}(\eta) \equiv G_t(\eta, \phi_{k}) \equiv - \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t(\phi_{k}) \log \Gamma^{(i,j)}(\eta), \quad t \geq 2 \\
-    %
-    G^{(k)}(\eta) \equiv G(\eta, \phi_{k}) = \frac{1}{T} \sum_{t=1}^{T} G_t(\eta, \phi_{k}), \label{eqn:G}\\
-    %
-    \eta_{k+1} = \argmin_{\eta} G(\eta,\phi_{k}). \label{eqn:EM_update_eta}
-\end{gather}
-In addition, note that 
-\begin{equation}
-   Q(\phi \mid \phi_{k}) = -T ~ \left[F(\theta, \phi_{k}) + G(\eta, \phi_{k})\right].
-\end{equation}
-%
-In many simple scenarios the maximization problems above have closed-form solutions. For example, if $\Gamma$ does not depend upon any covariates and $f^{(i)}(y_t;\theta^{(i)})$ is a normal or Poisson probability density function with respect to $y_t$, then the solutions of Equations (\ref{eqn:EM_update_theta}) and (\ref{eqn:EM_update_eta}) are given in Section 4.2 of \citet{Zucchini:2016}. However, in many other situations, the maximization problem above is not straightforward and requires numerical maximization techniques. For example, finding closed-form solutions to the M-step for the HHMM defined in section \ref{subsec:HHMM} is not straightforward. We therefore review different methods for numerical maximization via stochastic optimization. %We describe several such scenarios in the subsequent section. 
+\State $\alpha_1 \gets \tilde \alpha_1(\phi_k)$
+\State $\beta_T \gets \tilde \beta_T(\phi_k)$
+\For{$t = 2,\ldots,T$}
+    \State $\alpha_t \gets \tilde \alpha_t(\alpha_{t-1},\phi_k)$
+    \State $\beta_{T+1-t} \gets \tilde \beta_t(\beta_{T+2-t},\phi_k)$
+\EndFor
+
+\State \Return $\{\alpha_t,\beta_t\}_{t=1}^T$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{\texttt{Baum-Welch}$(\phi_0,K)$}\label{alg:EM}
+\begin{algorithmic}[1]
+\Require Initial parameter values $\phi_0$, number of iterations $K$
+\For{$k = 0,\ldots,K-1$}
+    \State $\{\alpha_t,\beta_t\}_{t=1}^T \gets \texttt{E}(\phi_{k})$ \Comment{E step} 
+    \State $\gamma_1 \gets \tilde \gamma_1(\alpha_{1},\beta_{1})$
+    \For{$t = 2,\ldots,T$}
+        \State $\gamma_t \gets \tilde \gamma_t(\alpha_{t},\beta_{t})$
+        \State $\xi_t \gets \tilde \xi_t(\alpha_{t-1},\beta_{t},\phi_{k})$
+    \EndFor
+    \State \Comment{M step} $$\phi_{k+1} \gets \argmax_{\{\theta,\eta\}} \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_t \log f^{(i)}(y_t;\theta^{(i)}) + \sum_{i=1}^N \gamma^{(i)}_1 \log \delta^{(i)}(\eta) + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)} \log \Gamma^{(i,j)}(\eta)$$
+\EndFor
+\State \Return $\phi_K$
+\end{algorithmic}
+\end{algorithm}
+
+In many simple scenarios the maximization problem above has a closed-form solution. For example, if $\Gamma$ does not depend upon any covariates and $f^{(i)}(y_t;\theta^{(i)})$ is a normal or Poisson probability density function with respect to $y_t$, then the solution of Equation (\ref{eqn:BW_update}) is given in Section 4.2 of \citet{Zucchini:2016}. However, in many other situations, the maximization problem above is not straightforward and requires numerical maximization techniques. %For example, finding closed-form solutions to the M-step for the HHMM defined in section \ref{subsec:HHMM} is not straightforward. 
+We therefore review different methods for numerical maximization via stochastic optimization. %We describe several such scenarios in the subsequent section. 
 
 \subsection{Stochastic Optimization}
 \label{subsec:stoch_optim}
 
-Stochastic optimization techniques can solve minimization problems that can be written as the sum of independent terms, including the one posed in Equation (\ref{eqn:EM_update_theta}) to optimize $\theta$ at step $k$ in the EM algorithm \citep{Robbins:1951}.
+Stochastic optimization techniques can solve minimization problems in which the objective function can be written as the sum of independent terms \citep{Robbins:1951}. In much of the stochastic optimization literature, this optimization problem takes the form of a minimization over an average:
 %
 \begin{equation}
-    \theta_{k+1} = \argmin_{\theta} F^{(k)}(\theta), \qquad F^{(k)}(\theta) = \frac{1}{T}\sum_{t = 1}^T F^{(k)}_t(\theta).
+    \phi^* = \argmin_{\phi} F(\phi), \qquad F(\phi) = \frac{1}{T}\sum_{t = 1}^T F_t(\phi).
+    \label{eqn:stoch_opt}
 \end{equation}
 %
-Similar logic can be applied to optimizing $\eta$ in Equation (\ref{eqn:EM_update_eta}).
-%
-Standard gradient descent updates $\theta_k$ using an iterative process. Note that $k$ indexes the iteration of the EM algorithm, as we use $m$ to index the iteration of gradient descent within the $k^{th}$ M-step the EM algorithm. As such, gradient descent at step $m$ has the following update rule with step size $\lambda_F$:
-%
-\begin{equation}
-    \theta_{k,m+1} = \theta_{k,m} - \lambda_F \nabla F^{(k)}(\theta_{k,m}) =  \theta_{k,m} - \frac{\lambda_F}{T} \sum_{t=1}^T \nabla F^{(k)}_t(\theta_{k,m}).
-\end{equation}
-%
-However, this update requires evaluating a gradient for all $t = 1,\ldots,T$, which can be prohibitive if $T$ is large. Alternatively, \citet{Robbins:1951} introduce stochastic gradient descent (or SGD), which updates $\theta_k$ using an unbiased estimate of the full gradient:
-%
-\begin{equation}
-    \theta_{k,m+1} = \theta_{k,m} - \lambda_F \nabla F^{(k)}_{t_{k,m}}(\theta_{k,m})
-\end{equation}
-%
-for some $t_{k,m} \in \{1,\ldots,T\}$ selected uniformly at random at step $m$ of M-step $k$. Stochastic gradient descent reduces the amount of time between updates by using an unbiased estimate of the gradient to update $\theta_{k,m}$. However, the gradient estimates themselves can have high variance, so stochastic gradient descent requires that the step-size $\lambda_F$ decays over time to ensure convergence. In addition, SGD has slower convergence rates compared to full gradient descent \citep{Schmidt:2017}.
 
-Variance-reduced stochastic optimization techniques such as stochastic average gradient descent (SAG) \citep{Schmidt:2017}, stochastic variance reduced gradient descent (SVRG) \citep{Johnson:2013}, and SAGA \citep{Defazio:2014} enjoy the speed of stochastic gradient descent as well as the convergence rates of full gradient descent. These algorithms involve a table of gradient estimates $\widehat \nabla F^{(k)}_t$ whose average approximates the full gradient $\nabla F^{(k)}(\theta_{k,m})$. The gradient estimates are updated at various stages in the optimization algorithm and are used to reduce the variance of gradient estimates. 
+Within the M step of the $k^{th}$ iteration of the EM algorithm, standard gradient descent at a given step $m$ with step size $\lambda$ updates $\phi_{k,m}$ as follows:
+%
+\begin{equation}
+    \phi_{k,m} = \phi_{k,m-1} - \lambda \nabla F^{(k)}(\phi_{k,m-1}) =  \phi_{k,m-1} - \frac{\lambda}{T} \sum_{t=1}^T \nabla F^{(k)}_t(\phi_{k,m-1}).
+\end{equation}
+%
+However, this update requires evaluating a gradient for all $t = 1,\ldots,T$, which can be prohibitively expensive if $T$ is large. Alternatively, \citet{Robbins:1951} introduce stochastic gradient descent (or SGD), which updates $\phi_k$ using an unbiased estimate of the full gradient:
+%
+\begin{equation}
+    \phi_{k,m} = \phi_{k,m-1} - \lambda \nabla F^{(k)}_{t_{k,m}}(\phi_{k,m-1})
+\end{equation}
+%
+for some $t_{k,m} \in \{1,\ldots,T\}$ selected uniformly at random at step $m$ of M-step $k$. Stochastic gradient descent reduces the amount of time between updates by using an unbiased estimate of the gradient to update $\phi_{k,m-1}$. However, the gradient estimates themselves can have high variance, so stochastic gradient descent requires that the step-size $\lambda$ decays over time to ensure convergence. In addition, SGD has slower convergence rates compared to full gradient descent \citep{Schmidt:2017}.
+
+Variance-reduced stochastic optimization techniques such as stochastic average gradient descent (SAG) \citep{Schmidt:2017}, stochastic variance reduced gradient descent (SVRG) \citep{Johnson:2013}, and SAGA \citep{Defazio:2014} enjoy the speed of stochastic gradient descent as well as the convergence rates of full gradient descent. These algorithms involve a table of gradient estimates $\widehat \nabla F^{(k)}_t$ whose average approximates the full gradient $\nabla F^{(k)}(\phi_{k,m-1})$. The gradient estimates are updated at various stages in the optimization algorithm and are used to reduce the variance of gradient estimates. 
 %In particular, SAG uses the update rule:
 %
 %\begin{equation}
-%    \theta_{m+1} \gets \theta_{m} - \lambda_F \left[\frac{\nabla F^{(k)}_{t_m}(\theta_{m}) - \widehat \nabla F^{(k)}_{t_m}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \right], \label{eqn:SAG_update}
+%    \phi_{m+1} \gets \phi_{m} - \lambda \left[\frac{\nabla F^{(k)}_{t_m}(\phi_{m}) - \widehat \nabla F^{(k)}_{t_m}}{T} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \right], \label{eqn:SAG_update}
 %\end{equation}
 %
-%which is simply the table average with entry $t_m$ updated at step $m$. This update rule is intuitive, but it represents a biased estimate of the gradient $\nabla P(\theta_m)$. This can slow down convergence and makes theoretical analysis of SAG difficult. 
-For example, SVRG and SAGA update $\theta_{k,m}$ using an unbiased estimate of the gradient:
+%which is simply the table average with entry $t_m$ updated at step $m$. This update rule is intuitive, but it represents a biased estimate of the gradient $\nabla P(\phi_m)$. This can slow down convergence and makes theoretical analysis of SAG difficult. 
+For example, SVRG and SAGA update $\phi$ using an unbiased estimate of the gradient:
 %
 \begin{equation}
-    \theta_{k,m+1} = \theta_{k,m} - \lambda_F \left[\nabla F^{(k)}_{t_{k,m}}(\theta_{k,m}) - \widehat \nabla F^{(k)}_{t_{k,m}} + \widehat \nabla F^{(k)} \right],
+    \phi_{k,m} = \phi_{k,m-1} - \lambda \left[\nabla F^{(k)}_{t_{k,m}}(\phi_{k,m-1}) - \widehat \nabla F^{(k)}_{t_{k,m}} + \widehat \nabla F^{(k)} \right],
     \label{eqn:SAGA_update}
 \end{equation}
 %
@@ -235,17 +211,17 @@ where:
 %Taking the expected value of the gradient estimate from (\ref{eqn:SAGA_update}) shows that it is unbiased:
 %
 %\begin{align}
-%    \bbE\left[\nabla F^{(k)}_{t_m}(\theta_{m}) - \widehat \nabla F^{(k)}_{t_m} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \right] &= \frac{1}{T} \sum_{t=1}^T \nabla F^{(k)}_{t}(\theta_{m}) - \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \\
+%    \bbE\left[\nabla F^{(k)}_{t_m}(\phi_{m}) - \widehat \nabla F^{(k)}_{t_m} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \right] &= \frac{1}{T} \sum_{t=1}^T \nabla F^{(k)}_{t}(\phi_{m}) - \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} + \frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t} \\
     %
-%    &= \frac{1}{T} \sum_{t=1}^T \nabla F^{(k)}_{t_m}(\theta_{m}) = \nabla F^{(k)}(\theta_{m}).
+%    &= \frac{1}{T} \sum_{t=1}^T \nabla F^{(k)}_{t_m}(\phi_{m}) = \nabla F^{(k)}(\phi_{m}).
 %\end{align}
 %
 After updating the parameters at step $m$ of iteration $k$, SAGA simply updates the table average and the table of gradients at position $t_{k,m}$: 
 %
 \begin{gather}
-    \widehat \nabla F^{(k)} \gets \widehat \nabla F^{(k)} + \nabla F^{(k)}_{t_{k,m}}(\theta_{k,m}) - \widehat \nabla F^{(k)}_{t_{k,m}}, \\
+    \widehat \nabla F^{(k)} \gets \widehat \nabla F^{(k)} + \nabla F^{(k)}_{t_{k,m}}(\phi_{k,m}) - \widehat \nabla F^{(k)}_{t_{k,m}}, \\
     %
-    \widehat \nabla F^{(k)}_{t_{k,m}} \gets \nabla F^{(k)}_{t_{k,m}}(\theta_{k,m}).
+    \widehat \nabla F^{(k)}_{t_{k,m}} \gets \nabla F^{(k)}_{t_{k,m}}(\phi_{k,m}).
 \end{gather}
 %
 %After updating the table at position $t_m$ with the SAG/SAGA update rule, the table average $\frac{1}{T} \sum_{t=1}^T \widehat \nabla F^{(k)}_{t}$ must be updated using the previous estimate of $\widehat \nabla F^{(k)}_{t}$. 
@@ -254,38 +230,42 @@ Traditionally, SAGA is more memory intensive than SVRG because the gradient at e
 
 %This trade-off should be considered by practitioners when deciding between the two algorithms. 
 
-Algorithm (\ref{alg:SO}) outlines SVRG and SAGA in pseudocode.
+Algorithm (\ref{alg:SO}) outlines one iteration of SVRG or SAGA in pseudocode. \texttt{VRSO} stands for variance-reduced stochastic optimization.
 
 \begin{algorithm}
-\caption{Summary of SVRG and SAGA}\label{alg:SO}
+\caption{\texttt{VRSO}$(F^{(k)},\phi_0,\lambda,A,M)$}\label{alg:SO}
 \begin{algorithmic}[1]
-\Require Loss function $P = \sum_t P_t$, Initial value $z_0$, step size $\lambda$, algorithm (SVRG or SAGA), number of full gradient updates $K$ (classically, $K = 1$ for SAGA), and iterations per full gradient update $M$.
+\Require loss function $F^{(k)} = \frac{1}{T}\sum_{t=1}^T F^{(k)}_t$, initial parameter $\phi_0$, step size $\lambda$, algorithm $A \in \{\text{SVRG, SAGA}\}$, and number of iterations $M$.
 %
-\For{$k = 0,\ldots,K-1$}
-\State Initialize gradient estimates $\widehat \nabla P_t \leftarrow \nabla P_t (z_k)$ for $t = 1, ..., T$ and table average $ \widehat \nabla P \gets \frac{1}{T} \sum_{t=1}^T \widehat \nabla P_{t}.$
-\State Initialize $z_{k,0} \leftarrow z_k$.
+\vspace{5pt}
+\For{$t = 1,\ldots,T$}
+\State $\gamma_t \gets \tilde \gamma_t(\alpha_t,\beta_t)$
+\State $\xi_t \gets \tilde \xi_t(\alpha_{t-1},\beta_{t},\phi_0)$
+\State $\widehat \nabla F_t \leftarrow \nabla F_t (\phi_0 \mid \gamma_t,\xi_t)$
+\Comment{initialize gradients}
+\EndFor
+\State $\widehat \nabla F \gets \frac{1}{T} \sum_{t=1}^T \widehat \nabla F_{t}$
+\Comment{initialize table average}
 %
-\For{$m = 0,1,\ldots,M-1$}:
+\For{$m = 1,\ldots,M$}:
     %
-    \State Pick $t_{k,m} \in \{1,\ldots,T\}$ uniformly at random.
+    \State Pick $t_{m} \in \{1,\ldots,T\}$ uniformly at random.
     %
     \State \Comment{update parameters}
-    \begin{equation}
-        z_{k,m+1} = z_{k,m} - \lambda \left[\nabla P_{t_{k,m}}(z_{k,m}) - \widehat \nabla P_{t_{k,m}} + \widehat \nabla P \right]
+    \begin{gather}
+        \phi_{m} = \phi_{m-1} - \lambda \left[\nabla F_{t_m}(\phi_{m-1} \mid \gamma_{t_m}, \xi_{t_m}) - \widehat \nabla F_{t_{m}} + \widehat \nabla F \right]
         \label{eqn:SAGA_update0}
-    \end{equation}
+    \end{gather}
     %
-    \If{using SAGA}:
-    \Comment{update table average and table at index $t_{k,m}$}
+    \If{$A$ = SAGA}:
+    \Comment{update table average and table at index $t_{m}$}
         \begin{gather}
-            \widehat \nabla P \gets \widehat \nabla P + \nabla P_{t_{k,m}}(z_{k,m}) - \widehat \nabla P_{t_{k,m}}, \\
-            \widehat \nabla P_{t_{k,m}} \leftarrow \nabla P_{t_{k,m}}(z_{k,m}).
+            \widehat \nabla F \gets \widehat \nabla F + \frac{1}{T} \left( \nabla F_{t_m}(\phi_{m-1} \mid \gamma_{t_m}, \xi_{t_m}) - \widehat \nabla F_{t_{m}}\right), \\
+            \widehat \nabla F_{t_{m}} \gets \nabla F_{t_m}(\phi_{m-1} \mid \gamma_{t_m}, \xi_{t_m}).
         \end{gather}
     \EndIf
 \EndFor
-\State $z_{k+1} = z_{k,M}$
-\EndFor
-\State \Return $z_K$
+\State \Return $\phi_M$
 \end{algorithmic}
 \end{algorithm}
 
@@ -294,35 +274,3 @@ Algorithm (\ref{alg:SO}) outlines SVRG and SAGA in pseudocode.
 
 
 %%%%%%%%%%%%
-
-
-
-\iffalse
-\subsection{Direct likelihood maximization}
-
-An alternative way to perform inference over HMMs is to directly maximize the marginal likelihood from Equation (\ref{eqn:like_marginal}) using gradient-based optimization techniques. One standard method is gradient descent, which updates $\theta$ or $\eta$ at step $m$ using the following update rule with step sizes $\lambda_F^\eta$ and $\lambda_F^\theta$:
-%
-\begin{gather}
-    \eta_{m+1} = \eta_{m} + \lambda_F^{\eta} \nabla_\eta \log p(\bfY;\theta_{m},\eta_{m}) \\
-    %
-    \theta_{m+1} = \theta_{m} + \lambda_F^{\theta} \nabla_\theta \log p(\bfY;\theta_{m},\eta_{m}).
-    \label{eqn:grad_update}
-\end{gather}
-%
-Using the Fisher identity of the gradient for incomplete data models \citep{Fisher:1925}, the gradient of Equation (\ref{eqn:like_marginal}) can be written as
-%
-\begin{equation}
-    \nabla_{\phi} \log p(\bfY;\phi) = \bbE_{\phi}\left[ \nabla_{\phi} \log p(\bfY,\bfX;\phi) \mid \bfY \right].
-    \label{eqn:fisher_id}
-\end{equation}
-%
-Similarly to the EM algorithm, we can split the gradient of the log-likelihood into separate terms that each depend on only $\theta$ or $\eta$:
-%
-\begin{gather}
-    \nabla_{\theta} \log p(\bfY;\phi) = \sum_{t=1}^T \sum_{i=1}^N \gamma_t^{(i)}(\phi) \nabla_{\theta} \log f^{(i)}(y_t;\theta^{(i)}) \label{eqn:theta_update_gd} \\
-    %
-    \nabla_{\eta} \log p(\bfY;\phi) = \sum_{i=1}^N \gamma_1^{(i)}(\phi) \nabla_{\eta} \log \delta^{(i)} + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_t^{(i,j)}(\phi) \nabla_{\eta} \log \Gamma^{(i,j)}, \label{eqn:eta_update_gd}
-\end{gather}
-%
-There is a clear connection between the Baum-Welch update from Equation (\ref{eqn:BW_update}) and the gradient given by Equation (\ref{eqn:fisher_id}). In particular, one recovers gradient descent by performing one gradient step within the M-step of the Baum-Welch algorithm rather than solving the entire maximization problem. This connection leads to a natural question: if taking one gradient step within the M- step is equivalent to gradient descent, and solving the M- step entirely results in the Baum-Welch algorithm, then are there other ways to perform the M-step in the EM algorithm with desirable properties? To answer this question, we first review some stochastic optimization techniques.
-\fi

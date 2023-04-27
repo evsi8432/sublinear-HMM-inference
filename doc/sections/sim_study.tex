@@ -24,9 +24,9 @@ Denote the true transition probability matrix from an experiment with $T$ observ
     \qquad
     \Gamma_{10^5,3} = 
     \begin{pmatrix} 
-        0.999 & 0.005 & 0.005 \\
-        0.005 & 0.999 & 0.005 \\
-        0.005 & 0.005 & 0.999
+        0.999 & 0.0005 & 0.0005 \\
+        0.0005 & 0.999 & 0.0005 \\
+        0.0005 & 0.0005 & 0.999
     \end{pmatrix}
     \\
     \Gamma_{10^3,6} = 
@@ -54,7 +54,7 @@ We randomly defined the initial distribution as $\delta \sim \text{dir}(\onevec_
 
 \subsection{Optimization Procedure}
 
-We estimated the parameters of the generating model for all five data sets and all eight experiments using six different inference algorithms. In particular, we used Algorithm (\ref{alg:EM-SO}) with $M=T$, Algorithm (\ref{alg:P-EM-SO}) with $M=T$, and Algorithm (\ref{alg:P-EM-SO}) with $M=10T$, each using either SVRG and SAGA within the M-step. Recall that Algorithm (\ref{alg:EM-SO}) uses the same E step of the Baum-Welch algorithm, but it incorporates stochastic optimization into the M step. Algorithm (\ref{alg:P-EM-SO}) occasional performs the E step from the traditional Baum-Welch algorithm, but it also incorporates a partial E step into its variance-reduced stochastic M step. The variable $M$ corresponds to the number of iterations of SAGA or SVRG that are performed at each M step of the algorithm, and $T$ is the length of the observation sequence. It is natural to set $M=T$ to approximately balance the computational load of the E step and the M step. However, since Algorithm (\ref{alg:P-EM-SO}) performs a partial E step in the middle of its M step, we set $M=10T$ for one experiment with Algorithm (\ref{alg:P-EM-SO}) to test if the partial E step within the M step was sufficient to perform inference.
+We estimated the parameters of the generating model for all five data sets and all eight experiments using six different inference algorithms. In particular, we used Algorithm (\ref{alg:EM-SO}) with $M=T$, Algorithm (\ref{alg:P-EM-SO}) with $M=T$, and Algorithm (\ref{alg:P-EM-SO}) with $M=10T$, each using either SVRG and SAGA within the M step. Recall that Algorithm (\ref{alg:EM-SO}) uses the same E step of the Baum-Welch algorithm, but it incorporates stochastic optimization into the M step. Algorithm (\ref{alg:P-EM-SO}) occasional performs the E step from the traditional Baum-Welch algorithm, but it also incorporates a partial E step into its variance-reduced stochastic M step. The variable $M$ corresponds to the number of iterations of SAGA or SVRG that are performed at each M step of the algorithm, and $T$ is the length of the observation sequence. It is natural to set $M=T$ to approximately balance the computational load of the E step and the M step. However, since Algorithm (\ref{alg:P-EM-SO}) performs a partial E step in the middle of its M step, we set $M=10T$ for one experiment with Algorithm (\ref{alg:P-EM-SO}) to test if the partial E step within the M step was sufficient to perform inference.
 
 We also estimated the HMM parameters using three baseline methods: BFGS \citep{Fletcher:2000}, Conjugate gradients \citep{Fletcher:1964}, and full-batch gradient descent.
 %
@@ -74,7 +74,7 @@ We initialized $\eta_0$ as
     \eta^{(i,j)}_0 &\sim \calN(-2,2^2), & i,j & = 1,\ldots,N, \qquad i \neq j.
 \end{align*}
 %
-%If the 2-norm of the average estimated gradient $||\frac{1}{T}\sum_{t=1}^T \widehat \nabla F^{(k,m)}_t + \widehat \nabla G^{(k,m)}_t||$ ever fell below a tolerance of $10^{-8}$, we terminated the M-step of algorithm and moved on to the E-step. Likewise, if the relative change of the log-likelihood after one full E- and M- step of the EM algorithm ever fell below a tolerance of $10^{-10}$, we terminated the algorithm altogether. We found the ground truth MLEs by running the traditional EM algorithm until the relative change in the log-likelihood was on the order of machine precision $10^{-15}$.
+%If the 2-norm of the average estimated gradient $||\frac{1}{T}\sum_{t=1}^T \widehat \nabla F^{(k,m)}_t + \widehat \nabla G^{(k,m)}_t||$ ever fell below a tolerance of $10^{-8}$, we terminated the M step of algorithm and moved on to the E step. Likewise, if the relative change of the log-likelihood after one full E  and M  step of the EM algorithm ever fell below a tolerance of $10^{-10}$, we terminated the algorithm altogether. We found the ground truth MLEs by running the traditional EM algorithm until the relative change in the log-likelihood was on the order of machine precision $10^{-15}$.
 
 Throughout the optimization procedure, we assume that $\Sigma^{(i)}$ is diagonal for all $i \in \{1,\ldots,N\}$, which is in line with the generating model described above. Further, because $\Sigma^{(i)}$ must have positive diagonal elements to be a valid covariance matrix, we parameterize $\Sigma^{(i)}$ as 
 %
@@ -108,21 +108,21 @@ The algorithms which implement a partial E step appear to help the algorithm mov
 \begin{figure}
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-100000-000.png}
-    \caption{log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at each epoch of a selected run of each optimization algorithm after 12 hours or 150 epochs (whichever came first) for the first data set of the experiment with $T=10^{5}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale. For each optimization algorithm, we display the random initialization that resulted in the highest likelihood after 12 hours. The dots on each figure correspond to the epoch and likelihood at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours.}
+    \caption{log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at each epoch of a selected run of each optimization algorithm after 12 hours or 150 epochs (whichever came first) for the first data set of the experiment with $T=10^{5}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale. For each optimization algorithm, we display the random initialization that resulted in the highest likelihood after 12 hours. The dots on each figure correspond to the epoch and likelihood at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours.}
     \label{fig:ll_trace_sim}
 \end{figure}
 %
 \begin{figure}
     \centering
     \includegraphics[width=6.5in]{../plt/boxplots_sim_T_100000.png}
-    \caption{Box plots showing epochs to converge (top) and the log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence (bottom) for each optimization algorithm. NPE corresponds to Algorithm (\ref{alg:EM-SO}), PE1 corresponds to Algorithm (\ref{alg:P-EM-SO}) with $M=T$, and PE2 corresponds to Algorithm (\ref{alg:P-EM-SO}) with $M=10T$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
+    \caption{Box plots showing epochs to converge (top) and the log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence (bottom) for each optimization algorithm. FE corresponds to Algorithm (\ref{alg:EM-SO}), PE1 corresponds to Algorithm (\ref{alg:P-EM-SO}) with $M=T$, and PE2 corresponds to Algorithm (\ref{alg:P-EM-SO}) with $M=10T$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
     \label{fig:boxplots_sim}
 \end{figure}
 %
 \begin{figure}
     \centering
     \includegraphics[width=6.5in]{../plt/scatter_sim_T_100000.png}
-    \caption{Log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence versus epochs to converge for all simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E-step, $T$ iterations with the M-step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+    \caption{Log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence versus epochs to converge for all simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
     \label{fig:scatter_sim}
 \end{figure}
 %
@@ -130,8 +130,8 @@ The algorithms which implement a partial E step appear to help the algorithm mov
 %This may be a function of our step size ($1/3 \hat L$), but that step size was selected based upon suggestions from the SAGA paper \citep{Defazio:2014}. 
 
 
-%The partial E- step within Algorithm (3) looks to help primarily for experiments with $N=6$, especially for early epochs of the algorithm. This makes sense since the weights from the EM algorithm will be out of date quickly when the parameter estimates are poor early in the EM algorithm.
+%The partial E  step within Algorithm (3) looks to help primarily for experiments with $N=6$, especially for early epochs of the algorithm. This makes sense since the weights from the EM algorithm will be out of date quickly when the parameter estimates are poor early in the EM algorithm.
 
-%SAGA without a partial E-step performs similarly to the EM algorithm in a per-epoch basis because SAGA is successfully converging for the M-step when $M = T$. However, it does not perform as well as the EM algorithm on a per-time basis because the M-step is significantly slower when using SAGA vs the closed-form solution. This behaviour is expected, and SAGA has a significant advantage over the EM algorithm in that it only requires gradients rather than sufficient statistics.
+%SAGA without a partial E step performs similarly to the EM algorithm in a per-epoch basis because SAGA is successfully converging for the M step when $M = T$. However, it does not perform as well as the EM algorithm on a per-time basis because the M step is significantly slower when using SAGA vs the closed-form solution. This behaviour is expected, and SAGA has a significant advantage over the EM algorithm in that it only requires gradients rather than sufficient statistics.
 
-%mplementing a partial E-step shows that SAGA can outperform the EM algorithm when the parameter estimates are far from the optimal solutions and when the underlying HMM does not mix rapidly. This is likely because the weights of the $F$ and $G$ are very inaccurate at first, and updating them early in the optimization procedure yields a significant speed-up. In addition, if the Markov chain is rapidly mixing, then updates to $\gamma_{t_m}$ and $\xi_{t_m}$ at a single data point are more accurate. Future work may involve performing the partial-E step for many weights at once sequentially, depending upon the mixing time of the current estimate of $\eta_k$.
+%mplementing a partial E step shows that SAGA can outperform the EM algorithm when the parameter estimates are far from the optimal solutions and when the underlying HMM does not mix rapidly. This is likely because the weights of the $F$ and $G$ are very inaccurate at first, and updating them early in the optimization procedure yields a significant speed-up. In addition, if the Markov chain is rapidly mixing, then updates to $\gamma_{t_m}$ and $\xi_{t_m}$ at a single data point are more accurate. Future work may involve performing the partial-E step for many weights at once sequentially, depending upon the mixing time of the current estimate of $\eta_k$.

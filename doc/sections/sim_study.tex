@@ -2,34 +2,34 @@
 
 \subsection{Simulation Procedure}
 
-To test algorithms (\ref{alg:EM-SO}) and (\ref{alg:P-EM-SO}), we ran a total of eight simulation experiments. For a given experiment, we simulated a total of $T \in \{10^3,10^5\}$ observations from an HMM with $N \in \{3,6\}$ hidden states and observations $y_t \in \bbR^d$, with $d \in \{3,6\}$. All possible combinations of $T$, $N$, and $d$ comprised a total of $2^3 = 8$ experiments. For each experiment, we simulated a total of five data sets. For every experiment and data set, $Y_t | X_t = i$ followed a normal distribution with mean $\mu^{(i)}$ and covariance matrix $\Sigma^{(i)}$, $\calN(\mu^{(i)},\Sigma^{(i)})$. We randomly defined $\mu^{(i)}$ and $\Sigma^{(i)}$ for every data set as follows:
+To test the performance of Algorithm (\ref{alg:EM-VRSO}), we ran a total of eight simulation experiments. For a given experiment, we simulated a total of $T \in \{10^3,10^5\}$ observations from an HMM with $N \in \{3,6\}$ hidden states and observations $y_t \in \bbR^d$, with $d \in \{3,6\}$. All possible combinations of $T$, $N$, and $d$ comprised a total of $2^3 = 8$ experiments. For each experiment, we simulated a total of five data sets. For every experiment and data set, $Y_t \mid X_t = i$ followed a normal distribution with mean $\mu^{(i)}$ and covariance matrix $\bfSigma^{(i)}$, $\calN(\mu^{(i)},\bfSigma^{(i)})$. We defined $\mu^{(i)}$ and $\bfSigma^{(i)}$ for every data set as follows:
 %
 \begin{equation}
-    \mu^{(i)} \sim \calN(0,I), \quad \Sigma^{(i)} = \text{diag}(\exp(-2)), \qquad i \in \{1,\ldots,N\},
+    \mu^{(i)} \sim \calN(0,I), \quad \bfSigma^{(i)} = \text{diag}(\exp(-2)), \qquad i \in \{1,\ldots,N\},
 \end{equation}
 %
 where $I$ is the identity matrix.
 
-We set the transition probability matrices of the generating process to depend upon both $T$ and $N$. The transition matrices depend upon $N$ because they must ($\Gamma \in \bbR^{N \times N}$), and they depend upon $T$ because we assume that the underlying Markov chain transitions a total of approximately 100 times. Intuitively, this simulates a observation sequences that are sampled at either low- or high- frequencies.
-
-Denote the true transition probability matrix from an experiment with $T$ observations and $N$ hidden states as $\Gamma_{T,N}$. For our experiments, we set
+We set the transition probability matrices of the generating process to depend upon $T$ to keep the expected number of total transitions at 100. This simulates sequences of observations that are sampled at either low- or high- frequencies.
 %
+Denote the true transition probability matrix from an experiment with $T$ observations and $N$ hidden states as $\bfGamma_{T,N}$. For our experiments, we set
+
 \begin{gather*}
-    \Gamma_{10^3,3} = 
+    \bfGamma_{10^3,3} = 
     \begin{pmatrix} 
         0.9 & 0.05 & 0.05 \\
         0.05 & 0.9 & 0.05 \\
         0.05 & 0.05 & 0.9
     \end{pmatrix},
     \qquad
-    \Gamma_{10^5,3} = 
+    \bfGamma_{10^5,3} = 
     \begin{pmatrix} 
         0.999 & 0.0005 & 0.0005 \\
         0.0005 & 0.999 & 0.0005 \\
         0.0005 & 0.0005 & 0.999
     \end{pmatrix}
     \\
-    \Gamma_{10^3,6} = 
+    \bfGamma_{10^3,6} = 
     \begin{pmatrix} 
         0.9  & 0.02 & 0.02 & 0.02 & 0.02 & 0.02 \\
         0.02 & 0.9  & 0.02 & 0.02 & 0.02 & 0.02 \\
@@ -39,7 +39,7 @@ Denote the true transition probability matrix from an experiment with $T$ observ
         0.02 & 0.02 & 0.02 & 0.02 & 0.02 & 0.9  \\
     \end{pmatrix},
     \\
-    \Gamma_{10^5,6} = 
+    \bfGamma_{10^5,6} = 
     \begin{pmatrix} 
         0.999  & 0.0002 & 0.0002 & 0.0002 & 0.0002 & 0.0002 \\
         0.0002 & 0.999  & 0.0002 & 0.0002 & 0.0002 & 0.0002 \\
@@ -50,36 +50,28 @@ Denote the true transition probability matrix from an experiment with $T$ observ
     \end{pmatrix}.
 \end{gather*}
 %
-We randomly defined the initial distribution as $\delta \sim \text{dir}(\onevec_N)$ for every experiment and data set.
+We randomly defined the initial distribution as $\bfdelta \sim \text{dir}(\onevec_N)$ for every experiment and data set.
 
 \subsection{Optimization Procedure}
 
-We estimated the parameters of the generating model for all five data sets and all eight experiments using six different inference algorithms. In particular, we used Algorithm (\ref{alg:EM-SO}) with $M=T$, Algorithm (\ref{alg:P-EM-SO}) with $M=T$, and Algorithm (\ref{alg:P-EM-SO}) with $M=10T$, each using either SVRG and SAGA within the M step. Recall that Algorithm (\ref{alg:EM-SO}) uses the same E step of the Baum-Welch algorithm, but it incorporates stochastic optimization into the M step. Algorithm (\ref{alg:P-EM-SO}) occasional performs the E step from the traditional Baum-Welch algorithm, but it also incorporates a partial E step into its variance-reduced stochastic M step. The variable $M$ corresponds to the number of iterations of SAGA or SVRG that are performed at each M step of the algorithm, and $T$ is the length of the observation sequence. It is natural to set $M=T$ to approximately balance the computational load of the E step and the M step. However, since Algorithm (\ref{alg:P-EM-SO}) performs a partial E step in the middle of its M step, we set $M=10T$ for one experiment with Algorithm (\ref{alg:P-EM-SO}) to test if the partial E step within the M step was sufficient to perform inference.
+We estimated the parameters of the generating model for all five data sets and all eight experiments using six different versions of Algorithm (\ref{alg:EM-VRSO}). In particular, we used $A \in \{\text{SVRG, SAGA}\}$, and for each value of $A$, we used the combinations $\{P = \texttt{False}, ~ M = T\}$, $\{P = \texttt{True}, ~ M = T\}$, and $\{P = \texttt{True}, ~ M = 10T\}$. Recall that setting $P = \texttt{True}$ corresponds to integrating a partial E step into the variance-reduced stochastic M step. The variable $M$ corresponds to the number of iterations of SAGA or SVRG that are performed at each M step of the algorithm. It is natural to set $M=T$ to approximately balance the computational load of the E step and the M step. Nonetheless, we run $M=10T, P = \texttt{True}$ to test the algorithm when the majority of the computational load is placed on the combined partial E / stochastic M step. We also estimated the HMM parameters using three baseline methods: BFGS \citep{Fletcher:2000}, the conjugate gradient method \citep{Fletcher:1964}, and full-batch gradient descent. All baselines were implemented using the Scipy library in Python \citep{Virtanen:2019}.
 
-We also estimated the HMM parameters using three baseline methods: BFGS \citep{Fletcher:2000}, Conjugate gradients \citep{Fletcher:1964}, and full-batch gradient descent.
-%
-All baselines were implemented using the Scipy library in Python \citep{Virtanen:2019}.
+We sampled a total of five random parameter initializations for each data set / experiment pair, and then ran all nine optimization algorithms on every parameter initialization. Each parameter initialization was re-used for each algorithm to ensure consistency between optimization algorithms. Let $\bar y$ and $\bfQ$ denote the sample mean and sample covariance of the observation sequence $\{y_t\}_{t=1}^T$, respectively. We initialized $\bftheta_0$ and $\bfeta_0$ as
 
-We sampled a total of five random parameter initializations for each data set and experiment, and ran all optimization algorithms for all parameter initializations corresponding to every data set / experiment pair. Each parameter initialization was re-used for each algorithm for consistency between optimization algorithms. Let $\bar y$ and $\bfQ$ denote the sample mean and sample covariance of the observation sequence $\{y_t\}_{t=1}^T$, respectively. Then, we initialized $\theta_0$ as
-%
-\begin{equation}
-    \mu^{(i)}_0 \sim \calN(\bar y, \text{diag}(\bfQ)), \quad \Sigma^{(i)}_0 = \text{diag}(\bfQ), \qquad i \in \{1,\ldots,N\}.
-\end{equation}
-%
-We initialized $\eta_0$ as
-%
-\begin{align*}
-    \eta^{(i)}_0 &\sim \calN(0,1), & i & = 2,\ldots,N \\
+\begin{gather*}
+    \mu^{(i)}_0 \sim \calN(\bar y, \text{diag}(\bfQ)), \quad \bfSigma^{(i)}_0 = \text{diag}(\bfQ), \qquad i \in \{1,\ldots,N\}, \\
     %
-    \eta^{(i,j)}_0 &\sim \calN(-2,2^2), & i,j & = 1,\ldots,N, \qquad i \neq j.
-\end{align*}
+    \eta^{(i)}_0 \sim \calN(0,1), \qquad i = 2,\ldots,N \\
+    %
+    \eta^{(i,j)}_0 \sim \calN(-2,2^2), \qquad i,j = 1,\ldots,N, \quad i \neq j.
+\end{gather*}
 %
 %If the 2-norm of the average estimated gradient $||\frac{1}{T}\sum_{t=1}^T \widehat \nabla F^{(k,m)}_t + \widehat \nabla G^{(k,m)}_t||$ ever fell below a tolerance of $10^{-8}$, we terminated the M step of algorithm and moved on to the E step. Likewise, if the relative change of the log-likelihood after one full E  and M  step of the EM algorithm ever fell below a tolerance of $10^{-10}$, we terminated the algorithm altogether. We found the ground truth MLEs by running the traditional EM algorithm until the relative change in the log-likelihood was on the order of machine precision $10^{-15}$.
 
-Throughout the optimization procedure, we assume that $\Sigma^{(i)}$ is diagonal for all $i \in \{1,\ldots,N\}$, which is in line with the generating model described above. Further, because $\Sigma^{(i)}$ must have positive diagonal elements to be a valid covariance matrix, we parameterize $\Sigma^{(i)}$ as 
+Throughout the optimization procedure, we assumed that $\bfSigma^{(i)}$ was diagonal for all $i \in \{1,\ldots,N\}$, which is in line with the generating model described above. Further, because $\bfSigma^{(i)}$ must have positive diagonal elements, we parameterized $\bfSigma^{(i)}$ as 
 %
 \begin{equation}
-    \Sigma^{(i)} = 
+    \bfSigma^{(i)} = 
     \begin{pmatrix}
         \exp(\rho_1)^2 & 0 & \ldots & 0 \\
         0 & \exp(\rho_2)^2 & \ldots & 0 \\
@@ -88,22 +80,23 @@ Throughout the optimization procedure, we assume that $\Sigma^{(i)}$ is diagonal
     \end{pmatrix},
 \end{equation}
 %
-and perform inference on $\boldsymbol{\rho} = \begin{pmatrix} \rho_1, \rho_2, \ldots , \rho_N \end{pmatrix}$. Performing inference directly on $\boldsymbol{\rho}$ allows us to perform unconstrained optimization.
+and performed inference on $\boldsymbol{\rho} = \begin{pmatrix} \rho_1 & \ldots & \rho_N \end{pmatrix}$, which is unconstrained.
 
-All six algorithms were initialized with step sizes of $\lambda_F = 1/3 \hat L_F$ and $\lambda_G = 1/3 \hat L_G$. The Lipschitz constants were initialized as $\hat L_F = \hat L_G = 100/3$ and updated during the optimization routine according to the procedure from section \ref{subsec:est_L}. 
+All six algorithms were initialized with step sizes of $\lambda_{\bftheta} = 1/3 \hat L_G$ and $\lambda_{\bfeta} = 1/3 \hat L_H$. The Lipschitz constants were initialized as $\hat L_G = \hat L_H = 100/3$ and updated during the optimization routine according to the procedure from section \ref{subsec:est_L}. 
 %
 All algorithms and baselines were run for a total of 12 hours on the Compute Canada Cedar cluster on nodes with 16GB of RAM.
 
 \subsection{Simulation Results}
 
-
-SVRG tends to converge faster than the baseline for all experiments, and SAGA tends to converge faster than the baselines for all experiments except for when $N=3$. The baselines are prone to converging to local minima, especially when $N=6$. Our method is still prone to converge to local minima, especially when $N=6$, but it performs better than BFGS for all experiments with the exception of $N = 3$ and $d = 3$, where BFGS achieves the highest log-likelihood after approximately 120 epochs. However, BFGS is a second-order method, so it is expected to outperform our first-order methods on a per-epoch basis when very close to the true solution.
-
-Figure (\ref{fig:scatter_sim}) shows that many SVRG / SAGA experiments converge faster and to solutions with higher likelihood compared to BFGS. 
+SVRG significantly sped up the optimization procedure, as it usually converged in at most half as many epochs compared to the baselines for each experiment (see Figures (\ref{fig:ll_trace_sim} - \ref{fig:scatter_sim})). SAGA also tended to converge faster than the baselines for all experiments except for those with $N=3$. SAGA also converged in significantly fewer epochs when $P = \texttt{True}$ and $M=10T$. 
 %
-The data set displayed here is representative of the results from the other four data sets from each experiment. Nonetheless, we recreate Figure (\ref{fig:ll_trace_sim}) for the other four data sets of each experiment in the supplement. Analogous experiments for data sets with $T=10^3$ can also be found in the supplement. 
+All methods were prone to converge to local minima, especially when $N=6$, when the likelihood surface is highly multi-modal. However, our methods tended to converge to areas of higher likelihood than the baseline for almost all experiments. The lone exception was when $T=10^3$, $N=6$, and $d=6$, where BFGS and the conjugate gradient method were less likely to get stuck in local minima (See Figures (1-2) in Supplement A). However, that experiment is a small-data setting, and we are primarily interested in modelling very large data sets. %This indicates that in a high-dimensional, small-data setting, our methods may have diminishing returns. However, our intention in this paper is to improve inference in big-data settings. 
+%
+%Our methods tend to converge to areas of likelihood at least as high as the baselines for all experiments with the exception of those with $T=10^{3}$ and $N=6$, where BFGS achieves the highest log-likelihood after approximately 120 epochs (See Supplement A).
+%
+We present figures analogous to Figure (\ref{fig:ll_trace_sim}) for all five data sets corresponding to all experiments in Supplement A. All figures associated experiments where $T=10^3$ can also be found in Supplement A. 
 
-The algorithms which implement a partial E step appear to help the algorithm move to areas of high likelihood, especially within the first ~20 epochs of optimization. We show zoomed in versions of Figure (\ref{fig:ll_trace_sim}) in the appendix to highlight the advantages of the partial E step early in the optimization procedure.
+%The algorithms which implement a partial E step appear to help the algorithm move to areas of high likelihood, especially within the first ~20 epochs of optimization. We show zoomed in versions of Figure (\ref{fig:ll_trace_sim}) in the appendix to highlight the advantages of the partial E step early in the optimization procedure.
 %
 \begin{figure}
     \centering
@@ -115,7 +108,7 @@ The algorithms which implement a partial E step appear to help the algorithm mov
 \begin{figure}
     \centering
     \includegraphics[width=6.5in]{../plt/boxplots_sim_T_100000.png}
-    \caption{Box plots showing epochs to converge (top) and the log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence (bottom) for each optimization algorithm. FE corresponds to Algorithm (\ref{alg:EM-SO}), PE1 corresponds to Algorithm (\ref{alg:P-EM-SO}) with $M=T$, and PE2 corresponds to Algorithm (\ref{alg:P-EM-SO}) with $M=10T$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
+    \caption{Box plots showing epochs to converge (top) and the log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence (bottom) for each optimization algorithm. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{5}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
     \label{fig:boxplots_sim}
 \end{figure}
 %

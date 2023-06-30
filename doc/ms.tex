@@ -1,27 +1,102 @@
-\documentclass{article}
+\documentclass[12pt]{article}
 \pdfoutput=1
 
 \input{header}
 \input{defs}
 
-%\def\bibfont{\large}
-\usepackage{appendix}
+%\pdfminorversion=4
+% NOTE: To produce blinded version, replace "0" with "1" below.
+\newcommand{\blind}{0}
+\linenumbers
 
-\title{Stochastic optimization for Hidden Markov Models}
-
-\author{
-  Evan Sidrow \\
-  Department of Statistics\\
-  University of British Columbia\\
-  Vancouver, Canada \\
-  \texttt{evan.sidrow@stat.ubc.ca} \\
-}
+% DON'T change margins - should be 1 inch all around.
+\addtolength{\oddsidemargin}{-.5in}%
+\addtolength{\evensidemargin}{-.5in}%
+\addtolength{\textwidth}{1in}%
+\addtolength{\textheight}{1.3in}%
+\addtolength{\topmargin}{-.8in}%
 
 \begin{document}
 
-\maketitle
+%\bibliographystyle{natbib}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\def\spacingset#1{\renewcommand{\baselinestretch}%
+{#1}\small\normalsize} \spacingset{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\if0\blind
+{
+    \title{Variance-reduced stochastic optimization for efficient inference of hidden Markov models}
+
+    \author{
+      \textbf{Evan Sidrow} \\
+      Department of Statistics \\
+      University of British Columbia\\
+      Vancouver, Canada \\
+      %\texttt{evan.sidrow@stat.ubc.ca} \\
+      %
+      \and
+      %
+      \textbf{Nancy Heckman} \\
+      Department of Statistics \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      %
+      \and
+      %
+      \textbf{Alexandre Bouchard-Cote???} \\
+      Department of Statistics \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      \and
+      %
+      \textbf{Sarah M. E. Fortune} \\
+      Department of Oceanography \\
+      Dalhousie University \\
+      Halifax, Canada \\
+      %
+      \and
+      %
+      \textbf{Andrew Trites} \\
+      Department of Zoology \\
+      Institute for the Oceans and Fisheries \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      %
+      \and
+      %
+      \textbf{Marie Auger-M\'eth\'e} \\
+      Department of Statistics \\
+      Institute for the Oceans and Fisheries \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+    }
+    \maketitle
+} \fi
+
+\if1\blind
+{
+  \bigskip
+  \bigskip
+  \bigskip
+  \begin{center}
+    {\LARGE\bf Variance-reduced stochastic optimization for efficient inference of hidden Markov models}
+  \end{center}
+  \medskip
+} \fi
+
+\bigskip
+\begin{abstract}
+    Hidden Markov models (HMMs) are popular models often used to identify a finite number of discrete latent states from sequential data. However, fitting them to large data sets can be computationally demanding as it usually requires iterating through the entire data set for every parameter update. Specifically, numerical optimization methods involve a full pass of the data to evaluate the gradient of the likelihood, and the expectation-maximization (EM) algorithm requires a full pass of the data to perform its E step. The EM algorithm also requires numerical optimization for the M step if no closed-form solution exists. We propose an optimization algorithm that updates the parameters of an HMM without iterating through the entire data set. Namely, we implement a partial E step and combine it within a variance-reduced stochastic optimization scheme for the M step. We prove that our algorithm converges under certain regularity conditions. Using a simulation study and kinematic data from eight killer whales ({\em{Orcinus orca}}) off the western coast of Canada, we show that our algorithm converges in fewer epochs compared to standard numerical optimization techniques. Our algorithm also tends to converge to parameters estimates with higher likelihood compared to existing baselines.  As such, our algorithm allows practitioners to more efficiently fit complicated HMMs to increasingly large time-series data sets.
+\end{abstract}
+
+\noindent%
+{\it Keywords:} Stochastic optimization, State space models, Parameter estimation, Expectation-maximization algorithm, Statistical ecology%, SVRG, SAGA
+\vfill 
+
+\newpage
+\spacingset{1.5} % DON'T change the spacing!
 
 \section{Introduction}
 \input sections/intro.tex
@@ -29,8 +104,12 @@
 \section{Background}
 \input sections/background.tex
 
-\section{Model}
+\section{Stochastic Optimization for HMM Inference}
 \input sections/model.tex
+
+\section{Practical Considerations}
+\input sections/practical.tex
+\label{sec:prac}
 
 \section{Simulation Study}
 \input sections/sim_study.tex
@@ -38,12 +117,23 @@
 \section{Case Study}
 \input sections/case_study.tex
 
-\section{Conclusion}
-\input sections/conclusion.tex
+\section{Discussion}
+\input sections/discussion.tex
+
+\section*{Acknowledgements}
+All killer whale data was collected under University of British Columbia Animal Care Permit no. A19-0053 and Fisheries and Oceans Canada Marine Mammal Scientific License for Whale Research no. XMMS 6 2019.
+We acknowledge the support of the Natural Sciences and Engineering Research Council of Canada (NSERC) as well as the support of Fisheries and Oceans Canada (DFO). This project was supported in part by a financial contribution from the DFO and NSERC (Whale Science for Tomorrow).
+This research was enabled in part by support provided by WestGrid (www.westgrid.ca) and Compute Canada (www.computecanada.ca).
+Marie Auger-M\'eth\'e and Nancy Heckman thank the NSERC Discovery program, and Marie Auger-M\'eth\'e additionally thanks the Canadian Research Chairs program, the Canada Foundation for Innovation (John R. Evans Leaders Fund), and the B.C. Knowledge Development Fund.
+Evan Sidrow thanks the University of British Columbia for funding provided via the Four-Year Doctoral Fellowship program.
 
 \newpage
 
-\scriptsize
 \bibliography{references}
+
+\newpage
+\begin{appendix}
+\input sections/appendix.tex
+\end{appendix}
 
 \end{document}

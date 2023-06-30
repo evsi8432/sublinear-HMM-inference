@@ -706,8 +706,8 @@ class StochOptimizor(Optimizor):
                             for feature in new_grad_theta_t[k0]:
                                 for param in new_grad_theta_t[k0][feature]:
                                     delta = alpha_theta * (new_grad_theta_t[k0][feature][param] \
-                                                               - old_grad_theta_t[k0][feature][param] \
-                                                               + self.grad_theta_tilde[k0][feature][param]/self.T)
+                                                           - old_grad_theta_t[k0][feature][param] \
+                                                           + self.grad_theta_tilde[k0][feature][param]/self.T)
                                     self.theta[k0][feature][param] += delta
 
                     elif method == "SAGA":

@@ -114,7 +114,8 @@ df["delt_d"].iloc[jump_inds] = np.nan
 # add edives to df
 edives = [False]*len(df)
 for ind in jump_inds[1:]:
-    edives[ind-1] = True
+    if ind-1 not in jump_inds[1:]:
+        edives[ind-1] = True
 edives[-1] = True
 df["e_dive"] = edives
 

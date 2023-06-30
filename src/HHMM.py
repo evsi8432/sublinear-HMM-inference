@@ -212,7 +212,7 @@ class HHMM:
                         fix_theta[k0][feature]['logit_p'] = np.array([None]*self.K[1])
 
                     if k0 == 0:
-                        param_bounds[feature]['logit_p'] = [logit(0.1/self.T),logit(1.0-0.1/self.T)]
+                        param_bounds[feature]['logit_p'] = [-np.infty,np.infty]
 
                 else:
                     pass

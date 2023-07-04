@@ -10,6 +10,10 @@
 
 #SBATCH --time=23:59:00
 #SBATCH --mem-per-cpu=16G
-#SBATCH --array=0-10
+#SBATCH --array=0-400
+
+source ~/Whale_Paper_1/bin/activate
+module load python/3.9
+module load scipy-stack
 
 python sim_study.py 12 $SLURM_ARRAY_TASK_ID

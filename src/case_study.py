@@ -82,78 +82,18 @@ print("partial E_step: %.1f" % partial_E)
 print("random seed: %d" % rand_seed)
 print("max time : %.3f hours" % (max_time/3600))
 
-# select parameters for optimization
-num_epochs = 10000
-tol = 1e-8
-grad_tol = 1e-8
-grad_buffer = "none"
-weight_buffer = "none"
+# Load in Data
+df = pd.read_csv("../dat/Killer_Whale_Data.csv")
 
-print("num-epochs: %d" % num_epochs)
-print("grad_buffer: %s" % grad_buffer)
-print("weight_buffer: %s" % weight_buffer)
-
-step_sizes = {"EM"  : [None,None],
-              "CG"  : [None,None],
-              "BFGS": [None,None],
-              "GD"  : [0.01,0.01],
-              "SGD" : [0.01,0.01],
-              "SAG" : [0.01,0.01],
-              "SVRG": [0.01,0.01],
-              "SAGA": [0.01,0.01]}
-
-jump_every = 1
-
-### checks on optimization parameters ###
-if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
-    raise("partial_E not consistent with method")
-
-### features of data ###
-features = {'diveDuration'     : {'f'           : 'normal',
-                                   'lower_bound' : None,
-                                   'upper_bound' : None,
-                                   'share_coarse': True,
-                                   'share_fine'  : False},
-             'maxDepth'         : {'f'           : 'normal',
-                                   'lower_bound' : np.array([-np.infty,np.log(5),np.log(5)]),
-                                   'upper_bound' : np.array([np.log(20),np.infty,np.infty]),
-                                   'share_coarse': True,
-                                   'share_fine'  : False},
-             'avg_bot_htv'      : {'f'           : 'normal',
-                                   'lower_bound' : None,
-                                   'upper_bound' : None,
-                                   'share_coarse': True,
-                                   'share_fine'  : False}}
-
-
-
-### load in data ###
-df = pd.read_csv("../../dat/Final_Data_Beth.csv")
-
-# only take whale I107
-#whales = ["I145"]
-#df = df[df["ID"].isin(whales)]
-
-# convert times
-df["stime"] = pd.to_datetime(df["stime"])
-df["etime"] = pd.to_datetime(df["etime"])
-
-# force dives to be at least 2 seconds long
-df = df[df["diveDuration"] > np.log(2.0)]
-
-# replace -inf
-df["max_bot_jp"][df["max_bot_jp"] == -np.infty] = np.NAN
-
-df["broadDiveType"] = np.NAN #3  # unknown
-df.loc[df["maxDepth"] > np.log(20),"broadDiveType"] = 1  # deep
-df.loc[df["maxDepth"] < np.log(5),"broadDiveType"] = 0  # shallow
+# pick jump indices
+jump_inds = df.index[np.isnan(df["delt_d"])].to_list()
+jump_inds = [x for x in jump_inds]
 
 # populate a data object
-
 data = []
-
 initial_ts = [0]
 final_ts = []
+features = ['delt_d','e_dive']
 
 for t,row in enumerate(df.iterrows()):
 
@@ -161,106 +101,90 @@ for t,row in enumerate(df.iterrows()):
         final_ts.append(t-1)
         initial_ts.append(t)
 
-    data.append({"diveDuration"     : row[1]["diveDuration"],
-                 "maxDepth"         : row[1]["maxDepth"],
-                 "avg_bot_htv"      : row[1]["avg_bot_htv"]})
+    data.append({feature : row[1][feature] for feature in features})
 
 final_ts.append(t)
 
 initial_ts = np.array(initial_ts)
 final_ts = np.array(final_ts)
 
+# Set HMM Parameters
+K = [3,3]
 T = len(data)
-K = [2,3]
 
-# pick intial parameters
-optim = stoch_optimizor.StochOptimizor(data,features,K)
+share_params = []
+for feature in ['delt_d']:
+    for param in ['mu','log_sig']:
+        for k0 in range(K[0]):
+            for k1 in range(K[1]):
+                share_params.append({"features":[feature],
+                                     "params"  :[param],
+                                     "K_coarse":[k0],
+                                     "K_fine"  :[k1]})
+
+for feature in ['e_dive']:
+    for param in ['logit_p']:
+        for k0 in range(K[0]):
+            for k1 in range(K[1]):
+                share_params.append({"features":[feature],
+                                     "params"  :[param],
+                                     "K_coarse":[k0],
+                                     "K_fine"  :[k1]})
+
+
+features = {'delt_d'     : {'f'           : 'normal',
+                            'lower_bound' : None,
+                            'upper_bound' : None,
+                            'share_coarse': False,
+                            'share_fine'  : False},
+            'e_dive'     : {'f'           : 'bern',
+                            'lower_bound' : None,
+                            'upper_bound' : None,
+                            'share_coarse': False,
+                            'share_fine'  : False}}
+
+fix_theta = [{'delt_d': {'mu': array([None, None, None], dtype=object),
+                         'log_sig': array([None, None, None], dtype=object)},
+              'e_dive': {'logit_p': array([-100, -100,  None], dtype=object)}},
+             {'delt_d': {'mu': array([None, None, None], dtype=object),
+                         'log_sig': array([None, None, None], dtype=object)},
+              'e_dive': {'logit_p': array([-100, -100,  None], dtype=object)}},
+             {'delt_d': {'mu': array([None, None, None], dtype=object),
+                         'log_sig': array([None, None, None], dtype=object)},
+              'e_dive': {'logit_p': array([-100, -100,  None], dtype=object)}}]
+
+fix_eta = [array([[ 0.0, None, None],
+                  [None,  0.0, None],
+                  [None, None,  0.0]], dtype=object),
+           [array([[ 0.0, None, None],
+                   [-100,  0.0, None],
+                   [-100, -100,  0.0]], dtype=object),
+            array([[ 0.0, None, None],
+                   [-100,  0.0, None],
+                   [-100, -100,  0.0]], dtype=object),
+            array([[ 0.0, None, None],
+                   [-100,  0.0, None],
+                   [-100, -100,  0.0]], dtype=object)]]
+
+fix_eta0 = [array([ 0.0, None, None], dtype=object),
+            [array([ 0.0, -100, -100], dtype=object),
+             array([ 0.0, -100, -100], dtype=object),
+             array([ 0.0, -100, -100], dtype=object)]]
+
+
+# Initialize HMM
+optim = stoch_optimizor.StochOptimizor(data,features,share_params,K,
+                                       fix_theta=fix_theta,
+                                       fix_eta=fix_eta,
+                                       fix_eta0=fix_eta0)
 
 optim.initial_ts = initial_ts
 optim.final_ts = final_ts
-
-#for feature in features:
-#    optim.param_bounds[feature] = {}
-#    optim.param_bounds[feature]["mu"] = [-100,100]
-#    optim.param_bounds[feature]["log_sig"] = [-5,5]
-
-if method == "control":
-    optim.step_size = step_sizes["SAGA"]
-    if not (step_sizes["SAGA"][0] is None):
-        optim.L_theta = 1.0 / step_sizes["SAGA"][0] * np.ones(optim.K_total)
-        optim.L_eta = 1.0 / step_sizes["SAGA"][1]
-else:
-    optim.step_size = step_sizes[method]
-    if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0]) * np.ones(optim.K_total)
-        optim.L_eta = 1.0 / (3.0 * step_sizes[method][1])
-
-
-# set initial parameters
-'''
-from numpy import array
-
-optim.theta = [{'diveDuration': {'mu': array([2.93782794, 4.88516625, 4.99495526]),
-                                'log_sig': array([-0.54510259, -0.2382056 , -0.88471453])},
-                'maxDepth': {'mu': array([0.69089463, 1.15212687, 2.49187761]),
-                            'log_sig': array([-0.61032425,  0.87554853, -0.45978847])},
-                'avg_bot_htv': {'mu': array([-1.93947452, -1.02800198, -2.21785862]),
-                                'log_sig': array([-0.5753301 , -0.59439428, -0.97079874])}},
-                {'diveDuration': {'mu': array([2.93782794, 4.88516625, 4.99495526]),
-                                'log_sig': array([-0.54510259, -0.2382056 , -0.88471453])},
-                'maxDepth': {'mu': array([0.69089463, 1.15212687, 2.49187761]),
-                            'log_sig': array([-0.61032425,  0.87554853, -0.45978847])},
-                'avg_bot_htv': {'mu': array([-1.93947452, -1.02800198, -2.21785862]),
-                                'log_sig': array([-0.5753301 , -0.59439428, -0.97079874])}}]
-
-optim.eta = [array([[ 0.        , -5.36783081],
-                    [-5.96191054,  0.        ]]),
-            [array([[ 0.        , -3.0982348 , -7.29077604],
-                    [ 3.11176201,  0.        , -3.55053225],
-                    [ 3.46523309, -1.26690601,  0.        ]]),
-             array([[ 0.        , -5.86956604, -1.71754442],
-                    [ 1.99618808,  0.        , -2.53244688],
-                    [ 5.64160625, -3.03739264,  0.        ]])]]
-
-optim.eta0 = [array([ 0.        , -0.68861739]),
-             [array([ 0.        ,  0.9141165 , -0.81107036]),
-              array([ 0.        , -0.27046925,  0.41425818])]]
-
-optim.theta = [{'diveDuration': {'mu': array([2.93675689, 4.56558096, 4.99335053]),
-                                'log_sig': array([-0.54571896, -0.01499696, -0.8641769 ])},
-                'maxDepth': {'mu': array([0.68897808, 1.12012189, 2.01582831]),
-                            'log_sig': array([-0.61349408,  0.89911473, -0.03025042])},
-                'avg_bot_htv': {'mu': array([-1.94116168, -0.96998491, -2.18468672]),
-                                'log_sig': array([-0.57793561, -0.57307262, -0.89863459])}},
-               {'diveDuration': {'mu': array([2.93675689, 4.56558096, 4.99335053]),
-                                'log_sig': array([-0.54571896, -0.01499696, -0.8641769 ])},
-                'maxDepth': {'mu': array([0.68897808, 1.12012189, 2.01582831]),
-                            'log_sig': array([-0.61349408,  0.89911473, -0.03025042])},
-                'avg_bot_htv': {'mu': array([-1.94116168, -0.96998491, -2.18468672]),
-                                'log_sig': array([-0.57793561, -0.57307262, -0.89863459])}}]
-
-
-optim.eta = [array([[ 0.        , -4.50183528],
-                   [-6.50307218,  0.        ]]),
-            [array([[ 0.        , -3.16085052, -7.26383487],
-                   [ 3.01076427,  0.        , -3.53290107],
-                   [ 3.45238053, -1.26436704,  0.        ]]),
-             array([[ 0.        , -6.02752494, -1.67368254],
-                   [ 1.95335965,  0.        , -2.52425799],
-                   [ 5.62807992, -3.03345158,  0.        ]])]]
-
-optim.eta0 =  [array([ 0.        , -0.62029701]),
-                [array([ 0.        ,  0.89605201, -0.83471787]),
-                 array([ 0.        , -0.36191171,  0.40401095])]]
-
+optim.jump_inds = jump_inds
 
 optim.get_log_Gamma(jump=False)
 optim.get_log_Gamma(jump=True)
 optim.get_log_delta()
-'''
-
-#optim.L_theta = 133.4947781051537
-#optim.L_eta = 0.2601961298328865
 
 # print initial parameters
 print("initial theta:")
@@ -279,11 +203,42 @@ print("length of data:")
 print(T)
 print("")
 
-# get optimal value via SAGA:
+# Set Optimization Parameters
+num_epochs = 1000
+tol = 1e-16
+grad_tol = 1e-16
+grad_buffer = "none"
+weight_buffer = "none"
+
+step_sizes = {"EM"  : [None,None],
+              "CG"  : [None,None],
+              "BFGS": [None,None],
+              "GD"  : [0.01,0.01],
+              "SGD" : [0.01,0.01],
+              "SAG" : [0.01,0.01],
+              "SVRG": [0.01,0.01],
+              "SAGA": [0.01,0.01]}
+
+### checks on optimization parameters ###
+if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
+    raise("partial_E not consistent with method")
+
+if method == "control":
+    optim.step_size = step_sizes["SAGA"]
+    if not (step_sizes["SAGA"][0] is None):
+        optim.L_theta = 1.0 / step_sizes["SAGA"][0]
+        optim.L_eta = 1.0 / step_sizes["SAGA"][1]
+else:
+    optim.step_size = step_sizes[method]
+    if not (step_sizes[method][0] is None):
+        optim.L_theta = 1.0 / (3.0 * step_sizes[method][0])
+        optim.L_eta = 1.0 / (3.0 * step_sizes[method][1])
+
+# get optimal value via SVRG:
 if method == "control":
     optim.train_HHMM_stoch(num_epochs=2*num_epochs,
                          max_time=max_time,
-                         method="SAGA",
+                         method="SVRG",
                          max_epochs=1,
                          partial_E=True,
                          tol=1e-4*tol,
@@ -336,7 +291,7 @@ elif partial_E == 1:
 
 
 # reduce storage
-optim.data = "../../dat/Final_Data_Beth.csv"
+optim.data = "../dat/Killer_Whale_Data.csv"
 
 # cut variables with size complexity O(T) (can recalculate with E-step)
 optim.grad_eta_t = None
@@ -350,6 +305,6 @@ optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
 # save file
-fname = "../params/case_study/case_study_K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
+fname = "../params/case_study/case_study_updown_K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

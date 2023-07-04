@@ -38,8 +38,7 @@ from helper_funcs import log_delta_2_eta0
 
 class Optimizor(HHMM):
 
-    def __init__(self,data,features,share_params,K,
-                 fix_theta=None,fix_eta=None,fix_eta0=None):
+    def __init__(self,data,features,share_params,K,fix_theta=None,fix_eta=None,fix_eta0=None):
 
         '''
         constructor for optimizor class
@@ -124,14 +123,6 @@ class Optimizor(HHMM):
             else:
                 raise('only independent normal distributions supported at this time')
 
-
-#        for share_param in self.share_params:
-#            new_grad = 0.0
-#            for feature,param,k0,k1 in product(*share_param.values()):
-#                new_grad += self.grad_theta[k0][feature][param][k1]
-#            for feature,param,k0,k1 in product(*share_param.values()):
-#                self.grad_theta[k0][feature][param][k1] = np.copy(new_grad)
-
         # get overall gradient wrt eta
         self.grad_eta = [np.zeros((self.K[0],self.K[0])),
                          [np.zeros((self.K[1],self.K[1])) for _ in range(self.K[0])]]
@@ -184,13 +175,6 @@ class Optimizor(HHMM):
 
                 else:
                     raise('only independent normal distributions supported at this time')
-
-#            for share_param in self.share_params:
-#                new_grad = 0.0
-#                for feature,param,k0,k1 in product(*share_param.values()):
-#                    new_grad += grad_theta_t[t][k0][feature][param][k1]
-#                for feature,param,k0,k1 in product(*share_param.values()):
-#                    grad_theta_t[t][k0][feature][param][k1] = np.copy(new_grad)
 
         return
 
@@ -483,81 +467,10 @@ class Optimizor(HHMM):
 
         return grad_eta0_log_delta,grad_eta_log_Gamma
 
-    def get_grad_log_p_theta(self,theta=None):
-
-        if theta is None:
-            theta = self.theta
-
-        # initialize the gradient
-        grad_log_p_theta = []
-
-        for k0 in range(self.K[0]):
-            grad_log_p_theta.append({})
-
-            for feature in self.theta[k0]:
-                grad_log_p_theta[k0][feature] = {}
-
-                for param in self.theta[k0][feature]:
-                    grad_log_p_theta[k0][feature][param] = \
-                    (self.theta_mus[k0][feature][param] - theta[k0][feature][param]) / \
-                     self.theta_sigs[k0][feature][param]**2
-
-
-        return grad_log_p_theta
-
-    def get_grad_log_p_eta(self,eta=None):
-
-        if eta is None:
-            eta = self.eta
-
-        grad_log_p_eta = []
-
-        # get coarse_eta
-        grad_log_p_eta_coarse = (self.eta_mus[0] - eta[0]) / self.eta_sigs[0]**2
-
-        grad_log_p_eta.append(grad_log_p_eta_coarse)
-
-        # get fine_eta
-        grad_log_p_eta_fine = []
-        for k0 in range(self.K[0]):
-            grad_log_p_eta_fine_k0 = (self.eta_mus[1][k0] - eta[1][k0]) / self.eta_sigs[1][k0]**2
-            grad_log_p_eta_fine.append(grad_log_p_eta_fine_k0)
-
-        grad_log_p_eta.append(grad_log_p_eta_fine)
-
-        return grad_log_p_eta
-
-    def get_grad_log_p_eta0(self,eta0=None):
-
-        if eta0 is None:
-            eta0 = self.eta0
-
-        grad_log_p_eta0 = []
-
-        # get coarse_eta
-        grad_log_p_eta0_coarse = (self.eta0_mus[0] - eta0[0]) / self.eta0_sigs[0]**2
-
-        grad_log_p_eta0.append(grad_log_p_eta0_coarse)
-
-        # get fine_eta
-        grad_log_p_eta0_fine = []
-        for k0 in range(self.K[0]):
-            grad_log_p_eta0_fine_k0 = (self.eta0_mus[1][k0] - eta0[1][k0])/ self.eta0_sigs[1][k0]**2
-
-            grad_log_p_eta0_fine.append(grad_log_p_eta0_fine_k0)
-
-        grad_log_p_eta0.append(grad_log_p_eta0_fine)
-
-        return grad_log_p_eta0
-
     def get_grad_theta_t(self,t,grad_log_p_theta=None,grad_log_f=None,p_Xt=None):
 
         # initialize gradient
         grad_theta_t = deepcopy(self.grad_theta_t[t])
-
-        # get gradient and weights
-        #if grad_log_p_theta is None:
-        #    grad_log_p_theta = self.get_grad_log_p_theta()
 
         if grad_log_f is None:
             grad_log_f = self.get_grad_log_f(t)
@@ -579,10 +492,6 @@ class Optimizor(HHMM):
             for feature,param,k0,k1 in product(*share_param.values()):
                 grad_theta_t[k0][feature][param][k1] = np.copy(new_grad)
 
-        # add prior
-        #for k0 in range(self.K[0]):
-        #    grad_theta_t[k0][feature][param] += grad_log_p_theta[k0][feature][param] / self.T
-
         return grad_theta_t
 
     def get_grad_eta_t(self,t,grad_eta0_log_delta=None,grad_eta_log_Gamma=None,grad_log_p_eta0=None,grad_log_p_eta=None,p_Xtm1_Xt=None):
@@ -598,12 +507,6 @@ class Optimizor(HHMM):
         seq_num = np.argmax(self.initial_ts > t)-1
         t0 = self.initial_ts[seq_num]
         tf = self.final_ts[seq_num]
-
-        # get prior gradients
-        if grad_log_p_eta0 is None:
-            grad_log_p_eta0 = self.get_grad_log_p_eta0()
-        if grad_log_p_eta is None:
-            grad_log_p_eta = self.get_grad_log_p_eta()
 
         # deal with t == t0:
         if t == t0:
@@ -624,13 +527,6 @@ class Optimizor(HHMM):
                 p_Xt_fine = p_Xt[(self.K[1]*k0):(self.K[1]*(k0+1))]
                 for k1 in range(self.K[1]):
                     grad_eta0_t[1][k0][k1] += np.sum(p_Xt_fine * grad_eta0_log_delta[1][k0][:,k1])
-
-            # add prior
-            #grad_eta_t[0] += grad_log_p_eta[0] / self.T
-            #grad_eta0_t[0] += grad_log_p_eta0[0] / self.T
-            #for k0 in range(self.K[0]):
-            #    grad_eta_t[1][k0] += grad_log_p_eta[1][k0] / self.T
-            #    grad_eta0_t[1][k0] += grad_log_p_eta0[1][k0] / self.T
 
             return grad_eta_t,grad_eta0_t
 
@@ -670,13 +566,6 @@ class Optimizor(HHMM):
                     grad_eta_t[1][k0][i,j] += np.sum(p_Xtm1_Xt[(self.K[1]*k0):(self.K[1]*(k0+1)),
                                                                (self.K[1]*k0):(self.K[1]*(k0+1))] * \
                                                      grad_eta_log_Gamma[1][k0][:,:,i,j])
-
-        # add prior
-        #grad_eta_t[0] += grad_log_p_eta[0] / self.T
-        #grad_eta0_t[0] += grad_log_p_eta0[0] / self.T
-        #for k0 in range(self.K[0]):
-        #    grad_eta_t[1][k0] += grad_log_p_eta[1][k0] / self.T
-        #    grad_eta0_t[1][k0] += grad_log_p_eta0[1][k0] / self.T
 
         return grad_eta_t,grad_eta0_t
 
@@ -837,17 +726,12 @@ class Optimizor(HHMM):
             # set parameters
             self.x_2_params(x)
 
-            # calculate likelihood / prior
+            # calculate likelihood
             self.E_step()
 
             # get likelihood
             self.ll = logsumexp(self.log_alphas[self.T-1])
             print(self.ll)
-
-            # add prior
-            #self.ll += self.get_log_p_eta()
-            #self.ll += self.get_log_p_eta0()
-            #self.ll += self.get_log_p_theta()
 
             # get gradient
             self.xprime = self.grad_params_2_xprime()

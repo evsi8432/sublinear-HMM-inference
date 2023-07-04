@@ -37,8 +37,7 @@ from helper_funcs import logdotexp
 
 class HHMM:
 
-    def __init__(self,data,features,share_params,K,
-                 fix_theta=None,fix_eta=None,fix_eta0=None):
+    def __init__(self,data,features,share_params,K,fix_theta=None,fix_eta=None,fix_eta0=None):
 
         '''
         constructor for HHMM class
@@ -95,8 +94,6 @@ class HHMM:
             return
 
         theta = [{} for _ in range(self.K[0])]
-        theta_mus = [{} for _ in range(self.K[0])]
-        theta_sigs = [{} for _ in range(self.K[0])]
 
         if fix_theta is None:
             build_fix_theta = True
@@ -106,15 +103,9 @@ class HHMM:
 
         param_bounds = {}
 
-        initial_inds = np.random.choice(len(data),size=(self.K[0],self.K[1]))
-
         for feature,settings in self.features.items():
 
             feature_data = [datum[feature] for datum in data]
-
-            #print(feature_data[:10])
-            #print(np.nanstd(feature_data[:10]))
-
             param_bounds[feature] = {}
 
             for k0 in range(self.K[0]):
@@ -123,8 +114,6 @@ class HHMM:
                 theta[k0][feature] = {}
                 if build_fix_theta:
                     fix_theta[k0][feature] = {}
-                theta_mus[k0][feature] = {}
-                theta_sigs[k0][feature] = {}
 
                 dist = settings['f']
 
@@ -141,13 +130,6 @@ class HHMM:
                     if build_fix_theta:
                         fix_theta[k0][feature]['mu'] = np.array([None]*self.K[1])
                         fix_theta[k0][feature]['log_sig'] = np.array([None]*self.K[1])
-
-                    # define priors
-                    theta_mus[k0][feature]['mu'] = np.nanmean(feature_data) * np.ones(self.K[1])
-                    theta_sigs[k0][feature]['mu'] = (np.nanmax(feature_data)-np.nanmin(feature_data)) * np.ones(self.K[1])
-
-                    theta_mus[k0][feature]['log_sig'] = np.log(np.nanstd(feature_data)) - np.log(self.K_total + 1) * np.ones(self.K[1])
-                    theta_sigs[k0][feature]['log_sig'] = np.log(self.K_total + 1) * np.ones(self.K[1])
 
                     if k0 == 0:
                         param_bounds[feature]['mu'] = [min(feature_data),
@@ -226,8 +208,6 @@ class HHMM:
 
         self.theta = theta
         self.fix_theta = fix_theta
-        self.theta_mus = theta_mus
-        self.theta_sigs = theta_sigs
         self.param_bounds = param_bounds
 
         return
@@ -236,8 +216,6 @@ class HHMM:
 
         # initialize eta
         self.eta = []
-        self.eta_mus = []
-        self.eta_sigs = []
 
         # determine if we need to build fix_eta
         if fix_eta is None:
@@ -262,25 +240,15 @@ class HHMM:
                     if not (self.fix_eta[0][i,j] is None):
                         self.eta[0][i,j] = self.fix_eta[0][i,j]
 
-        # fill in coarse eta prior
-        self.eta_mus.append(np.zeros((self.K[0],self.K[0])))
-        self.eta_sigs.append((np.log(self.T)/3.0) * np.ones((self.K[0],self.K[0])))
-
         # fill in fine eta
         eta_fine = []
         fix_eta_fine = []
-        eta_fine_mus = []
-        eta_fine_sigs = []
         for _ in range(self.K[0]):
             eta_fine_k = -1.0 + 1.0*np.random.normal(size=(self.K[1],self.K[1]))
-            eta_fine_mu_k = np.zeros((self.K[1],self.K[1]))
-            eta_fine_sig_k = (np.log(self.T)/3.0) * np.ones((self.K[1],self.K[1]))
             for i in range(self.K[1]):
                 eta_fine_k[i,i] = 0
             eta_fine.append(eta_fine_k)
             fix_eta_fine.append(np.array([[None for _ in range(self.K[1])] for _ in range(self.K[1])]))
-            eta_fine_mus.append(eta_fine_mu_k)
-            eta_fine_sigs.append(eta_fine_sig_k)
 
         # fill in fine eta
         self.eta.append(eta_fine)
@@ -294,10 +262,6 @@ class HHMM:
                     for j in range(self.K[1]):
                         if not (self.fix_eta[1][k0][i,j] is None):
                             self.eta[1][k0][i,j] = self.fix_eta[1][k0][i,j]
-
-        # fill in fine eta prior
-        self.eta_mus.append(eta_fine_mus)
-        self.eta_sigs.append(eta_fine_sigs)
 
         return
 
@@ -324,14 +288,6 @@ class HHMM:
                 for k1 in range(self.K[1]):
                     if not (self.fix_eta0[1][k0][k1] is None):
                         self.eta0[1][k0][k1] = self.fix_eta0[1][k0][k1]
-
-        # initialize eta0 prior
-        self.eta0_mus = [np.zeros(self.K[0]),
-                         [np.zeros(self.K[1]) for _ in range(self.K[0])]]
-
-        N_whales = len(self.initial_ts)
-        self.eta0_sigs = [np.log(N_whales+1)/3.0 * np.ones((self.K[0])),
-                          [np.log(self.T)/3.0 * np.ones((self.K[1])) for _ in range(self.K[0])]]
 
         return
 
@@ -460,28 +416,6 @@ class HHMM:
 
     def get_log_delta(self,eta=None,eta0=None):
 
-        # get delta
-        '''
-        if self.stationary_delta:
-
-            if eta is None:
-                eta = self.eta
-
-            log_Gammas = eta_2_log_Gamma(eta)
-
-            coarse_Gamma = np.exp(log_Gammas[0])
-            fine_Gammas = [np.exp(log_fine_Gamma) for log_fine_Gamma in log_Gammas[1]]
-
-            coarse_delta = np.linalg.solve((np.eye(self.K[0])-coarse_Gamma+1).transpose(),np.ones(self.K[0]))
-            coarse_delta = np.repeat(coarse_delta,self.K[1])
-            log_coarse_delta = np.log(coarse_delta)
-
-            fine_deltas = []
-            for fine_Gamma in fine_Gammas:
-                fine_deltas.append(np.linalg.solve((np.eye(self.K[1])-fine_Gamma+1).transpose(),np.ones(self.K[1])))
-            log_fine_delta = np.concatenate([np.log(fine_delta) for fine_delta in fine_deltas])
-        '''
-        #else:
         if eta0 is None:
             eta0 = self.eta0
 
@@ -536,74 +470,6 @@ class HHMM:
             self.log_Gamma = np.copy(log_Gamma)
 
         return log_Gamma
-
-    def get_log_p_theta(self,theta=None):
-
-        log_p = 0.0
-
-        if theta is None:
-            theta = self.theta
-
-        for k0 in range(self.K[0]):
-            for feature in theta[k0]:
-                for param in theta[k0][feature]:
-                    log_p += np.sum(norm.logpdf(theta[k0][feature][param],
-                                                loc=self.theta_mus[k0][feature][param],
-                                                scale=self.theta_sigs[k0][feature][param]))
-
-        return log_p
-
-    def get_log_p_eta(self,eta=None):
-
-        if eta is None:
-            eta = self.eta
-
-        log_p = 0.0
-
-        # add eta_coarse
-        eta_coarse = eta[0]
-        eta_coarse_mu = self.eta_mus[0]
-        eta_coarse_sig = self.eta_sigs[0]
-        log_p += np.sum(norm.logpdf(eta_coarse,
-                                    loc = eta_coarse_mu,
-                                    scale = eta_coarse_sig))
-
-        # add eta_fine
-        for k0 in range(self.K[0]):
-            eta_fine = eta[1][k0]
-            eta_fine_mu = self.eta_mus[1][k0]
-            eta_fine_sig = self.eta_sigs[1][k0]
-            log_p += np.sum(norm.logpdf(eta_fine,
-                                        loc = eta_fine_mu,
-                                        scale = eta_fine_sig))
-
-        return log_p
-
-    def get_log_p_eta0(self,eta0=None):
-
-        if eta0 is None:
-            eta0 = self.eta0
-
-        log_p = 0.0
-
-        # add eta_coarse
-        eta0_coarse = eta0[0]
-        eta0_coarse_mu = self.eta0_mus[0]
-        eta0_coarse_sig = self.eta0_sigs[0]
-        log_p += np.sum(norm.logpdf(eta0_coarse,
-                                    loc = eta0_coarse_mu,
-                                    scale = eta0_coarse_sig))
-
-        # add eta_fine
-        for k0 in range(self.K[0]):
-            eta0_fine = eta0[1][k0]
-            eta0_fine_mu = self.eta0_mus[1][k0]
-            eta0_fine_sig = self.eta0_sigs[1][k0]
-            log_p += np.sum(norm.logpdf(eta0_fine,
-                                        loc = eta0_fine_mu,
-                                        scale = eta0_fine_sig))
-
-        return log_p
 
     def update_alpha(self,t):
 
@@ -806,26 +672,3 @@ class HHMM:
             self.update_alpha(t)
 
         return logsumexp(self.log_alphas[self.T-1])
-
-    def get_mixing_time(self,Gamma,max_t=None,buffer_eps=1e-3):
-
-        if max_t is None:
-            max_t = int(np.sqrt(self.T)/2.0)
-
-        # get stationary distribution
-        evals,evecs = np.linalg.eig(Gamma.T)
-        ind = np.where(np.isclose(evals,1))[0][0]
-        pi = evecs[:,ind] / np.sum(evecs[:,ind])
-
-        # get matrix to multiply
-        Gamma0 = np.eye(Gamma.shape[0])
-
-        for t in range(max_t):
-
-            Gamma0 = np.matmul(Gamma0,Gamma)
-            tvd = max(np.sum(np.abs(Gamma0 - pi),1))
-
-            if tvd <= buffer_eps:
-                return max(t,1)
-
-        return max_t

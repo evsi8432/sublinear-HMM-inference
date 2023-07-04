@@ -57,7 +57,7 @@ def eta_2_log_Gamma(eta):
 
 def log_Gamma_2_eta(log_Gamma):
 
-    # get Coarse-scale eta
+    # get coarse-scale eta
     eta_coarse = np.zeros_like(log_Gamma[0])
     N = len(log_Gamma[0])
     for i in range(N):
@@ -183,7 +183,7 @@ def generate_data(T,K,d,rand_seed):
 
     fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,rand_seed)
     with open(fname_p, 'wb') as f:
-        pickle.dump({"mus"  : mus, 
+        pickle.dump({"mus"  : mus,
                      "sigs" : sigs,
                      "Gamma": [Gamma_coarse,Gamma_fines],
                      "delta": [delta_coarse,delta_fines]}, f)

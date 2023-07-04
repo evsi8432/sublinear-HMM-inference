@@ -131,7 +131,17 @@ features = {'Y%d'%d0  : {'f'           : 'normal',
                           'share_coarse': False,
                           'share_fine'  : False} for d0 in range(d)}
 
-### load in data ###
+share_params = []
+for feature in features:
+    for param in ['mu','log_sig']:
+        for k0 in range(K[0]):
+            for k1 in range(K[1]):
+                share_params.append({"features":[feature],
+                                     "params"  :[param],
+                                     "K_coarse":[k0],
+                                     "K_fine"  :[k1]})
+
+### load in (or generate) data ###
 data_fname = "../dat/data_Y_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,data_set)
 
 if not os.path.isfile(data_fname):
@@ -141,7 +151,7 @@ with open(data_fname,"rb") as f:
     data = pickle.load(f)
 
 # pick intial parameters
-optim = stoch_optimizor.StochOptimizor(data,features,K)
+optim = stoch_optimizor.StochOptimizor(data,features,share_params,K)
 for d0 in range(d):
     optim.param_bounds["Y%d"%d0] = {}
     optim.param_bounds["Y%d"%d0]["mu"] = [-100,100]
@@ -150,67 +160,16 @@ for d0 in range(d):
 if method == "control":
     optim.step_size = step_sizes["SAGA"]
     if not (step_sizes["SAGA"][0] is None):
-        optim.L_theta = 1.0 / (3.0*step_sizes["SAGA"][0]) * np.ones(optim.K_total)
+        optim.L_theta = 1.0 / (3.0*step_sizes["SAGA"][0])
         optim.L_eta = 1.0 / (3.0*step_sizes["SAGA"][1])
 else:
     optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
-        optim.L_theta = 1.0 / (3.0*step_sizes[method][0]) * np.ones(optim.K_total)
+        optim.L_theta = 1.0 / (3.0*step_sizes[method][0])
         optim.L_eta = 1.0 / (3.0*step_sizes[method][1])
 
-### TEMPORARY INITIAL PARAMETERS TO CHECK
-'''
-optim.theta = [{'Y0': {'mu': array([-0.51222136]), 'log_sig': array([-0.23499933])},
-              'Y1': {'mu': array([-1.98611241]), 'log_sig': array([0.53954341])},
-              'Y2': {'mu': array([0.87687884]), 'log_sig': array([-0.33830869])}},
-             {'Y0': {'mu': array([-0.23291642]), 'log_sig': array([-0.23499933])},
-              'Y1': {'mu': array([0.85151215]), 'log_sig': array([0.53954341])},
-              'Y2': {'mu': array([0.07060724]), 'log_sig': array([-0.33830869])}},
-             {'Y0': {'mu': array([-0.75236709]), 'log_sig': array([-0.23499933])},
-              'Y1': {'mu': array([-1.71663788]), 'log_sig': array([0.53954341])},
-              'Y2': {'mu': array([0.99496944]), 'log_sig': array([-0.33830869])}},
-             {'Y0': {'mu': array([-1.18605903]), 'log_sig': array([-0.23499933])},
-              'Y1': {'mu': array([2.79871248]), 'log_sig': array([0.53954341])},
-              'Y2': {'mu': array([0.74045027]), 'log_sig': array([-0.33830869])}},
-             {'Y0': {'mu': array([-1.7465371]), 'log_sig': array([-0.23499933])},
-              'Y1': {'mu': array([-2.14622667]), 'log_sig': array([0.53954341])},
-              'Y2': {'mu': array([0.85510889]), 'log_sig': array([-0.33830869])}},
-             {'Y0': {'mu': array([1.01952506]), 'log_sig': array([-0.23499933])},
-              'Y1': {'mu': array([0.06911714]), 'log_sig': array([0.53954341])},
-              'Y2': {'mu': array([0.40894029]), 'log_sig': array([-0.33830869])}}]
+optim.divider = 3.0
 
-optim.eta = [array([[ 0.        , -1.33840574,  0.28388504, -4.25919032, -3.70010475,
-         -0.07835999],
-        [-2.43483635,  0.        , -0.25316353, -2.22276674, -4.07607753,
-         -4.01895965],
-        [-4.11651312, -0.68743184,  0.        , -5.47730859, -1.79367401,
-         -3.2433337 ],
-        [-1.44856391, -4.18134977, -3.21997051,  0.        ,  1.38365226,
-         -3.49590748],
-        [-3.16159445, -2.22150794,  2.08405749, -1.10495862,  0.        ,
-         -1.95422805],
-        [-0.28553145, -1.63213884, -2.83222316,  0.5001001 ,  0.49659957,
-          0.        ]]),
-[array([[0.]]),
-array([[0.]]),
-array([[0.]]),
-array([[0.]]),
-array([[0.]]),
-array([[0.]])]]
-
-optim.eta0 = [array([ 0.        , -0.16659957,  0.91719602,  0.08025059,  0.22823877,
-        -0.8804768 ]),
- [array([0.]),
-  array([0.]),
-  array([0.]),
-  array([0.]),
-  array([0.]),
-  array([0.])]]
-
-optim.get_log_Gamma(jump=False)
-optim.get_log_Gamma(jump=True)
-optim.get_log_delta()
-'''
 # print initial parameters
 print("initial theta:")
 print(optim.theta)
@@ -221,20 +180,6 @@ print("")
 print("initial eta:")
 print(optim.eta)
 print("")
-
-# print mus and sigs
-#print("theta priors:")
-#print(optim.theta_mus)
-#print(optim.theta_sigs)
-#print("")
-#print("eta0 priors:")
-#print(optim.eta0_mus)
-#print(optim.eta0_sigs)
-#print("")
-#print("eta priors:")
-#print(optim.eta_mus)
-#print(optim.eta_sigs)
-#print("")
 
 fname_p = "../dat/data_P_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,data_set)
 with open(fname_p, 'rb') as f:

@@ -4,7 +4,7 @@
 \input{header}
 \input{defs}
 
-%\pdfminorversion=4
+\pdfminorversion=4
 % NOTE: To produce blinded version, replace "0" with "1" below.
 \newcommand{\blind}{0}
 \linenumbers
@@ -45,7 +45,7 @@
       %
       \and
       %
-      \textbf{Alexandre Bouchard-Cote???} \\
+      \textbf{Alexandre Bouchard-C\^ot\'e?} \\
       Department of Statistics \\
       University of British Columbia \\
       Vancouver, Canada \\
@@ -58,7 +58,7 @@
       %
       \and
       %
-      \textbf{Andrew Trites} \\
+      \textbf{Andrew W. Trites} \\
       Department of Zoology \\
       Institute for the Oceans and Fisheries \\
       University of British Columbia \\
@@ -90,9 +90,9 @@
 
 \newpage
 
-\section{Case study results, $T = 10^{3}$}
+\section{Simulation study results, $T = 10^{3}$}
 
-Below are results for the experiments with $T=10^{3}$. They are analogous to Figure (3) and Figure (4) in the main text .
+Below are results for the experiments with $T=10^{3}$. They are analogous to Figure (3) and Figure (4) in the main text.
 
 \begin{figure}[H]
     \centering
@@ -112,7 +112,7 @@ Below are results for the experiments with $T=10^{3}$. They are analogous to Fig
 
 \newpage 
 
-The figures below are similar to Figure (2) from the main text in that they show the optimality gap vs epoch for each experiment and each of the nine tested algorithms. However, we show all data sets associated with experiments with $T = 10^3$ here.
+The figures below show the optimality gap vs epoch for each data set of every experiment with $T=10^{3}$ for all nine tested algorithms. They are similar to Figure (2) from the main text. $\texttt{EM-VRSO}$ tended to converge more quickly than BFGS for experiments with $N=3$. BFGS often out-performed $\texttt{EM-VRSO}$ in the long-run (after approximately 100 epochs), but BFGS is a second-order method and this behaviour is expected in the long run on small data sets. Our method is particularly well-suited to fitting HMMs on large and complex data sets. 
 
 \begin{figure}[H]
     \centering

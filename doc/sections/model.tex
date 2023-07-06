@@ -1,26 +1,26 @@
 
-Both the E step and the M step of the Baum-Welch algorithm are expensive when the length of the observation sequence ($T$) is large. The E step is expensive because $\gamma_t$ and $\xi_t$ must be calculated for $t = 1,\ldots,T$ to define $Q(\bfphi \mid \bfphi_k)$. The M step is also expensive if closed-form solutions to (\ref{eqn:BW_update}) are not readily available because evaluating full gradients of $Q(\bfphi \mid \bfphi_{k})$ takes $\calO(T)$ time. In this section, we introduce an original algorithm that addresses both the expensive M step as well as the expensive E step of the Baum-Welch algorithm. %The SVRG variant of Algorithm (\ref{alg:EM-VRSO}) introduced in section \ref{subsec:stoch_M} is similar to the algorithm from \citet{Zhu:2017} with a focus on applications to HMMs. However, to the best of our knowledge, our focus on applying SVRG and SAGA to the Baum-Welch algorithm is original, and our implementation of a partial E step in the Baum-Welch algorithm is also original. 
+Both the E step and the M step of the Baum-Welch algorithm are expensive when the length of the observation sequence ($T$) is large. The E step is expensive because $\bfgamma_t(\bfphi^{(k)})$ and $\bfxi_t(\bfphi^{(k)})$ must be calculated for $t = 1,\ldots,T$ to define $Q(\bfphi \mid \bfphi^{(k)})$. The M step is also expensive if closed-form solutions to (\ref{eqn:BW_update}) are not readily available because evaluating full gradients of $Q(\bfphi \mid \bfphi^{(k)})$ takes $\calO(T)$ time. In this section, we introduce an original algorithm that speeds up both the expensive M step as well as the expensive E step of the Baum-Welch algorithm. %The SVRG variant of Algorithm (\ref{alg:EM-VRSO}) introduced in section \ref{subsec:stoch_M} is similar to the algorithm from \citet{Zhu:2017} with a focus on applications to HMMs. However, to the best of our knowledge, our focus on applying SVRG and SAGA to the Baum-Welch algorithm is original, and our implementation of a partial E step in the Baum-Welch algorithm is also original. 
 
 \subsection{Variance-Reduced Stochastic M Step}
 \label{subsec:stoch_M}
 
-To speed up the expensive M step, we notice from Equation (\ref{eqn:Q_sum}) that $Q$ is a large sum and thus implement variance-reduced stochastic optimization. It is straightforward to re-frame the M step of iteration $k$ of the Baum Welch algorithm from Equation (\ref{eqn:BW_update}) so it looks like the minimization problem from Equation (\ref{eqn:stoch_opt}). To do so, define a loss function $F(\cdot \mid \gamma(\bfphi_k),\xi(\bfphi_k))$ as follows:
-%
+To speed up the expensive M step, we notice from Equation (\ref{eqn:Q_sum}) that $Q$ is a large sum and thus implement variance-reduced stochastic optimization. It is straightforward to re-frame the M step of iteration $k$ of the Baum Welch algorithm from Equation (\ref{eqn:BW_update}) so it looks like the minimization problem from Equation (\ref{eqn:stoch_opt}). To do so, define a loss function $F(\cdot \mid \bfgamma^{(k)},\bfxi^{(k)})$ as follows:
+
 \begin{gather}
-    F_1(\bfphi \mid \gamma_1,\xi_1) \equiv - \sum_{i=1}^N \gamma^{(i)}_1 \log f^{(i)}(y_t;\theta^{(i)}) - \sum_{i=1}^N \gamma^{(i)}_1 \log \delta^{(i)}(\eta), \\
+    F(\bfphi \mid \bfgamma^{(k)}, \bfxi^{(k)}) \equiv \frac{1}{T}\sum_{t=1}^T F_t(\bfphi \mid \bfgamma_t^{(k)} , \bfxi_t^{(k)}), \qquad \text{where:} \\
     %
-    F_t(\bfphi \mid \gamma_t , \xi_t) \equiv - \sum_{i=1}^N \gamma^{(i)}_t \log f^{(i)}(y_t;\theta^{(i)}) - \sum_{i=1}^N \sum_{j=1}^N \xi^{(i,j)}_t \log \Gamma^{(i,j)}(\eta), \quad t \geq 2, \\
+    F_1(\bfphi \mid \bfgamma_1^{(k)},\bfxi_1^{(k)}) \equiv - \sum_{i=1}^N \gamma_{1,i}^{(k)} \log f_{i}(y_1;\theta_{i}) - \sum_{i=1}^N \gamma_{1,i}^{(k)} \log \delta_{i}(\bfeta), \\
     %
-    F(\bfphi \mid \gamma, \xi) \equiv \frac{1}{T}\sum_{t=1}^T F_t(\bfphi \mid \gamma_t , \xi_t).
+    F_t(\bfphi \mid \bfgamma_t^{(k)} , \bfxi_t^{(k)}) \equiv - \sum_{i=1}^N \gamma_{t,i}^{(k)} \log f_{i}(y_t;\theta_{i}) - \sum_{i=1}^N \sum_{j=1}^N \xi_{t,i,j}^{(k)} \log \Gamma_{i,j}(\bfeta), \quad t = 2, \ldots, T.
     %
-    %F_t^{(k)}(\bfphi) \equiv F_t(\bfphi \mid \gamma_t(\bfphi_k) , \xi_t(\bfphi_k)), \qquad F^{(k)}(\bfphi) \equiv F(\bfphi \mid \gamma(\bfphi_k), \xi(\bfphi_k)).
+    %F_t^{(k)}(\bfphi) \equiv F_t(\bfphi \mid \gamma_t(\bfphi^{(k)}) , \xi_t(\bfphi^{(k)})), \qquad F^{(k)}(\bfphi) \equiv F(\bfphi \mid \gamma(\bfphi^{(k)}), \xi(\bfphi^{(k)})).
 \end{gather}
 %
-%Similar logic can be applied to optimizing $\eta$ in Equation (\ref{eqn:EM_update_eta}).
+%Similar logic can be applied to optimizing $\bfeta$ in Equation (\ref{eqn:EM_update_eta}).
 %
-The two functions $F$ and $Q$ are closely related to one another, as $F(\bfphi \mid \gamma(\bfphi_k), \xi(\bfphi_k)) = - \frac{1}{T} Q(\bfphi \mid \bfphi_k)$. However, we make a distinction between the two to bridge the gap between existing EM literature (which uses $Q$) and stochastic optimization literature (which uses $F$). At any iteration $k$ of the EM algorithm, the loss function $F(\cdot \mid \gamma(\bfphi_k),\xi(\bfphi_k))$ can be minimized using Algorithm (\ref{alg:VRSO}). %Namely, Algorithm (\ref{alg:EM-VRSO}) without a partial E-step is a specific instance of the generalized EM algorithm \citep{Dempster:1977} in which either SVRG or SAGA is implemented to perform the M step. 
+The two functions $F$ and $Q$ are closely related to one another, as $F(\bfphi \mid \bfgamma^{(k)}, \bfxi^{(k)}) = - Q(\bfphi \mid \bfphi^{(k)}) / T$. However, we make a distinction between the two to bridge the gap between existing EM literature (which uses $Q$) and stochastic optimization literature (which uses $F$). At any iteration $k$ of the EM algorithm, the loss function $F(\cdot \mid \bfgamma^{(k)},\bfxi^{(k)})$ can be minimized using Algorithm (\ref{alg:VRSO}). 
 
-There are additional reasons to use SAGA and SVRG within the EM algorithm beyond the standard benefits of variance-reduced stochastic optimization. Traditionally, SAGA is more memory intensive than SVRG because the gradient at every index must be stored. However, the Baum-Welch algorithm involves storing weights for each time index $t$ to define $F(\cdot \mid \gamma(\bfphi_k), \xi(\bfphi_k))$, so storing each gradient for SAGA is not any more memory intensive than the Baum-Welch algorithm itself. Alternatively, SVRG can be more computationally expensive than SAGA partially because it requires the table average $\widehat \nabla F$ to be periodically refreshed, which involves a full pass of the underlying data set. However, the E step of the Baum-Welch algorithm involves a full pass of the data set anyway, so using SVRG is not any more computationally expensive than the Baum-Welch algorithm itself. In this way, using either SAGA or SVRG within in the M step of the Baum-Welch algorithm adds minimal computational and memory complexity.
+There are additional reasons to use SAGA and SVRG within the Baum-Welch algorithm beyond the standard benefits of variance-reduced stochastic optimization. Traditionally, SAGA is more memory intensive than SVRG because the gradient at every index must be stored. However, the Baum-Welch algorithm involves storing weights for each time index $t$ to define $F(\cdot \mid \bfgamma^{(k)}, \bfxi^{(k)})$, so storing each gradient for SAGA is not significantly more memory intensive than the Baum-Welch algorithm itself. Alternatively, SVRG can be more computationally expensive than SAGA partially because it requires periodically re-calculating the full gradient approximation, and this involves a full pass of the underlying data set. However, the E step of the Baum-Welch algorithm also involves a full pass of the data set, so using SVRG is not any more computationally expensive than the Baum-Welch algorithm itself. In this way, using either SAGA or SVRG within in the M step of the Baum-Welch algorithm adds minimal computational and memory complexity.
 
 \subsection{Partial E Step within the M step}
 \label{subsec:stoch_E}
@@ -28,160 +28,183 @@ There are additional reasons to use SAGA and SVRG within the EM algorithm beyond
 %While Algorithm (\ref{alg:EM-VRSO}) reduces the computational burden of the expensive M step, 
 Variance-reduced stochastic optimization reduces the computational cost of the M step, but the E step itself still has a time complexity of $\calO(T)$, which can be prohibitive for large $T$. To decrease this computational burden, \citet{Neal:1998} justify a partial E step within the EM algorithm for general latent variable models. However, they assume that the optimization of the M step has a closed-form solution. We use their method as inspiration and add a partial E step to the stochastic M step of the Baum-Welch algorithm. 
 
-Denote the parameters at iteration $k$ of the Baum-Welch algorithm and step $m$ of the variance-reduced stochastic M step as $\bfphi_{k,m}$. Further, suppose $\bfphi_{k,m}$ is to be updated using a gradient estimate at a random time index $t$. The function $F_{t}(\bfphi \mid \gamma_{t}(\bfphi_{k}), \xi_{t}(\bfphi_{k}))$ depends on the weights $\gamma_{t}(\bfphi_{k})$ and $\xi_{t}(\bfphi_{k})$, and recall that each weight represents a conditional probability given $\bfphi_{k}$:
-%
-\begin{equation}
-    \gamma_{t}^{(i)}(\bfphi_{k}) = \bbP(X_{t} = i \mid \bfY ~;~ \bfphi_k), \qquad \xi_{t}^{(i,j)}(\bfphi_{k}) = \bbP(X_{t-1} = i, X_{t} = j \mid \bfY ~;~ \bfphi_k).
-\end{equation}
-%
-However, $\bfphi_{k}$ is an out-of-date parameter estimate since the current parameter estimate is $\bfphi_{k,m}$. Therefore, it is natural to update $\gamma_{t}$ and $\xi_{t}$ and redefine $F_{t}(\cdot \mid \gamma_{t}, \xi_{t})$ before updating $\bfphi_{k,m}$. 
+Consider running iteration $k$ of our version of the Baum-Welch algorithm with an initial parameter estimate $\bfphi^{(k)}$. The E step involves calculating the conditional probabilities $\bfgamma^{(k)} = \bfgamma(\bfphi^{(k)})$ and $\bfxi^{(k)} = \bfxi(\bfphi^{(k)})$ and the resulting loss function $F(\bfphi \mid \bfgamma^{(k)},\bfxi^{(k)})$. The M step then involves running variance-reduced stochastic optimization with loss function $F(\cdot \mid \bfgamma^{(k)},\bfxi^{(k)})$ and initial parameter value $\bfphi^{(k)}$. Denote the parameter value at step $m$ of iteration $k$ of the Baum-Welch algorithm as $\bfphi^{(k,m)}$ such that $\bfphi^{(k,0)} = \bfphi^{(k)}$. Suppose $\bfphi^{(k,m+1)}$ is to be calculated using a gradient estimate using a random time index $t$. The function $F_{t}(\cdot \mid \bfgamma_{t}^{(k)},\bfxi_{t}^{(k)})$ depends on $\bfgamma_{t}^{(k)}$ and $\bfxi_{t}^{(k)}$, each of which are vectors of conditional probabilities given $\bfphi^{(k)}$. However, $\bfphi^{(k)}$ is an out-of-date parameter estimate since the current parameter estimate is $\bfphi^{(k,m)}$. Therefore, it is natural to update $\bfgamma_{t}^{(k)}$ and $\bfxi_{t}^{(k)}$ and redefine $F_{t}$ before calculating $\bfphi^{(k,m+1)}$. 
 
-A naive way to update the weights is to update the function as $F_{t}(\cdot \mid \gamma_{t}(\bfphi_{k,m}), \xi_{t}(\bfphi_{k,m}))$, since doing so would ensure that the weights at the current time index are completely up-to-date at all times. However, evaluating $\gamma_{t}(\bfphi_{k,m})$ and $\xi_{t}(\bfphi_{k,m})$ takes $\calO(TN^2)$ time and requires a full E step. Thus, our goal is to update $\gamma_{t}$ and $\xi_{t}$ in $\calO(N^2)$ time.
+A naive method would be to calculate the new conditional probabilities $\bfgamma_{t}(\bfphi^{(k,m)})$ and $\bfxi_{t}(\bfphi^{(k,m)})$ and then update $F_{t}$ as $F_{t}(\cdot \mid \bfgamma_{t}(\bfphi^{(k,m)}), \bfxi_{t}(\bfphi^{(k,m)}))$. This would ensure that $\bfgamma_{t}$ and $\bfxi_{t}$ are completely up-to-date, but evaluating $\bfgamma_{t}(\bfphi^{(k,m)})$ and $\bfxi_{t}(\bfphi^{(k,m)})$ takes $\calO(TN^2)$ time and requires a full E step. Instead, our goal is to update $\bfgamma_{t}$ and $\bfxi_{t}$ in $\calO(N^2)$ time to achieve a parameter update step that does not scale with $T$.
+%
+To accomplish this goal, we define the mappings $\widetilde \bfalpha_t$, $\widetilde \bfbeta_t$, $\widetilde \bfgamma_t$, and $\widetilde \bfxi_t$ for $t = 1,\ldots,T$ similarly to Equations (\ref{eqn:alpha}--\ref{eqn:xi}):
 
-The key insight here is to use the mappings $\tilde \alpha$, $\tilde \beta$, $\tilde \gamma$, and $\tilde \xi$ defined in Equations (\ref{eqn:alpha_1}) -- (\ref{eqn:xi}), all of which take $\calO(N^2)$ time to compute. Specifically, we can update $\gamma_{t}$ and $\xi_{t}$ by first updating $\alpha_{t} \gets \tilde \alpha_{t}(\alpha_{t-1},\bfphi_{k,m})$ and $\beta_{t} \gets \tilde \beta_{t}(\beta_{t+1},\bfphi_{k,m})$ and then setting $\gamma_{t} \gets \tilde \gamma_{t}(\alpha_{t},\beta_{t})$ and $\xi_{t} \gets \tilde \xi_{t}(\alpha_{t-1},\beta_{t},\bfphi_{k,m})$. Algorithm (\ref{alg:VRSO-PE}) outlines the M step of the Baum-Welch algorithm with a partial E step integrated in.
+\begin{gather}
+    \widetilde \bfalpha_1(\mathbf{a},\bfphi) = \bfdelta ~ P(y_1;\bftheta), \qquad \widetilde \bfalpha_t(\mathbf{a},\bfphi) = \mathbf{a} ~ \bfGamma ~ P(y_t;\bftheta), \quad t = 2,\ldots,T, \label{eqn:tilde_alpha} \\
+    %
+    \widetilde \bfbeta^\top_T(\mathbf{b},\bfphi) = \mathbf{1}_N^\top, \qquad \widetilde \bfbeta^\top_t(\mathbf{b},\bfphi) = \bfGamma ~ P(y_{t+1};\bftheta) ~ \mathbf{b}^\top, \quad t = 1,\ldots,T-1, \label{eqn:tilde_beta} \\ \nonumber \\
+    %
+    \widetilde \bfgamma_t(\mathbf{a},\mathbf{b}) = \frac{\mathbf{a} ~ \text{diag}(\mathbf{b})}{\mathbf{a} ~ \mathbf{b}^T}, \quad t = 1,\ldots,T, \label{eqn:tilde_gamma} \\ \nonumber \\
+    %
+    \widetilde \bfxi_{t}(\mathbf{a},\mathbf{b},\bfphi) = \frac{\text{diag}(\mathbf{a}) ~ \bfGamma ~ P(y_t;\bftheta) ~ \text{diag}(\mathbf{b})}{\mathbf{a} ~ \bfGamma ~ P(y_{t};\bftheta) ~ \mathbf{b}^\top}, \quad t = 2,\ldots,T \label{eqn:tilde_xi},
+\end{gather}
+%
+all of which take $\calO(N^2)$ time to compute. Further, at the beginning of the M step we define conditional probability \textit{approximations} $\widehat \bfalpha_{t}^{(k,0)} = \bfalpha_t(\bfphi^{(k)})$, $\widehat \bfbeta_{t}^{(k,0)} = \bfbeta_t(\bfphi^{(k)})$, $\widehat \bfgamma_{t}^{(k,0)} = \bfgamma_t(\bfphi^{(k)})$, and $\widehat \bfxi_{t}^{(k,0)} = \bfxi_t(\bfphi^{(k)})$ for $t = 1,\ldots,T$. This is simply the E step of the Baum-Welch algorithm and takes $\calO(TN^2)$ time to compute. Then, at any given step $m$ of the stochastic M step, we update $F_{t}$ by first updating $\widehat \bfalpha_{t}^{(k,m+1)} = \widetilde \bfalpha_{t}\left(\widehat \bfalpha_{t-1}^{(k,m)} ~,~ \bfphi^{(k,m)}\right)$ and $\widehat \bfbeta_{t}^{(k,m+1)} = \widetilde \bfbeta_{t}\left(\widehat \bfbeta_{t+1}^{(k,m)} ~,~ \bfphi^{(k,m)}\right)$, followed by $\widehat \bfgamma_{t}^{(k,m+1)} = \widetilde \bfgamma_{t}\left(\widehat \bfalpha_{t}^{(k,m+1)} ~,~ \widehat \bfbeta_{t}^{(k,m+1)}\right)$ and $\widehat \bfxi_{t}^{(k,m+1)} = \widetilde \bfxi_{t}\left(\widehat \bfalpha_{t-1}^{(k,m+1)} ~,~ \widehat \bfbeta_{t}^{(k,m+1)} ~,~ \bfphi^{(k,m)}\right)$. Finally, the loss function at index $t$ can be defined as $F_{t}\left(\cdot \mid \widehat \bfgamma_{t}^{(k,m+1)},\widehat \bfxi_{t}^{(k,m+1)}\right)$. Updating $F_{t}$ in this way take a total of $\calO(N^2)$ time, which accomplishes a parameter update step that does not scale with $T$. Algorithm (\ref{alg:VRSO-PE}) outlines the M step of the Baum-Welch algorithm with a partial E step integrated in. %We use hats to notate the updated weights because they are approximations to the true conditional probabilities defined in Equations (\ref{eqn:gamma_prob} -- \ref{eqn:xi_prob}).
+
+%We thus introduce the conditional probability \textit{approximations} $\{\hat \bfalpha, \hat \bfbeta, \hat \bfgamma, \hat \bfxi\}$ and update them using the mappings defined above. 
+
+%In total, we perform step $k$ of our new Baum-Welch algorithm as follows. For the E step, we set $\hat \bfalpha_1 = \widetilde \bfalpha_1(\emptyset,\bfphi^{(k)})$ and $\hat \bfbeta_T = \widetilde \bfbeta_T(\emptyset,\bfphi^{(k)})$, followed by $\hat \bfalpha_t = \widetilde \bfalpha_t(\hat \bfalpha_{t-1},\bfphi^{(k)})$ and $\hat \bfbeta_{T-t+1} = \widetilde \bfbeta_{T-t+1}(\hat \bfbeta_{T-t+2},\bfphi^{(k)})$ for $t =2,\ldots,T$. Then, we set $\hat \bfgamma(\bfphi^{(k)}) = \widetilde \gamma (\hat \bfalpha, \hat \bfbeta)$ update $\bfgamma_{t}$ and $\bfxi_{t}$ before each parameter update by first updating $\bfalpha_{t} = \widetilde \bfalpha_{t}(\bfalpha_{t-1},\bfphi_{k,m})$ and $\bfbeta_{t} = \widetilde \bfbeta_{t}(\bfbeta_{t+1},\bfphi_{k,m})$ and then setting $\bfgamma_{t} = \widetilde \bfgamma_{t}(\bfalpha_{t},\bfbeta_{t})$ and $\bfxi_{t} = \widetilde \bfxi_{t}(\bfalpha_{t-1},\bfbeta_{t},\bfphi_{k,m})$.
 
 \begin{algorithm}
-\caption{\texttt{VRSO-PE}$(\{\alpha,\beta,\gamma,\xi\},\{\widehat \nabla F_t\}_{t=1}^T, \widehat \nabla F,\bfphi_0,\lambda,A,P,M)$}\label{alg:VRSO-PE}
+\caption{\texttt{VRSO-PE}$(\{\widehat \bfalpha_t^{(0)}, \widehat \bfbeta_t^{(0)}, \widehat \bfgamma_t^{(0)}, \widehat \bfxi_t^{(0)}\}_{t=1}^T,\{\widehat \nabla F_t^{(0)}\}_{t=1}^T, \widehat \nabla F^{(0)},\bfphi^{(0)},\lambda,A,P,M)$}\label{alg:VRSO-PE}
 \begin{algorithmic}[1]
-\Require Weights $\{\alpha,\beta,\gamma,\xi\}$, initial gradient estimates $\{\widehat \nabla F_t\}_{t=1}^T$, initial full gradient estimate $\widehat \nabla F = \frac{1}{T} \sum_{t=1}^T \widehat \nabla F_{t}$, initial parameter $\bfphi_0$, step size $\lambda$, algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial-E step $P \in \{\texttt{True,False}\}$, and number of iterations $M$.
+\Require Initial conditional probability approximations $\{\widehat \bfalpha^{(0)}, \widehat \bfbeta^{(0)}, \widehat \bfgamma^{(0)}, \widehat \bfxi^{(0)}\}$, initial gradient approximations $\{\widehat \nabla F_t^{(0)}\}_{t=1}^T$, initial full gradient estimate $\widehat \nabla F^{(0)} = (1/T) \sum_{t=1}^T \widehat \nabla F_{t}^{(0)}$, initial parameter $\bfphi^{(0)}$, step size $\lambda$, algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial-E step $P \in \{\texttt{True,False}\}$, and number of iterations $M$.
 %
 \vspace{5pt}
 %
 \For{$m = 0,\ldots,M-1$}:
     %
-    \State Pick $t_{m} \in \{1,\ldots,T\}$ uniformly at random.
+    \State Pick $t \in \{1,\ldots,T\}$ uniformly at random.
     %
     \If{$P = \texttt{True}$} \Comment{partial E step}
-    \State $\alpha_{t_m} \gets \tilde \alpha_{t_m}(\alpha_{t_m-1},\bfphi_{m}), \quad \beta_{t_m} \gets \tilde \beta_{t_m}(\beta_{t_m+1},\bfphi_{m})$ 
-    %\State $\beta_{t_m} \gets \tilde \beta_{t_m}(\beta_{t_m+1},\bfphi_{m})$ 
-    \State $\gamma_{t_m} \gets \tilde \gamma_{t_m}(\alpha_{t_m},\beta_{t_m}), 
-    \quad \xi_{t_m} \gets \tilde \xi_{t_m}(\alpha_{t_m-1},\beta_{t_m},\bfphi_{m})$
-    %\State $\xi_{t_m} \gets \tilde \xi_{t_m}(\alpha_{t_m-1},\beta_{t_m},\bfphi_{m-1})$
+    \State $\widehat \bfalpha_{t}^{(m+1)} = \widetilde \bfalpha_{t}\left(\widehat \bfalpha_{t-1}^{(m)},\bfphi^{(m)}\right), \quad \widehat \bfbeta_{t}^{(m+1)} = \widetilde \bfbeta_{t}\left(\widehat \bfbeta_{t+1}^{(m)},\bfphi^{(m)}\right)$ 
+    %\State $\beta_{t} = \widetilde \beta_{t}(\beta_{t+1},\bfphi^{(m)})$ 
+    \vspace{5pt}
+    \State $\widehat \bfgamma_{t}^{(m+1)} = \widetilde \bfgamma_{t}\left(\widehat \bfalpha_{t}^{(m+1)},\widehat \bfbeta_{t}^{(m+1)}\right), 
+    \quad \widehat \bfxi_{t}^{(m+1)} = \widetilde \bfxi_{t}\left(\widehat \bfalpha_{t-1}^{(m+1)},\widehat \bfbeta_{t}^{(m+1)},\bfphi^{(m)}\right)$
+    %\State $\xi_{t} = \widetilde \xi_{t}(\alpha_{t-1},\beta_{t},\bfphi_{m-1})$
     \EndIf
     %
     \State \Comment{update parameters}
     \begin{gather}
-        \bfphi_{m+1} = \bfphi_{m} - \lambda \left[\nabla F_{t_m}(\bfphi_{m} \mid \gamma_{t_m}, \xi_{t_m}) - \widehat \nabla F_{t_{m}} + \widehat \nabla F \right]
-        \label{eqn:SAGA_update0}
+        \bfphi^{(m+1)} = \bfphi^{(m)} - \lambda \left[\nabla F_{t}\left(\bfphi^{(m)} \mid \widehat \bfgamma_{t}^{(m+1)}, \widehat \bfxi_{t}^{(m+1)}\right) - \widehat \nabla F^{(m)}_{t} + \widehat \nabla F^{(m)} \right]
     \end{gather}
     %
     \If{$A$ = SAGA}:
     \Comment{update gradients}
         \begin{gather}
-            \widehat \nabla F \gets \widehat \nabla F + \frac{1}{T} \left( \nabla F_{t_m}(\bfphi_{m} \mid \gamma_{t_m}, \xi_{t_m}) - \widehat \nabla F_{t_{m}}\right), \\
-            \widehat \nabla F_{t_{m}} \gets \nabla F_{t_m}(\bfphi_{m} \mid \gamma_{t_m}, \xi_{t_m}).
+            \widehat \nabla F_{t}^{(m+1)} = \nabla F_{t}\left(\bfphi^{(m)} \mid \widehat \bfgamma_{t}^{(m+1)}, \widehat \bfxi_{t}^{(m+1)}\right), \\
+            %
+            \widehat \nabla F^{(m+1)} = \widehat \nabla F^{(m)} + \frac{1}{T} \left( \widehat \nabla F_{t}^{(m+1)} - \widehat \nabla F_{t}^{(m)}\right).
         \end{gather}
     \EndIf
 \EndFor
-\State \Return $\bfphi_M$
+\State \Return $\bfphi^{(M)}$
 \end{algorithmic}
 \end{algorithm}
 
-%It is natural to incorporate SVRG and SAGA into the Baum-Welch algorithm because the gradient estimates $\widehat \nabla_\theta F_t^{(k)}$ \textit{used} during the M step can be \textit{evaluated} during the E step. The E step of the Baum-Welch algorithm involves a full pass of the data set to evaluate and store the weights $\{\gamma_t^{(i)}(\bfphi_k)\}_{t=1}^T$ and $\{\xi_t^{(i,j)}(\bfphi_k)\}\}_{t=1}^T$ to define $Q(\bfphi \mid \bfphi_k)$. As such, the E step of the EM algorithm has space and time complexity of $\calO(T)$ in $T$. Both SAGA and SVRG have time and space complexities no worse than $\calO(T)$ in $T$, so incorporating them into the M step of the Baum-Welch algorithm does not represent a significant additional computational burden as $T$ grows large. 
+%It is natural to incorporate SVRG and SAGA into the Baum-Welch algorithm because the gradient approximations $\widehat \nabla_\bftheta F_t^{(k)}$ \textit{used} during the M step can be \textit{evaluated} during the E step. The E step of the Baum-Welch algorithm involves a full pass of the data set to evaluate and store the weights $\{\gamma_t_{i}(\bfphi^{(k)})\}_{t=1}^T$ and $\{\xi_{t,i,j}(\bfphi^{(k)})\}\}_{t=1}^T$ to define $Q(\bfphi \mid \bfphi^{(k)})$. As such, the E step of the EM algorithm has space and time complexity of $\calO(T)$ in $T$. Both SAGA and SVRG have time and space complexities no worse than $\calO(T)$ in $T$, so incorporating them into the M step of the Baum-Welch algorithm does not represent a significant additional computational burden as $T$ grows large. 
 
 %Several drawbacks of SVRG and SAGA are less problematic in the context of the M step of the Baum-Welch algorithm. In particular, SVRG can be slower than SAGA because it involves occasionally evaluating the gradient of the full log-likelihood function. Evaluating the full gradient of the log-likelihood can be expensive for large data sets. However, the E step of the Baum-Welch algorithm involves a full pass of the data set anyway, so there is relatively little additional computational burden for SVRG to calculate a full gradient during each E step. 
 
-%Alternatively, SAGA involves storing gradient estimates at each data point $t = 1,\ldots,T$, which can be storage-intensive for large $T$. However, the EM algorithm also requires storing the weights $\{\gamma_t^{(i)}(\bfphi_k)\}_{t=1}^T$ and $\{\xi_t^{(i,j)}(\bfphi_k)\}\}_{t=1}^T$ to define $Q^{(k)}(\bfphi)$. Therefore, storing gradient estimates in addition to these weights adds minimal additional storage cost at each E step (depending upon the number of parameters in the model).
+%Alternatively, SAGA involves storing gradient approximations at each data point $t = 1,\ldots,T$, which can be storage-intensive for large $T$. However, the EM algorithm also requires storing the weights $\{\gamma_t_{i}(\bfphi^{(k)})\}_{t=1}^T$ and $\{\xi_{t,i,j}(\bfphi^{(k)})\}\}_{t=1}^T$ to define $Q^{(k)}(\bfphi)$. Therefore, storing gradient approximations in addition to these weights adds minimal additional storage cost at each E step (depending upon the number of parameters in the model).
 
 \subsection{Full algorithm}
 
-In principal, it is possible to run Algorithm (\ref{alg:VRSO-PE}) alone without ever performing a full E step. However, if no partial E step is used (i.e. $P = \texttt{False}$) or if SVRG is used as the optimization algorithm, then either the weights $\{\alpha,\beta,\gamma,\xi\}$ or the gradient estimates $\{\nabla F_{t}\}_{t=1}^T$ will not be updated and become out-of-date. To avoid this issue, we combine the M step defined in Algorithm (\ref{alg:VRSO-PE}) with a full E step in Algorithm (\ref{alg:EM-VRSO}) to complete the EM algorithm for HMMs.
+In principal, it is possible to run Algorithm (\ref{alg:VRSO-PE}) alone without ever performing a full E step. However, if no partial E step is used (i.e. $P = \texttt{False}$) or if SVRG is used as the optimization algorithm, then either the conditional probability approximations $\left\{\widehat \bfalpha_t^{(m)}, \widehat \bfbeta_t^{(m)}, \widehat \bfgamma_t^{(m)}, \widehat \bfxi_t^{(m)} \right\}_{t=1}^T$ or the gradient approximations $\left\{\widehat \nabla F_{t}^{(m)} \right\}_{t=1}^T$ will not be updated and become out-of-date. To avoid this issue, Algorithm (\ref{alg:EM-VRSO}) combines the M step defined in Algorithm (\ref{alg:VRSO-PE}) with a full E step to complete our new Baum-Welch algorithm for HMMs.
 
 \begin{algorithm}
-\caption{\texttt{EM-VRSO}$(\bfphi_0,\lambda, A, M, K)$ (Version 1)}\label{alg:EM-VRSO}
+\caption{\texttt{EM-VRSO}$(\bfphi^{(0)},\lambda, A, P, M, K)$ (Version 1)}\label{alg:EM-VRSO}
 \begin{algorithmic}[1]
-\Require Initial parameters ($\bfphi_{0}$), step size ($\lambda$), algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial E step $P \in \{\texttt{True,False}\}$, iterations per update ($M$), and number of updates ($K$).
+\Require Initial parameters ($\bfphi^{(0)}$), step size ($\lambda$), algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial E step $P \in \{\texttt{True,False}\}$, iterations per update ($M$), and number of updates ($K$).
 %
 \vspace{5pt}
 \For{$k = 0,\ldots,K-1$}
 \vspace{5pt}
 % 
-\State $\{\alpha,\beta,\gamma,\xi\} \gets \texttt{E-step}(\bfphi_{k})$ \Comment{E step}
+\State $\{\bfalpha_{t}, \bfbeta_{t}, \bfgamma_{t}, \bfxi_{t}\}_{t=1}^T = \texttt{E-step}(\bfphi^{(k)})$ \Comment{E step}
 %
 \vspace{5pt}
 %
 \For{$t=1,\ldots,T$} \Comment{initialize gradients}
-    \State $\widehat \nabla F_t \gets \nabla F_t(\bfphi \mid \gamma_t, \xi_t)$ 
+    \State $\widehat \nabla F_{t} = \nabla F_t(\bfphi^{(k)} \mid \bfgamma_{t}, \bfxi_{t})$ 
 \EndFor
-\State $\widehat \nabla F \gets \frac{1}{T} \widehat \nabla F_t$
+\State $\widehat \nabla F = \frac{1}{T} \sum_{t=1}^T \widehat \nabla F_{t}$
 %
 \vspace{5pt}
 %
-\State $\ell \gets 0$ \Comment{M step}
+\State $\ell = 0$ \Comment{M step}
 %
-%\State $\log p(\bfy;\bfphi_{k,\ell}) \gets -\infty$
+%\State $\log p(\bfy;\bfphi^{(k,\ell)}) = -\infty$
 %
-\While{$\ell = 0$ or $\log p(\bfy; \bfphi_{k,\ell}) < \log p(\bfy;\bfphi_{k})$} 
-\State $\ell \gets \ell+1$
-\State $\bfphi_{k,\ell} \gets \texttt{VRSO-PE}(\{\alpha,\beta,\gamma,\xi\},\{\widehat \nabla F_t\}_{t=1}^T, \widehat \nabla F,\bfphi_0,\lambda,A,P,M)$
+\While{$\ell = 0$ or $\log p(\bfy; \bfphi^{(k,\ell)}) < \log p(\bfy;\bfphi^{(k)})$} 
+\State $\ell = \ell+1$
+\State $\bfphi^{(k,\ell)} = \texttt{VRSO-PE}(\{\bfalpha_t, \bfbeta_t, \bfgamma_t, \bfxi_t\}_{t=1}^T,\{\widehat \nabla F_t\}_{t=1}^T, \widehat \nabla F,\bfphi^{(k)},\lambda,A,P,M)$
 %
 \EndWhile
-\State $\bfphi_{k+1} \gets \bfphi_{k,\ell}$
+\State $\bfphi^{(k+1)} = \bfphi^{(k,\ell)}$
 \EndFor
 \State \Return $\bfphi_K$
 \end{algorithmic}
 \end{algorithm}
 
-There are two versions of Algorithm (\ref{alg:EM-VRSO}). To exit the while loop that defines the M step of the algorithm, version 1 requires that the likelihood does not decrease (i.e. $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$), but version 2 of the algorithm requires that the likelihood \textit{strictly} increases by some threshold detailed in the appendix. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice. Therefore, we use version 1 in our simulation and case studies and defer version 2 to the appendix. Our simulation and case studies show that version 1 of Algorithm (\ref{alg:EM-VRSO}) converges to local maxima of the log-likelihood function in practice. 
+There are two versions of Algorithm (\ref{alg:EM-VRSO}). Version 1 requires the likelihood to not decrease (i.e. $\log p(\bfy;\bfphi^{(k,\ell)}) \geq \log p(\bfy;\bfphi^{(k)})$) in order to exit the while loop within its M step. Version 2 of the algorithm, which we detail in the appendix, requires the likelihood to \textit{strictly} increase by some threshold. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice. Therefore, we use version 1 in our simulation and case studies and defer version 2 to the appendix. Our simulation and case studies show that version 1 of Algorithm (\ref{alg:EM-VRSO}) converges to local maxima of the log-likelihood function in practice. 
 
-%At first it seems troubling that Algorithm (\ref{alg:EM-VRSO}) involves evaluating $\log p(\bfy;\bfphi_{k,\ell})$ after each M step because evaluating the full likelihood takes $\calO(TN^2)$ time. However, note that evaluating $\texttt{E-step}(\bfphi_{k,\ell})$ involves calculating $\alpha_T(\bfphi_{k,\ell})$, and $\log p(\bfy;\bfphi_{k,\ell}) = \log(\sum_{i=1}^{N}\alpha_T(\bfphi_{k,\ell}))$, and  $F_T^{(k+1)} = $, as well as evaluate $\log p(\bfy;\bfphi_{k,\ell})$.
+%At first it seems troubling that Algorithm (\ref{alg:EM-VRSO}) involves evaluating $\log p(\bfy;\bfphi^{(k,\ell)})$ after each M step because evaluating the full likelihood takes $\calO(TN^2)$ time. However, note that evaluating $\texttt{E-step}(\bfphi^{(k,\ell)})$ involves calculating $\alpha_T(\bfphi^{(k,\ell)})$, and $\log p(\bfy;\bfphi^{(k,\ell)}) = \log(\sum_{i=1}^{N}\alpha_T(\bfphi^{(k,\ell)}))$, and  $F_T^{(k+1)} = $, as well as evaluate $\log p(\bfy;\bfphi^{(k,\ell)})$.
 
-At first it seems troubling to require $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$ to exit the while loop of Algorithm (\ref{alg:EM-VRSO}), since this requirement may cause an infinite loop if it cannot be met. %for version 1, or $Q^*(\bfphi_k) - Q(\bfphi_{k,\ell,M} \mid \bfphi_k) \leq (\zeta+1)/2 \left(Q^*(\bfphi_k) - Q(\bfphi_{k} \mid \bfphi_k) \right)$ for version 2. 
-Denote $\ell^*(k)$ as the (random) maximum value obtained by $\ell$ within Algorithm (\ref{alg:EM-VRSO}) for a fixed value of $k$ when $P = \texttt{False}$. We prove in Theorem 1 below that for all $k > 0$, $\ell^*(k)$ follows a geometric distribution with a strictly positive probability of success, thus $\bbP(\ell^*(k) < \infty) = 1$. %The condition for version 2 of the algorithm implies the condition for version 1.
+At first, it seems troubling to require $\log p(\bfy;\bfphi^{(k,\ell)}) \geq \log p(\bfy;\bfphi^{(k)})$ to exit the while loop of Algorithm (\ref{alg:EM-VRSO}), since this requirement may cause an infinite loop if it cannot be met. %for version 1, or $Q^*(\bfphi^{(k)}) - Q(\bfphi_{k,\ell,M} \mid \bfphi^{(k)}) \leq (\zeta+1)/2 \left(Q^*(\bfphi^{(k)}) - Q(\bfphi^{(k)} \mid \bfphi^{(k)}) \right)$ for version 2. 
+Denote $\ell^*(k)$ as the (random) maximum value obtained by $\ell$ within Algorithm (\ref{alg:EM-VRSO}) for a fixed value of $k$. We prove in Theorem 1 below that 
+%for all $k > 0$, $\ell^*(k)$ follows a geometric distribution with a strictly positive probability of success, thus 
+$\bbP(\ell^*(k) < \infty) = 1$. %The condition for version 2 of the algorithm implies the condition for version 1.
 %
-One final concern is whether Algorithm (\ref{alg:EM-VRSO}) converges as $K \to \infty$. %it is well-known that the EM algorithm converges under certain regularity conditions \citep{Wu:1983}, but algorithm (\ref{alg:EM-VRSO}) does not complete the M step of the EM-algorithm, which complicates convergence analysis. Under standard regularity conditions, 
-Theorem 1 below shows that the algorithm converges under standard regularity conditions. %Unfortunately there is no guarantee that this stationary point will be a global (or even local) minimum, but this issue is well known in the EM literature \citep{Wu:1983}.
+One final concern is whether the sequence $\{\bfphi^{(k)}\}_{k=0}^\infty$ converges as $K \to \infty$ in Algorithm (\ref{alg:EM-VRSO}). %it is well-known that the EM algorithm converges under certain regularity conditions \citep{Wu:1983}, but algorithm (\ref{alg:EM-VRSO}) does not complete the M step of the EM-algorithm, which complicates convergence analysis. Under standard regularity conditions, 
+Theorem 1 below guarantees convergence under standard regularity conditions. %Unfortunately there is no guarantee that this stationary point will be a global (or even local) minimum, but this issue is well known in the EM literature \citep{Wu:1983}.
 
 %%%%%
     
 \begin{theorem}
 
-    Suppose that the conditions of Theorem 1 of \citet{Johnson:2013} hold for all possible $F^{(k)}$. In particular:
+    Suppose the following:
     
     \begin{enumerate}
-        \item $F_t(\bfphi \mid \gamma_t(\bfphi'), \xi_t(\bfphi'))$ is uniformly Lipschitz-smooth with respect to $\bfphi$ for all $t$ and $\bfphi'$ with constant $L > 0$. Namely, for all $t$, $\bfphi$, $\bfphi_0$ and $\bfphi'$:
+        \item The parameter space $\bfPhi = \bbR^r$ (where $\bfphi \in \bfPhi$) for some dimension $r$.
         %
-        $$F_t(\bfphi \mid \gamma_t(\bfphi'), \xi_t(\bfphi')) \leq F_t(\bfphi_0 \mid \gamma_t(\bfphi'), \xi_t(\bfphi')) + \nabla_{\bfphi} F_t(\bfphi_0 \mid \gamma_t(\bfphi'), \xi_t(\bfphi'))^T(\bfphi - \bfphi_0) + \frac{L}{2} || \bfphi - \bfphi_0 ||_2^2.$$ 
+        \item $\bfPhi_{\bfphi^{(0)}} = \{\bfphi \in \bfPhi: \log p(\bfy;\bfphi) \geq \log p(\bfy;\bfphi^{(0)})\}$ is compact for any  $\bfphi_0$ with $\log p(\bfy;\bfphi^{(0)}) > -\infty$.
         %
-        \item $F_t(\bfphi \mid \gamma_t(\bfphi'), \xi_t(\bfphi'))$ is convex with respect to $\bfphi$ and $F(\bfphi \mid \gamma(\bfphi'), \xi(\bfphi'))$ is strongly convex with respect to $\bfphi$ for all $\bfphi'$ with constant $C > 0$. Namely, for all $\bfphi$, $\bfphi_0$ and $\bfphi'$:
+        \item $\log p(\bfy;\bfphi)$ is continuous in $\bfPhi$ and differentiable in the interior of $\bfPhi$.
         %
-        $$F(\bfphi \mid \gamma(\bfphi'), \xi(\bfphi')) \geq F(\bfphi_0 \mid \gamma(\bfphi'), \xi(\bfphi')) + \nabla_{\bfphi} F(\bfphi_0 \mid \gamma(\bfphi'), \xi(\bfphi'))^T(\bfphi-\bfphi_0) + \frac{C}{2} ||\bfphi - \bfphi_0||_2^2.$$ 
+        \item $F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is convex with respect to $\bfphi$ and $F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi'))$ is strongly convex with respect to $\bfphi$ for all $\bfphi'$ with constant $C > 0$. Namely, for all $\bfphi$, $\bfphi_0$ and $\bfphi'$:
         %
-        \item The step size $\lambda$ is sufficiently small and $M$ is sufficiently large such that 
-        $$\zeta \equiv \frac{1}{C \lambda(1-2L\lambda)M} + \frac{2L\lambda}{1-2L\lambda} < 1.$$
-    \end{enumerate}
-
-    In addition, suppose that the following assumptions from \citet{Wu:1983} hold:
-
-    \begin{enumerate}
-        \item For fixed $\bfphi$, $F(\bfphi \mid \gamma(\bfphi'), \xi(\bfphi'))$ is continuous in $\bfphi'$.
+        \begin{equation}
+            F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) \geq F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) + \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))^T(\bfphi-\bfphi_0),
+        \end{equation}
         %
-        \item The parameter space $\bfphi$ (i.e. $\bfphi \in \bfphi$) is a subset of $r$-dimensional Euclidean space $\bbR^r$ for some $r$.
-        \item $\bfphi_{\bfphi_0} = \{\bfphi \in \bfphi: \log p(\bfy;\bfphi) \geq \log p(\bfy;\bfphi_0)\}$ is compact for any $\log p(\bfy;\bfphi_0) > -\infty$.
-        \item $\log p(\bfy;\bfphi_0)$ is continuous in $\bfphi$ and differentiable in the interior of $\bfphi$.
+        \begin{equation}
+            F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) \geq F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) + \nabla F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi'))^T(\bfphi-\bfphi_0) + \frac{C}{2} ||\bfphi - \bfphi_0||_2^2.
+        \end{equation}
+        %
+        \item $F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is uniformly Lipschitz-smooth with respect to $\bfphi$ for all $t$ and $\bfphi'$ with constant $L \geq C > 0$. Namely, for all $t$, $\bfphi$, $\bfphi_0$ and $\bfphi'$:
+        %
+        \begin{equation}
+            F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) \leq F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) + \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))^T(\bfphi - \bfphi_0) + \frac{L}{2} || \bfphi - \bfphi_0 ||_2^2.
+        \end{equation}
+        %
+        \item The step size $\lambda$ is sufficiently small and $M$ is sufficiently large such that
+        %
+        \begin{equation}
+            \zeta \equiv \frac{1}{C \lambda(1-2L\lambda)M} + \frac{2L\lambda}{1-2L\lambda} < 1.
+        \end{equation}
+        %
+        \item $\nabla F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is uniformly continuous in $(\bfphi,\bfphi')$ for all $t$.
+        %
     \end{enumerate}
     
-    Then, for all $k \geq 0$, if $P = \texttt{False}$, then $\bbP(\ell^*(k) < \infty) = 1$. Further, all limit points of $\{\bfphi_{k}\}_{k=0}^\infty$ generated from version 2 of Algorithm (\ref{alg:EM-VRSO}) using SVRG are stationary points of $\log p(\bfy;\bfphi)$ almost surely. Finally, $\log p(\bfy;\bfphi_{k})$ converges monotonically to $\log p^* = \log p(\bfy;\bfphi^*)$ almost surely for some stationary point of $\log p$, $\bfphi^*$.
+    Further, suppose $P = \texttt{False}$ and $A = \texttt{SVRG}$ in Algorithm (\ref{alg:EM-VRSO-v2}). Then, $\bbP(\ell^*(k) < \infty) = 1$ for all $k \geq 0$. Further, all limit points of $\{\bfphi^{(k)}\}_{k=0}^\infty$  are stationary points of $\log p(\bfy;\bfphi)$, and $\log p(\bfy;\bfphi^{(k)})$ converges monotonically to $\log p^* = \log p(\bfy;\bfphi^*)$ for some stationary point of $\log p$, $\bfphi^*$.
 \end{theorem}
 %
 
-%Each of these algorithms have advantages and disadvantages. SAG is the most intuitive of the three algorithms and corresponds to randomly updating one component of the gradient from the sums in Equations (\ref{eqn:F}) and (\ref{eqn:G}) before taking a gradient step. However, the gradient estimates are biased. The proof of convergence for SAG is also complicated.
+%Each of these algorithms have advantages and disadvantages. SAG is the most intuitive of the three algorithms and corresponds to randomly updating one component of the gradient from the sums in Equations (\ref{eqn:F}) and (\ref{eqn:G}) before taking a gradient step. However, the gradient approximations are biased. The proof of convergence for SAG is also complicated.
 
-%SVRG is convenient because it produces unbiased estimates of the gradient. In addition, it also does not rely on any values of $\gamma_t$ or $\zeta_t$, so SVRG has a significantly lower storage cost compared to SAG and SAGA. In addition, formal analysis of SVRG is much easier than SAG due to the fact the gradients are unbiased and the table average does not change at every parameter update. However, SVRG involves two gradients evaluations at every parameter update rather than only one as in SAG and SAGA. In addition, it requires the entire gradient to be calculated each epoch.
+%SVRG is convenient because it produces unbiased approximations of the gradient. In addition, it also does not rely on any values of $\gamma_t$ or $\zeta_t$, so SVRG has a significantly lower storage cost compared to SAG and SAGA. In addition, formal analysis of SVRG is much easier than SAG due to the fact the gradients are unbiased and the table average does not change at every parameter update. However, SVRG involves two gradients evaluations at every parameter update rather than only one as in SAG and SAGA. In addition, it requires the entire gradient to be calculated each epoch.
 
-%Finally, SAGA has the best theoretical guarantees of convergence rate of the three algorithms. Like SVRG, it also has unbiased gradient estimates. However, its advantages over SVRG are modest and it requires gradients to be stored for all $t = 1,\ldots,T$.
+%Finally, SAGA has the best theoretical guarantees of convergence rate of the three algorithms. Like SVRG, it also has unbiased gradient approximations. However, its advantages over SVRG are modest and it requires gradients to be stored for all $t = 1,\ldots,T$.
 
-Conditions (1--3) from \citet{Johnson:2013} are standard assumptions used to prove common properties of stochastic optimization algorithms. Likewise, conditions (1--4) from \citet{Wu:1983} are standard assumptions needed to prove the convergence of the EM algorithm. 
+Conditions (1--3) are from \citet{Wu:1983} and are standard assumptions needed to prove the convergence of the EM algorithm. Likewise, Conditions (4--6) are from \citet{Johnson:2013} and are standard assumptions used to prove common properties of stochastic optimization algorithms. Condition (7) is needed to prove that SVRG is a continuous mapping.
 
-Unfortunately, condition (3) from \citet{Wu:1983} can be restrictive, and is often violated in common settings. Namely, the likelihood of an HMM with Gaussian emissions is unbounded when estimating variance components. Condition (1) of \citet{Johnson:2013} is also violated when estimating the variance of state-dependent distributions within an HMM. This issue is well-known for maximum likelihood estimation in mixture models \citep{Chen:2009,Liu:2015b}. It can be avoided by setting lower bounds on the variance components \citep{Zucchini:2016}. %or by jittering the parameters $\bfphi$ if it appears that the likelihood is growing without bound.
+Condition (2) from \citet{Wu:1983} can be restrictive and is often violated in common settings. Namely, the likelihood of an HMM with Gaussian emissions is unbounded when estimating variance components. Condition (5) of \citet{Johnson:2013} is also violated when estimating the variance of state-dependent distributions within an HMM. This issue is well-known for maximum likelihood estimation in mixture models \citep{Chen:2009,Liu:2015b}. It can be avoided by setting lower bounds on the variance components \citep{Zucchini:2016}. %or by jittering the parameters $\bfphi$ if it appears that the likelihood is growing without bound.
 
-%Theorem 1 is a convergence result for version 2 of algorithm (\ref{alg:EM-VRSO}), which requires knowledge of the true optimum $Q^*(\bfphi_{k})$ at each iteration $k$. However, it is intuitively clear that version 1 should be preferred in practice over version 2 since it updates the parameters $\bfphi$ \textit{whenever} those parameters increase the log-likelihood of the HMM.
+%Theorem 1 is a convergence result for version 2 of algorithm (\ref{alg:EM-VRSO}), which requires knowledge of the true optimum $Q^*(\bfphi^{(k)})$ at each iteration $k$. However, it is intuitively clear that version 1 should be preferred in practice over version 2 since it updates the parameters $\bfphi$ \textit{whenever} those parameters increase the log-likelihood of the HMM.
 
 %We briefly consider when each condition is satisfied.
 
-%Condition (1) is satisfied so long as the emission densities $f(y_t;\theta^{(i)})$ and probability transition matrices $\Gamma(\eta)$ are continuous with respect to $\theta$ and $\eta$, respectively. The functions $F(\theta,\bfphi')$ and $G(\eta,\bfphi')$ are simply weighted sums of $\gamma(\bfphi')$ and $\xi(\bfphi')$ for fixed $\theta$ and $\eta$, and $\gamma$ and $\xi$ are calculated using repeated evaluation of $f(y_t;\theta^{(i)})$ and $\Gamma(\eta)$ (see Equations (\ref{eqn:gamma}) and (\ref{eqn:xi})).
+%Condition (1) is satisfied so long as the emission densities $f(y_t;\theta_{i})$ and probability transition matrices $\Gamma(\bfeta)$ are continuous with respect to $\bftheta$ and $\bfeta$, respectively. The functions $F(\bftheta,\bfphi')$ and $G(\bfeta,\bfphi')$ are simply weighted sums of $\gamma(\bfphi')$ and $\xi(\bfphi')$ for fixed $\bftheta$ and $\bfeta$, and $\gamma$ and $\xi$ are calculated using repeated evaluation of $f(y_t;\theta_{i})$ and $\Gamma(\bfeta)$ (see Equations (\ref{eqn:gamma}) and (\ref{eqn:xi})).
 
-%Condition (2) is satisfied if $\log f(y_t ; \theta^{(i)})$ is uniformly Lipschitz-smooth with respect to $\theta^{(i)}$ for all $y_t$, since $F_t$ is a weighted sum of $\log f(y_t ; \theta^{(i)})$ for $i = 1,\ldots,N$. Note that the log-density of a normal distribution is
+%Condition (2) is satisfied if $\log f(y_t ; \theta_{i})$ is uniformly Lipschitz-smooth with respect to $\theta_{i}$ for all $y_t$, since $F_t$ is a weighted sum of $\log f(y_t ; \theta_{i})$ for $i = 1,\ldots,N$. Note that the log-density of a normal distribution is
 %
 %\begin{equation}
 %    \log f_{norm}\left(y_t;\mu,\log(\sigma^2)\right) = -\frac{1}{2}(y_t-\mu)^2 e^{-\log(\sigma^2)} - \frac{1}{2} \log(\sigma^2),
@@ -192,36 +215,42 @@ Unfortunately, condition (3) from \citet{Wu:1983} can be restrictive, and is oft
 
 %Condition (3) is usually satisfied because element $(i,j)$ of the log-transition probability matrix can be written as
 %\begin{equation}
-%    \log \Gamma^{(i,j)} = \eta^{(i,j)} - \log\left(\sum_{k=1}^N\exp\left(\eta^{(i,k)}\right)\right),
+%    \log \Gamma_{i,j} = \bfeta_{i,j} - \log\left(\sum_{k=1}^N\exp\left(\eta^{(i,k)}\right)\right),
 %\end{equation}
-%which is Lipschitz-smooth. Further, $G_t$ is a weighted sum of the elements of $\log \Gamma (\eta)$, so it too must be Lipschitz-smooth. Similarly, $G_t$ is Lipschitz-smooth if $\log \Gamma (\eta)$ is parameterized using time-dependent covariates.
+%which is Lipschitz-smooth. Further, $G_t$ is a weighted sum of the elements of $\log \Gamma (\bfeta)$, so it too must be Lipschitz-smooth. Similarly, $G_t$ is Lipschitz-smooth if $\log \Gamma (\bfeta)$ is parameterized using time-dependent covariates.
 
-%Condition (4) is satisfied for Gaussian emission distributions where $\theta = \{\mu,\log(\sigma^2)\}$ so long as a strongly convex prior is placed on $\log(\sigma^2)$. This is because the log-likelihood of the normal distribution (see Equation (\ref{eqn:norm_log_like}) is convex (but not strongly convex) with respect to $\theta = \{\mu,\log(\sigma^2)\}$, and the function $F$ is a weighted sum of these log-densities. Adding a strongly-convex prior over $\theta$ ensures strong-convexity in the function $F$.
+%Condition (4) is satisfied for Gaussian emission distributions where $\bftheta = \{\mu,\log(\sigma^2)\}$ so long as a strongly convex prior is placed on $\log(\sigma^2)$. This is because the log-likelihood of the normal distribution (see Equation (\ref{eqn:norm_log_like}) is convex (but not strongly convex) with respect to $\bftheta = \{\mu,\log(\sigma^2)\}$, and the function $F$ is a weighted sum of these log-densities. Adding a strongly-convex prior over $\bftheta$ ensures strong-convexity in the function $F$.
 
-%Condition (5) is satisfied so long as a strongly convex prior is placed over $\eta$. This is because the negative log-sum-exp function is convex, but not strongly convex. This also holds if $\log \Gamma (\eta)$ is parameterized using time-dependent covariates, since the composition of two convex functions is again convex.
+%Condition (5) is satisfied so long as a strongly convex prior is placed over $\bfeta$. This is because the negative log-sum-exp function is convex, but not strongly convex. This also holds if $\log \Gamma (\bfeta)$ is parameterized using time-dependent covariates, since the composition of two convex functions is again convex.
 
 %Finally, Condition (6) can be satisfied by tuning the step size and iterations per M step appropriately. See section (\label{sec:prac}) for more details about step-size selection.
 
-% The algorithm above applies even if the state-space of $\bfx$ is not discrete as long as it is possible to sample from $p(\bfx | \bfy ; \theta, \Gamma)$. \citet{Gu:1998} extend the algorithm above to apply even if it is not possible to sample from $p(\bfx | \bfy ; \theta, \Gamma)$ by drawing $\bfx$ from a Markov Chain with $p(\bfx | \bfy ; \theta, \Gamma)$ as its stationary distribution. \citet{Gu:1998} also extend this algorithm to general incomplete data models and prove that such an algorithm converges almost surely (under certain regularity conditions).
+% The algorithm above applies even if the state-space of $\bfx$ is not discrete as long as it is possible to sample from $p(\bfx | \bfy ; \bftheta, \Gamma)$. \citet{Gu:1998} extend the algorithm above to apply even if it is not possible to sample from $p(\bfx | \bfy ; \bftheta, \Gamma)$ by drawing $\bfx$ from a Markov Chain with $p(\bfx | \bfy ; \bftheta, \Gamma)$ as its stationary distribution. \citet{Gu:1998} also extend this algorithm to general incomplete data models and prove that such an algorithm converges almost surely (under certain regularity conditions).
 
 %\subsection{Expanded view of EM}
 
-%show that the EM algorithm can be thought of as maximizing some auxiliary function $H$ with respect to both the parameters $\{\eta,\theta\}$ as well as some auxiliary distribution $\tilde p (\bf X; \gamma; \xi)$ with respect to the parameters $\gamma$ and $\xi$. In this context, $\gamma$ and $\xi$ are not functions of the parameters $\{\eta,\theta\}$, but instead parameters that define the auxiliary distribution $\tilde p$. However, note that in order for $\tilde p$ to be a valid probability distribution, $\gamma_t$ and $\xi_t$ must be consistent with one another. Therefore, if $\gamma$ and $\xi$ are allowed to vary independently from one another, $\tilde p$ will not be valid. Nonetheless, we can use the intuition from \citet{Neal:1998} to mix the E and the M steps of the EM algorithm. 
+%show that the EM algorithm can be thought of as maximizing some auxiliary function $H$ with respect to both the parameters $\{\bfeta,\bftheta\}$ as well as some auxiliary distribution $\widetilde p (\bf X; \gamma; \xi)$ with respect to the parameters $\gamma$ and $\xi$. In this context, $\gamma$ and $\xi$ are not functions of the parameters $\{\bfeta,\bftheta\}$, but instead parameters that define the auxiliary distribution $\widetilde p$. However, note that in order for $\widetilde p$ to be a valid probability distribution, $\gamma_t$ and $\xi_t$ must be consistent with one another. Therefore, if $\gamma$ and $\xi$ are allowed to vary independently from one another, $\widetilde p$ will not be valid. Nonetheless, we can use the intuition from \citet{Neal:1998} to mix the E and the M steps of the EM algorithm. 
 
 %This can be especially useful for early iterations of the EM algorithm, when the $Q-$ function $Q(\cdot \big| \bfphi)$ changes rapidly as the parameters change.
 
-%After completing the E and the M step, Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$ requires evaluating $\log p(\bfy;\bfphi_{k,\ell,M})$, which has a time complexity of $\calO(T)$. However, $F_t^{(k+1,0)}$ depends upon $\alpha_T(\bfphi_{k+1})$, and $p(\bfy;\bfphi_{k+1}) = \sum_{i=1}^N \alpha_T^{(i)}(\bfphi_{k+1})$. Therefore, if in fact $\bfphi_{k,\ell,M} = \bfphi_{k+1}$, then evaluating $\log p(\bfy;\bfphi_{k,\ell,M})$ is trivial after initializing $F_t^{(k+1,0)}$ and $G_t^{(k+1,0)}$. 
+%After completing the E and the M step, Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$ requires evaluating $\log p(\bfy;\bfphi_{k,\ell,M})$, which has a time complexity of $\calO(T)$. However, $F_t^{(k+1,0)}$ depends upon $\alpha_T(\bfphi^{(k+1)})$, and $p(\bfy;\bfphi^{(k+1)}) = \sum_{i=1}^N \alpha_T_{i}(\bfphi^{(k+1)})$. Therefore, if in fact $\bfphi_{k,\ell,M} = \bfphi^{(k+1)}$, then evaluating $\log p(\bfy;\bfphi_{k,\ell,M})$ is trivial after initializing $F_t^{(k+1,0)}$ and $G_t^{(k+1,0)}$. 
 
-Unfortunately, convergence analysis for Algorithm (\ref{alg:EM-VRSO}) if $P = \texttt{True}$ is more complicated than if $P = \texttt{False}$ because the E and M steps are mixed. For convergence guarantees, practitioners can set $P = \texttt{True}$ for a predetermined number of iterations, followed by switching to either $P = \texttt{False}$ or a full-gradient method such as BFGS \citep{Fletcher:2000}. We use our simulation and case studies to show that Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$ approaches local maxima of the log-likelihood function.
+Theorem 1 above applies only to version 2 of \texttt{EM-VRSO} when $P = \texttt{False}$ and $A = \text{SAGA}$. Unfortunately, convergence analysis for \texttt{EM-VRSO} is more complicated when $P = \texttt{True}$ than when $P = \texttt{False}$ because the E and M steps are mixed. However, we prove in Theorem 2 that stationary points of the log likelihood are fixed points of Algorithm (\ref{alg:EM-VRSO}) for all values of $P$ and $A$.
 
-%One option for convergence analysis involves showing that this is the limiting case of an SMC algorithm as the number of particles goes to infinity. SVRG and SAGA both produce unbiased gradient estimates conditioned on these particles. This is similar to the proof of \citet{Naesseth:2020} for Markovian score climbing.
+\begin{theorem}
+    If $\nabla \log p(\bfy;\bfphi^{(0)}) = 0$, then $\texttt{EM-VRSO}(\bfphi^{(0)}, \lambda, A, M, K) = \bfphi^{(0)}$ for all $\lambda, A, P, M,$ and $K$.
+\end{theorem}
+
+Theorem 2 is useful because it guarantees that Algorithm (\ref{alg:EM-VRSO}) does not change $\bfphi^{(0)}$ when it is a stationary point of the likelihood. However, it makes no guarantees that Algorithm (\ref{alg:EM-VRSO}) will converge if $P = \texttt{True}$ and $\nabla \log p(\bfy;\bfphi_0) \neq 0$. Nonetheless, we see in our simulation and case studies that Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$ approaches local maxima of the log-likelihood function faster than existing full-batch baselines. For theoretical guarantees on convergence, practitioners can set $P = \texttt{True}$ for a predetermined number of iterations, followed by switching to either $P = \texttt{False}$ or a full-gradient method such as BFGS \citep{Fletcher:2000}.
+
+%One option for convergence analysis involves showing that this is the limiting case of an SMC algorithm as the number of particles goes to infinity. SVRG and SAGA both produce unbiased gradient approximations conditioned on these particles. This is similar to the proof of \citet{Naesseth:2020} for Markovian score climbing.
 
 %Note that if the observed data is independent, then it is straightforward to apply variance-reduced stochastic gradient descent to the log-likelihood, since the log-likelihood of each data point contributes one term to a sum that makes up the log-likelihood. However, the log-likelihood of an HMM cannot be written as a tractable sum, so stochastic gradient descent is not feasible for the raw likelihood. 
 
-%The algorithm above is equivalent to standard variance-reduced stochastic gradient descent algorithms for independent data. This is because updating $\xi_{t_{k,\ell,m}}$ and $\gamma_{t_{k,\ell,m}}$, followed by $\nabla_{\theta} F_{t_{k,\ell,m}}(\theta;\xi_{t_{k,\ell,m}},\gamma_{t_{k,\ell,m}})$ and $\nabla_{\eta} G_{t_{k,\ell,m}}(\eta;\xi_{t_{k,\ell,m}},\gamma_{t_{k,\ell,m}})$ before taking a gradient step is equivalent to simply evaluating the gradient at data point $t_{k,\ell,m}$ for independent data by the Fisher identity for the gradient.
+%The algorithm above is equivalent to standard variance-reduced stochastic gradient descent algorithms for independent data. This is because updating $\xi_{t_{k,\ell,m}}$ and $\gamma_{t_{k,\ell,m}}$, followed by $\nabla_{\bftheta} F_{t_{k,\ell,m}}(\bftheta;\xi_{t_{k,\ell,m}},\gamma_{t_{k,\ell,m}})$ and $\nabla_{\bfeta} G_{t_{k,\ell,m}}(\bfeta;\xi_{t_{k,\ell,m}},\gamma_{t_{k,\ell,m}})$ before taking a gradient step is equivalent to simply evaluating the gradient at data point $t_{k,\ell,m}$ for independent data by the Fisher identity for the gradient.
 
-%The SVRG variant of Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$, involves storing both an outdated set of weights $\big\{\gamma_t(\bfphi_{k}),\xi_t(\bfphi_{k})\big\}_{t=1}^T$ as well as the current set of weights $\big\{ \gamma_t,\xi_t \big\}_{t=1}^T$. This is because each gradient estimate depends upon $\widehat \nabla_\theta F_{t_{k,\ell,m}}^{(k)}$ and $\widehat \nabla_\eta G_{t_{k,\ell,m}}^{(k)}$, each of which depend upon the outdated weights $\{\gamma_t(\bfphi_{k}),\xi_t(\bfphi_{k})\}_{t=1}^T$. Likewise, each gradient estimate also depends upon $\widehat \nabla_\theta F_{t_{k,\ell,m}}^{(k,\ell,m+1)}$ and $\widehat \nabla_\eta G_{t_{k,\ell,m}}^{(k,\ell,m+1)}$, each of which depend upon the current weights $\big\{ \gamma_t , \xi_t \big\}_{t=1}^T$.
+%The SVRG variant of Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$, involves storing both an outdated set of weights $\big\{\gamma_t(\bfphi^{(k)}),\xi_t(\bfphi^{(k)})\big\}_{t=1}^T$ as well as the current set of weights $\big\{ \gamma_t,\xi_t \big\}_{t=1}^T$. This is because each gradient estimate depends upon $\widehat \nabla_\bftheta F_{t_{k,\ell,m}}^{(k)}$ and $\widehat \nabla_\bfeta G_{t_{k,\ell,m}}^{(k)}$, each of which depend upon the outdated weights $\{\gamma_t(\bfphi^{(k)}),\xi_t(\bfphi^{(k)})\}_{t=1}^T$. Likewise, each gradient estimate also depends upon $\widehat \nabla_\bftheta F_{t_{k,\ell,m}}^{(k,\ell,m+1)}$ and $\widehat \nabla_\bfeta G_{t_{k,\ell,m}}^{(k,\ell,m+1)}$, each of which depend upon the current weights $\big\{ \gamma_t , \xi_t \big\}_{t=1}^T$.
 
 %The SAGA variant of Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$, may involve setting $M = \infty$ and never fully refreshing the gradient. However, it is difficult to determine convergence in this case since the full log-likelihood $\log p(\bfy;\bfphi_{k,\ell,M})$ is never explicitly evaluated. Setting $M \approx 10T$ instead adds minimal computational burden, but periodically evaluates the full likelihood to determine convergence and refresh the gradient estimate. We set $M = 10T$ for many of our experimental studies.
 
-%Note that there is a problem for SVRG when changing the weights $\gamma$ and $\xi$ as we go. In particular, note that we have to re-evaluate the gradients at the old parameters to get unbiased estimates of the gradient. However, if the weights are changing as we do the M step, then we have to re-evaluate the old weights to do SVRG. BUT, notice that calculating those weights requires that we either store them or iterate through the whole data set :(. We could update the table average as we update the weights, but then we would have to know the OLD value of those weights to update the full gradient effectively. The only real saving grace we have here is that if we have the new weights, then saving the old weights is not as bad a saving the old gradients, which we would have to do for SAGA.
+%Note that there is a problem for SVRG when changing the weights $\gamma$ and $\xi$ as we go. In particular, note that we have to re-evaluate the gradients at the old parameters to get unbiased approximations of the gradient. However, if the weights are changing as we do the M step, then we have to re-evaluate the old weights to do SVRG. BUT, notice that calculating those weights requires that we either store them or iterate through the whole data set :(. We could update the table average as we update the weights, but then we would have to know the OLD value of those weights to update the full gradient effectively. The only real saving grace we have here is that if we have the new weights, then saving the old weights is not as bad a saving the old gradients, which we would have to do for SAGA.

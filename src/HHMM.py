@@ -120,7 +120,7 @@ class HHMM:
                 if dist == 'normal':
 
                     theta[k0][feature]['mu'] = np.nanmean(feature_data)*np.ones(self.K[1])
-                    theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data)) - np.log(self.K[1])
+                    theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
 
                     theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
                     theta[k0][feature]['log_sig'] += norm.rvs(np.zeros(self.K[1]),1.0)
@@ -146,6 +146,7 @@ class HHMM:
                     theta[k0][feature]['logit_rho'] = -1.0*np.ones(self.K[1])
 
                     theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
+                    theta[k0][feature]['log_sig'] += norm.rvs(np.zeros(self.K[1]),1.0)
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
                     theta[k0][feature]['logit_rho'] += norm.rvs(np.zeros(self.K[1]),1.0)
 
@@ -171,6 +172,7 @@ class HHMM:
                     theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
 
                     theta[k0][feature]['log_mu'] *= norm.rvs(np.ones(self.K[1]),np.log(1.1))
+                    theta[k0][feature]['log_sig'] += norm.rvs(np.zeros(self.K[1]),1.0)
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
 
                     if build_fix_theta:

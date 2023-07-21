@@ -198,7 +198,7 @@ class StochOptimizor(Optimizor):
             self.L_eta *= 2**(-1/(self.T-1))
 
         if check_again:
-            self.check_L_theta(t)
+            self.check_L_eta(t)
 
         return
 

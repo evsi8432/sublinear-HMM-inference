@@ -5,34 +5,28 @@ For the purposes of readability, we abuse notation and use the shorthand $F(\bfp
 \begin{algorithm}
 \caption{\texttt{EM-VRSO}$(\bfphi_0, \lambda, A, M, K)$ (Version 2)}\label{alg:EM-VRSO-v2}
 \begin{algorithmic}[1]
-\Require Initial parameters ($\bfphi_{0}$), step size ($\lambda$), algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial E step $P \in \{\texttt{True,False}\}$, iterations per update ($M$), and number of updates ($K$). Assume known Lipschitz constant $L$ and known strong convexity constant $C$.
+\Require Initial parameters ($\bfphi_{0}$), step size ($\lambda$), algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial E step $P \in \{\texttt{True,False}\}$, number of iterations per update ($M$), and number of updates ($K$). Assume known Lipschitz constant $L$ and known strong convexity constant $C$.
 %
 \vspace{5pt}
 %
-\State $\zeta \gets (C \lambda(1-2L\lambda)M)^{-1} + (2L\lambda) / (1-2L\lambda) < 1$ 
+\State $\zeta = (C \lambda(1-2L\lambda)M)^{-1} + (2L\lambda) / (1-2L\lambda) < 1$ 
 %
 \Comment{$\zeta < 1$}
 %
 \For{$k = 0,\ldots,K-1$}
 % 
-\State $\{\bfalpha_t,\bfbeta_t,\bfgamma_t,\bfxi_t\}_{t=1}^{T} \gets \texttt{E-step}(\bfphi_{k})$ \Comment{E step}
+\State $\{\bfalpha_{k,t},\bfbeta_{k,t},\bfgamma_{k,t},\bfxi_{k,t}\}_{t=1}^{T} = \texttt{E-step}(\bfphi_{k})$ \Comment{E step}
 %
-\For{$t = 1,\ldots,T$}
-    \State $\widehat \nabla F_t \gets \nabla F_t(\bfphi_k \mid \bfphi_k)$
-\EndFor
-%
-\State $\widehat \nabla F \gets \frac{1}{T} \sum_{t=1}^T \widehat \nabla F_t$
-%
-%\State $F^{*}(\bfphi_{k}) \gets \min_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi_k)$ 
+\State $K(\bfphi_{k}) = F^{*}(\bfphi_{k}) + \left[(1 + \zeta) / 2\right]\left(F(\bfphi_{k} \mid \bfphi_{k}) - F^{*}(\bfphi_{k})\right)$
 %
 \State $\ell \gets 0$ \Comment{M step}
 %
-\While{$\ell = 0$ or $F(\bfphi_{k,\ell} \mid \bfphi_{k}) > F^{*}(\bfphi_{k}) + \left[(1 + \zeta) / 2\right]\left(F(\bfphi_{k} \mid \bfphi_{k}) - F^{*}(\bfphi_{k})\right)$}
+\While{$\ell = 0$ or $F(\bfphi_{k,\ell} \mid \bfphi_{k}) > K(\bfphi_{k})$}
 \State $\ell \gets \ell+1$
-\State $\bfphi_{k,\ell} \gets \texttt{VRSO-PE}(\{\bfalpha_t,\bfbeta_t,\bfgamma_t,\bfxi_t\}_{t=1}^{T}, \{\widehat \nabla F_t\}_{t=1}^T, \widehat \nabla F, \bfphi_{k},\lambda,A,P,M)$
+\State $\bfphi_{k,\ell} = \texttt{VRSO-PE}(\{\bfalpha_t,\bfbeta_t,\bfgamma_t,\bfxi_t\}_{t=1}^{T},\bfphi_{k},\lambda,A,P,M)$
 %
 \EndWhile
-\State $\bfphi_{k+1} \gets \bfphi_{k,\ell}$
+\State $\bfphi_{k+1} = \bfphi_{k,\ell}$
 \EndFor
 \State \Return $\bfphi_K$
 \end{algorithmic}
@@ -71,23 +65,23 @@ Another concern with Algorithm (\ref{alg:EM-VRSO-v2}) is that $F^{*}(\bfphi_{k})
 
 \section{Proof of Theorem 1}
 
-We begin by introducing notation needed for the proof. Let $I \in \{1,\ldots,T\}^M$ be an $M$-dimensional vector of indices. Let $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ correspond to the mapping that results from performing $M$ steps of SVRG on objective function $F(\cdot \mid \bfphi')$ starting at $\bfphi'$ with step size $\lambda$ and random realization $I$. That is, $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ equals $\texttt{VRSO-PE}(\{\bfalpha_t(\bfphi'),\bfbeta_t(\bfphi'),\bfgamma_t(\bfphi'),\bfxi_t(\bfphi')\}_{t=1}^{T}, \{\widehat \nabla F_t(\bfphi' \mid \bfphi')\}_{t=1}^T, \nabla F(\bfphi' \mid \bfphi'), \bfphi', \lambda, \text{SVRG}, \texttt{False}, M)$ when the random vector of indices $\begin{pmatrix} t_0 & \cdots & t_{M-1} \end{pmatrix}$ is equal to $I$. We prove that $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is continuous in $\bfphi' \in \bfPhi$ for fixed $I$ and $\lambda$ in Lemma 2 below.
+We begin by introducing notation needed for the proof. Let $I \in \{1,\ldots,T\}^M$ be an $M$-dimensional vector of indices. Let $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ correspond to the mapping that results from performing $M$ steps of SVRG on objective function $F(\cdot \mid \bfphi')$ starting at $\bfphi'$ with step size $\lambda$ and random realization $I$. That is, $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ equals $\texttt{VRSO-PE}(\{\bfalpha_t(\bfphi'),\bfbeta_t(\bfphi'),\bfgamma_t(\bfphi'),\bfxi_t(\bfphi')\}_{t=1}^{T}, \bfphi', \lambda, \text{SVRG}, \texttt{False}, M)$ when the random vector of indices $\begin{pmatrix} t_0 & \cdots & t_{M-1} \end{pmatrix}$ is equal to $I$. We prove that $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is uniformly continuous in $\bfphi' \in \bfPhi$ for fixed $I$ and $\lambda$ in Lemma 2 below.
 
 \begin{lemma}
     Suppose all conditions from Theorem 1 hold. Then $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is uniformly continuous in $\bfphi' \in \bfPhi$ for fixed $I$ and $\lambda$.
 \end{lemma}
 
 \begin{proof}
-    Define $\bfphi'_0 \equiv \bfphi'$. The function $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ involves calculating $\bfphi'_0, \bfphi'_1, \ldots, \bfphi'_{m}, \ldots, \bfphi'_{M-1}$ by iteratively applying the following mapping (with $t_m = I[m]$) and returning $\bfphi'_M \equiv \bfphi$:
+    Define $\bfphi'^{(0)} = \bfphi'$. The function $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ involves calculating $\bfphi'^{(0)}, \bfphi'^{(1)}, \ldots, \bfphi'^{(m)}, \ldots, \bfphi'^{(M-1)}$ by iteratively applying the following mapping (with $t_m = I[m+1]$) and returning $\bfphi'^{(M)} \equiv \bfphi$:
     %
     \begin{equation*}
-        \bfphi'_{m+1}(\bfphi'_m,\bfphi'_0) = \lambda \left[\nabla F_{t_m}(\bfphi'_m \mid \bfphi'_0) - \nabla F_{t_m}(\bfphi'_0 \mid \bfphi'_0) + \frac{1}{T}\sum_{t=1}^T\nabla F_{t}(\bfphi'_0 \mid \bfphi'_0) \right].
+        \bfphi'^{(m+1)}(\bfphi'^{(m)},\bfphi'^{(0)}) = \lambda \left[\nabla F_{t_m}(\bfphi'^{(m)} \mid \bfphi'^{(0)}) - \nabla F_{t_m}(\bfphi'^{(0)} \mid \bfphi'^{(0)}) + \frac{1}{T}\sum_{t=1}^T\nabla F_{t}(\bfphi'^{(0)} \mid \bfphi'^{(0)}) \right].
     \end{equation*}
     %
-    Note that $\nabla F_t(\bfphi \mid \bfphi')$ is uniformly continuous in $(\bfphi,\bfphi')$ for each $t$ by condition (7) of Theorem 1. Therefore, the mapping above is also uniformly continuous in $(\bfphi'_m,\bfphi'_0)$, and so $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is uniformly continuous in $\bfphi'$ for fixed $I$ and $\lambda$.
+    Note that $\nabla F_t(\bfphi \mid \bfphi')$ is uniformly continuous in $(\bfphi,\bfphi')$ for each $t$ by condition (7) of Theorem 1. Therefore, the mapping above is also uniformly continuous in $(\bfphi'^{(m)},\bfphi'^{(0)})$, and so $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is uniformly continuous in $\bfphi'$ for fixed $I$ and $\lambda$.
 \end{proof}
 
-If the conditions of Theorem 1 are met, iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) is equivalent to repeatedly drawing $I$ and calculating $\bfphi_{k,\ell} = \texttt{VRSO-PE}^*(I,\lambda,\bfphi_{k})$ until the condition to exit the while loop is satisfied, which happens in finite time by Lemma 3 below. Lemma 3 depends upon Theorem 1 of \citet{Johnson:2013}, so Table (\ref{tbl:notation}) identifies how our notation corresponds to theirs.
+If the conditions of Theorem 1 are met, iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) is equivalent to drawing a sequence of index vectors $I_{k,0},I_{k,1},\ldots$ and calculating $\bfphi_{k,\ell} = \texttt{VRSO-PE}^*(I_{k,\ell},\lambda,\bfphi_{k})$ until the condition to exit the while loop is satisfied, which happens in finite time by Lemma 3 below. Lemma 3 depends upon Theorem 1 of \citet{Johnson:2013}, so Table (\ref{tbl:notation}) identifies how our notation corresponds to theirs.
 %
 \begin{table}[]
 \centering
@@ -109,12 +103,12 @@ $\psi_i$                              & $F_t(\cdot \mid \bfphi_k)$
 \end{table}
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold. Then, the while loop within Algorithm (\ref{alg:EM-VRSO-v2}) almost surely terminates in finite time, i.e. $\bbP(\ell^*(k) < \infty) = 1$ for all $k \geq 0.$
+    Suppose all conditions from Theorem 1 hold. Then, the while loop within Algorithm (\ref{alg:EM-VRSO-v2}) almost surely terminates in finite time, i.e. $\bbP(\ell^*(k) < \infty) = 1$ for all $k \geq 0$. Furthermore, $\bbP\{\ell^*(k) < \infty \forall k\} = 1$.
 \end{lemma}
 
 \begin{proof}
 
-By Lemma 1, then $F^*(\bfphi_k) = \inf_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi_k)$ is finite and uniformly continuous in $\bfphi_k$. Further, Theorem 1 of \citet{Johnson:2013} applies for one iteration through $M$ steps of SVRG. In particular, for all $\ell \geq 0$:
+By Lemma 1, $F^*(\bfphi_k) = \inf_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi_k)$ is finite and uniformly continuous in $\bfphi_k$. Further, Theorem 1 of \citet{Johnson:2013} applies for one iteration through $M$ steps of SVRG. In particular, for all $\ell \geq 0$:
 
 \begin{align}
     \bbE & \left[F(\bfphi_{k,\ell} \mid \bfphi_{k}) - F^*(\bfphi_k) ~\Big\vert~ \bfphi_{k} \right] \leq \zeta \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_k) \Big), \label{eqn:SVRG_T1}
@@ -133,36 +127,41 @@ Taking the complement of the above expression and rearranging terms gives
     \bbP \Big[F(\bfphi_{k,\ell} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + \frac{1 + \zeta}{2} \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) ~\Big\vert~ \bfphi_{k} \Big] \geq \frac{1-\zeta}{1 + \zeta} > 0 \label{eqn:markov_ineq},
 \end{equation}
 
-so with some probability greater than or equal to $(1-\zeta)/(1+\zeta) > 0$, the condition to exit the while loop of Algorithm (\ref{alg:EM-VRSO-v2}) is satisfied.
+so with some probability greater than or equal to $(1-\zeta)/(1+\zeta) > 0$, the condition to exit the while loop at iteration $\ell$ of Algorithm (\ref{alg:EM-VRSO-v2}) is satisfied.
 
-Further, repeated iteration through Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to drawing \textit{independent} samples of $\bfphi_{k,\ell}$ conditioned on $\bfphi_k$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k \geq (1-\zeta)/(1+\zeta)$. Therefore, 
+Further, repeated iteration through Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to drawing \textit{independent} samples of $\bfphi_{k,\ell}$ conditioned on $\bfphi_k$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k \geq (1-\zeta)/(1+\zeta)$. Therefore, $\bbP\Big\{\ell^*(k) < \infty \Big\} = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1$, and 
 
-\begin{equation}
-    \bbP\Big(\ell^*(k) < \infty \Big) = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1.
-\end{equation}
+\begin{equation*}
+    \bbP\Big\{\forall k : \ell^*(k) < \infty \Big\} = 1 - \bbP\Big\{\exists k : \ell^*(k) = \infty \Big\} = 1.
+\end{equation*}
 \end{proof}
 
-Finally, we introduce $R_{M,\lambda}$ as a point-to-set map corresponding to one iteration of Algorithm (\ref{alg:EM-VRSO-v2}) with $M$ steps of step size $\lambda$. In particular, we can define $R_{M,\lambda}(\bfphi')$ as follows:
+Finally, we introduce $R_{M,\lambda}$ as a point-to-set map corresponding to one iteration of Algorithm (\ref{alg:EM-VRSO-v2}) with $M$ steps of step size $\lambda$. First, recall that
 
-\begin{align}
-    R_{M,\lambda}(\bfphi') \equiv \Bigg\{\bfphi ~ : ~ & \bfphi = \texttt{VRSO-PE}^*(I,\lambda,\bfphi') ~ \text{for some} ~ I \in \{1,\ldots,T\}^M, \nonumber \\
-    & F(\bfphi \mid \bfphi') \leq F^*(\bfphi') + \frac{1 + \zeta}{2} \Big(F(\bfphi' \mid \bfphi') - F^*(\bfphi') \Big)\Bigg\}.
-\end{align}
+\begin{equation}
+    K(\bfphi') = F^*(\bfphi') + [(1 + \zeta)/2] \Big(F(\bfphi' \mid \bfphi') - F^*(\bfphi') \Big). 
+\end{equation}
+
+Then, we define $R_{M,\lambda}(\bfphi')$ as
+
+\begin{equation}
+    R_{M,\lambda}(\bfphi') = \Big\{\bfphi ~ : ~ \bfphi = \texttt{VRSO-PE}^*(I,\lambda,\bfphi') ~ \text{for some} ~ I \in \{1,\ldots,T\}^M ~\text{and}~ F(\bfphi \mid \bfphi') \leq K(\bfphi')\Big\}.
+\end{equation}
 
 Iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to randomly sampling $\bfphi_{k+1}$ from $R_{M,\lambda}(\bfphi_k)$. If the conditions of Theorem 1 are met, then $\bbP(\ell^*(k) < \infty) = 1$, so $R_{M,\lambda}(\bfphi_k)$ must not be the empty set. We prove two more useful Lemmas regarding $R_{M,\lambda}$ before finally proving Theorem 1.
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold. Then $R_{M,\lambda}$ is a closed point-to-set map for all non-stationary points $\bfphi' \in \bfPhi$. In particular, $R_{M,\lambda}$ is closed at a point $\bfphi'$ if $\bfphi'_{n} \to \bfphi'$ and $\bfphi_{n} \to \bfphi$ with $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$, implies that $\bfphi \in R_{M,\lambda}(\bfphi')$. 
+    Suppose all conditions from Theorem 1 hold. Then $R_{M,\lambda}$ is a closed point-to-set map for all non-stationary points $\bfphi' \in \bfPhi$. Note that $R_{M,\lambda}$ is closed at a point $\bfphi'$ if $\bfphi'_{n} \to \bfphi'$ and $\bfphi_{n} \to \bfphi$ with $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$, implies that $\bfphi \in R_{M,\lambda}(\bfphi')$. 
 \end{lemma}
 
 \begin{proof}
-     Denote $K(\bfphi') \equiv F^*(\bfphi') + [(1 + \zeta)/2] \Big(F(\bfphi' \mid \bfphi') - F^*(\bfphi') \Big)$. Given a point $\bfphi'$, suppose there exits some sequence $\bfphi'_{n} \to \bfphi'$ as well as another sequence $\bfphi_{n} \to \bfphi$ with $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$. To prove the Lemma, we prove that $\bfphi \in R_{M,\lambda}(\bfphi')$, i.e. that
+     Given a point $\bfphi'$, suppose there exists some sequence $\bfphi'_{n} \to \bfphi'$ as well as another sequence $\bfphi_{n} \to \bfphi$ with $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$. To prove the Lemma, we prove that $\bfphi \in R_{M,\lambda}(\bfphi')$, i.e. that
     \begin{enumerate}
         \item $F(\bfphi \mid \bfphi') \leq K(\bfphi')$, and
         \item $\bfphi = \texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ for some $I \in \{1,\ldots,T\}^M$
     \end{enumerate}
     %
-    We start with the first condition. Since $\bfphi_{n} \to \bfphi$ and $\bfphi'_{n} \to \bfphi'$,  \ we have that $F(\bfphi_{n} \mid \bfphi'_{n}) \to F(\bfphi \mid \bfphi')$ because $F$ is continuous by condition (7) of Theorem 1. Likewise, $K(\bfphi'_{n}) \to K(\bfphi')$ because $K$ is continuous by Lemma 2. Finally, $F(\bfphi \mid \bfphi') \leq K(\bfphi')$ because for all $n$, $\bfphi_n \in R_{M,\lambda}(\bfphi_n') \implies F(\bfphi_{n} \mid \bfphi'_{n}) \leq K(\bfphi'_{n})$. Taking the limit of both sides as $n \to \infty$ gives the result.
+    We start with the first condition. Since $\bfphi_{n} \to \bfphi$ and $\bfphi'_{n} \to \bfphi'$,  \ we have that $F(\bfphi_{n} \mid \bfphi'_{n}) \to F(\bfphi \mid \bfphi')$ because $F$ is continuous by condition (7) of Theorem 1. Likewise, $K(\bfphi'_{n}) \to K(\bfphi')$ because $K$ is continuous by Lemma 1. Finally, $F(\bfphi \mid \bfphi') \leq K(\bfphi')$ because for all $n$, $\bfphi_n \in R_{M,\lambda}(\bfphi_n')$, which implies that $F(\bfphi_{n} \mid \bfphi'_{n}) \leq K(\bfphi'_{n})$. Taking the limit of both sides as $n \to \infty$ gives the result.
     
     We now show the second condition. By way of contradiction, assume that $\bfphi \neq \texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ for any value of $I \in \{1,\ldots,T\}^M$. Then, $\min_I ||\bfphi - \texttt{VRSO-PE}^*(I,\lambda,\bfphi')||$ is strictly positive. 
     %Because the sequence $\{\bfphi_n\}_{n>1}$ converges to $\bfphi$, there must exist some $N_1$ such that for all $n \geq N_1$, $||\bfphi_{n} - \bfphi|| < \epsilon/2$. Further, since $\{\bfphi'_{n}\}_{n>1}$ converges to $\bfphi'$ and $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is continuous in $\bfphi'$, there must exist some $N_2$ such that for all $n \geq N_2$ and $I \in \{1,\ldots,T\}^M$, $||\texttt{VRSO-PE}^*(I,\lambda,\bfphi'_{n}) - \texttt{VRSO-PE}^*(I,\lambda,\bfphi')|| < \epsilon/2$. Now pick an arbitrary $n > \max\{N_1,N_2\}$. 
@@ -179,16 +178,16 @@ Iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to randomly sampli
 \end{proof}
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold, and consider the sequence $\{\bfphi_k\}_{k=0}^{\infty}$ generated from running Algorithm (\ref{alg:EM-VRSO-v2}) with $\bfphi_0 \in \bfPhi$. For all $\bfphi_k \in \bfPhi$, we have that $\log p(\bfy;\bfphi_{k+1}) \geq \log p(\bfy;\bfphi_k)$. Further, if $\bfphi_k \in \bfPhi$ is not a stationary point of $\log p$, then $\log p(\bfy;\bfphi_{k+1}) > \log p(\bfy;\bfphi_k)$.
+    Suppose all conditions from Theorem 1 hold, and consider the sequence $\{\bfphi_k\}_{k=0}^{K}$ generated from running Algorithm (\ref{alg:EM-VRSO-v2}) with $\bfphi_0 \in \bfPhi$. For $k = 0,\ldots,K-1$, we have that $\log p(\bfy;\bfphi_{k+1}) \geq \log p(\bfy;\bfphi_k)$. Further, if $\bfphi_k$ is not a stationary point of $\log p$, then $\log p(\bfy;\bfphi_{k+1}) > \log p(\bfy;\bfphi_k)$.
 \end{lemma}
 
 \begin{proof}
 
 First, note that $\bfphi_k$ is a stationary point of $\log p$ if and only if it is a stationary point of $F(\cdot \mid \bfphi_k)$ because $\nabla \log p(\bfphi_k) = \nabla Q(\bfphi_k \mid \bfphi_k) = -\nabla F(\bfphi_k \mid \bfphi_k) / T$.
 
-We begin with the case where $\bfphi_k$ is a stationary point of $\log p$ (and therefore $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) = F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}), it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) = F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) \geq 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) \geq \log p(\bfy ; \bfphi_{k})$.
+We begin with the case where $\bfphi_k$ is a stationary point of $\log p$ (and therefore a stationary point of $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) = F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}), it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) = F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) \geq 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) \geq \log p(\bfy ; \bfphi_{k})$.
 
-Next, we focus on the case where $\bfphi_k$ is \textit{not} a stationary point of $\log p$ (and therefore $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) > F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}), it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) < F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) > 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) > \log p(\bfy ; \bfphi_{k})$.
+Next, we focus on the case where $\bfphi_k$ is \textit{not} a stationary point of $\log p$ (and therefore not a stationary point $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) > F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}), it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) < F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) > 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) > \log p(\bfy ; \bfphi_{k})$.
 \end{proof}
 
 We now prove Theorem 1.
@@ -209,95 +208,160 @@ Condition (a) is satisfied by Lemma 4, and condition (b) is satisfied by Lemma 5
 
 \section{Proof of Theorem 2}
 
-\begin{proof}
+We first give a basic outline of the proof. If $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\nabla F(\bfphi_0 \mid \bfphi_0) = 0$, so every gradient step of SAGA and SVRG within $\texttt{VRSO-PE}$ does not change $\bfphi_0^{(m)}$, so $ = \bfphi_0^{(m+1)} =  \bfphi_0^{(m)} = \bfphi^{(0)}_0$. As a result, the gradient approximations do not change either, so $\widehat F^{(m+1)} = \widehat F^{(m)}$ and $\widehat F^{(m+1)}_t = \widehat F^{(m)}_t$ for $t = 1,\ldots,T$. Finally, since the parameter estimates do not change, the conditional probability approximations $\left\{\widehat \bfalpha^{(m)}_t, \widehat \bfbeta^{(m)}_t, \widehat \bfgamma^{(m)}_t, \widehat \bfxi^{(m)}_t\right\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0), \bfbeta_t(\bfphi_0), \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0) \right\}_{t=1}^T$ do not change either. Because $\texttt{VRSO-PE}$ returns $\bfphi_1 = \bfphi_0^{(M)} = \bfphi_0$, each iteration of $\texttt{EM-VRSO}$ must do the same, so by induction $\bfphi_K = \bfphi_0$.
 
-We first give a basic an outline of the proof. If $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\nabla F(\bfphi_0 \mid \bfphi_0) = 0$, so every gradient step of SAGA and SVRG within $\texttt{VRSO-PE}$ does not change the parameter estimate at a given step $m$, i.e. $\bfphi_m = \bfphi_{m+1} - \bfphi_0$. As a result, the gradients themselves also do not change, so the gradient approximation updates in SAGA do not change the gradient approximations $\widehat F_t$ and $\widehat F = 0$. Finally, since the parameter estimates do not change, the conditional probability estimates $\{\bfalpha_t, \bfbeta_t, \bfgamma_t, \bfxi_t\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0), \bfbeta_t(\bfphi_0), \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0) \right\}_{t=1}^T$ do not change either. Because $\texttt{VRSO-PE}$ returns $\bfphi_M = \bfphi_0$, each step of $\texttt{EM-VRSO}$ must do the same, so by induction $\bfphi_K = \bfphi_0$.
+To prove the Theorem more formally, we first prove a useful Lemma.
 
-We now prove the Theorem more formally. In particular, we use induction and show that if $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\bfphi_{k} = \bfphi_0$ for all iterations $k$ of Algorithm (\ref{alg:EM-VRSO}). The base can is trivial since clearly $\bfphi_{k} = \bfphi_0$ if $k=0$. For the inductive case, we assume that $\bfphi_k = \bfphi_0$ and prove that $\bfphi_{k+1} = \bfphi_k = \bfphi_0$. We show below that steps (2 -- 6) of Algorithm (\ref{alg:EM-VRSO}) satisfy the conditions of Lemma 7:
-%
-\begin{enumerate}
-    \item Step 2 of Algorithm (\ref{alg:EM-VRSO}) performs the E-step of the EM algorithm and sets $\{\bfalpha_t, \bfbeta_t, \bfgamma_t, \bfxi_t\}_{t=1}^T \gets \left\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k) \right\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0), \bfbeta_t(\bfphi_0), \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0) \right\}_{t=1}^T$.
-    %
-    \item Steps 3--5 of Algorithm (\ref{alg:EM-VRSO}) sets $\left\{\widehat \nabla F_t\right\}_{t=1}^T \gets \Big\{\nabla F_t(\bfphi_k \mid \bfgamma_t, \bfxi_t) \Big\}_{t=1}^T = \Big\{\nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0)) \Big\}_{t=1}^T$.
-    %
-    \item Step 6 of Algorithm (\ref{alg:EM-VRSO}) sets $\widehat \nabla F \gets \frac{1}{T} \sum_{t=1}^T \nabla F_t(\bfphi_k \mid \bfgamma_t, \bfxi_t) = \frac{1}{T} \sum_{t=1}^T \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0)) = -\frac{1}{T} \nabla Q(\bfphi_0 \mid \bfphi_0) = -\frac{1}{T} \nabla \log p(\bfy ~;~ \bfphi_0) = 0$.
-\end{enumerate}
-%
-These steps precisely satisfy the conditions of Lemma 7, so $\bfphi_{k,1} = \bfphi_{0}$. Since $\log p(\bfy; \bfphi_{k,1}) = \log p(\bfy; \bfphi_{0}) \geq \log p(\bfy;\bfphi_{k}) = \log p(\bfy; \bfphi_{0})$, $\bfphi_{k,1}$ satisfies the condition to exit the while loop of Algorithm (\ref{alg:EM-VRSO}), so $\bfphi_{k+1} = \bfphi_{k,1} = \bfphi_{0}$. 
-
-This completes the inductive step, and proves the Theorem.
-\end{proof}
-
-\subsection{Lemmas for Theorem 2}
-    
 \begin{lemma}
     If:
     \begin{enumerate}
-        \item $\{\widehat \bfalpha_t, \widehat \bfbeta_t, \widehat \bfgamma_t, \widehat \bfxi_t\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0),\bfbeta_t(\bfphi_0),\bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0)\right\}_{t=1}^T$,
+        \item $\widehat \bfalpha^{(0)}_t = \bfalpha_t(\bfphi^{(0)})$ and $\widehat \bfbeta^{(0)}_{t} = \bfbeta_t(\bfphi^{(0)})$ for all $t = 1,\ldots,T$,
         %
-        \item $\widehat \nabla F = 0$,
+        \item $\widehat \bfgamma^{(0)}_{t} = \bfgamma_t(\bfphi^{(0)})$ and $\widehat \bfxi^{(0)}_{t} = \bfxi_t(\bfphi^{(0)})$ for all $t = 1,\ldots,T$,
         %
-        \item $\left\{\widehat \nabla F_t\right\}_{t=1}^T = \left\{\nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0))\right\}_{t=1}^T$,
+        \item $\nabla F(\bfphi^{(0)} \mid \bfgamma(\bfphi^{(0)}),\bfxi(\bfphi^{(0)})) = 0$,
     \end{enumerate}
-    Then for all $\lambda \in \bbR$, $M \in \bbN$, $A \in \{\text{SAGA}, \text{SVRG}\}$, and $P \in \{\texttt{True},\texttt{False}\}$, the following holds:
+    then with probability 1, for algorithm (\ref{alg:VRSO-PE}):
     \begin{equation}
-        \texttt{VRSO-PE}\Big(\{\widehat \bfalpha_t, \widehat \bfbeta_t, \widehat \bfgamma_t, \widehat \bfxi_t\}_{t=1}^T, \{\widehat \nabla F_t \}_{t=1}^T, \widehat \nabla F, \bfphi_0, \lambda, A, P, M \Big) = \bfphi_0
+        \texttt{VRSO-PE}\Big(\left\{\widehat \bfalpha_t^{(0)},\widehat \bfbeta_t^{(0)},\widehat \bfgamma_t^{(0)},\widehat \bfxi_t^{(0)}\right\}_{t=1}^T, \bfphi^{(0)}, \lambda, A, P, M \Big) = \bfphi^{(0)}
     \end{equation}
+    for all $\lambda \in \bbR$, $A \in \{\text{SAGA}, \text{SVRG}\}$, $P \in \{\texttt{True},\texttt{False}\}$, and $M \in \bbN$.
 \end{lemma}
 
 \begin{proof}
 
-    We first introduce notation for clarity. At the beginning of step $m$ of \texttt{VRSO-PE}, denote all conditional probability approximations as $\{\widehat \bfalpha_{m,t}, \widehat \bfbeta_{m,t}, \widehat \bfgamma_{m,t}, \widehat \bfxi_{m,t}\}_{t=1}^T$, the full gradient approximation as $\widehat \nabla F_m$, and the gradient approximations for each term of the sum as $\left\{\widehat \nabla F_{m,t} \right\}_{t=1}^T$. We use induction to show that the following holds for all $m \geq 0$:
+    We use induction to show that the following conditions hold for all $m \geq 0$:
 
     \begin{enumerate}
-        \item $\{\widehat \bfalpha_{m,t}, \widehat \bfbeta_{m,t}, \widehat \bfgamma_{m,t}, \widehat \bfxi_{m,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0),\bfbeta_t(\bfphi_0),\bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0)\right\}_{t=1}^T$
+        \item $\widehat \bfalpha^{(m)}_t = \bfalpha_t(\bfphi^{(0)})$ and $\widehat \bfbeta^{(m)}_{t} = \bfbeta_t(\bfphi^{(0)})$ for all $t = 1,\ldots,T$.
         %
-        \item $\bfphi_m = \bfphi_0$
+        \item $\widehat \bfgamma^{(m)}_{t} = \bfgamma_t(\bfphi^{(0)})$ and $\widehat \bfxi^{(m)}_{t} = \bfxi_t(\bfphi^{(0)})$ for all $t = 1,\ldots,T$.
         %
-        \item $\widehat \nabla F_m = 0$
+        \item $\bfphi^{(m)} = \bfphi^{(0)}$
         %
-        \item $\left\{\widehat \nabla F_{m,t} \right\}_{t=1}^T = \left\{\nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0))\right\}_{t=1}^T$
+        \item $\widehat \nabla F^{(m)}_{t} = \nabla F_t\left(\bfphi^{(0)} \mid \bfgamma_t(\bfphi^{(0)}),\bfxi_t(\bfphi^{(0)})\right)$ for all $t = 1,\ldots,T$.
+        %
+        \item $\widehat \nabla F^{(m)} = 0$
     \end{enumerate}
 
-    Algorithm (\ref{alg:VRSO-PE}) returns $\bfphi_M$ for some finite $M$, so proving the above will prove the lemma.
-
-    The base case ($m=0$) is trivial since conditions 1, 3, and 4 are assumed, and clearly $\bfphi_m = \bfphi_0$ if $m=0$.
-
-    For the inductive case, we assume that conditions (1--4) above hold for $m$, and prove each condition for $m+1$ sequentially:
+    Algorithm (\ref{alg:VRSO-PE}) returns $\bfphi^{(M)}$ for some finite $M$, so proving the above will prove the lemma. 
+    %
+    The base case ($m=0$) is trivial either from the assumptions of the Lemma or from lines 1--4 of Algorithm (\ref{alg:VRSO-PE}), so we focus on the inductive case. We assume that all of the conditions (1--5) above hold for $m$, and prove each condition holds for $m+1$ sequentially.
 
     \begin{enumerate}
-        \item For $t \neq t_m$, by the inductive hypothesis we have that $\{\widehat \bfalpha_{m+1,t}, \widehat \bfbeta_{m+1,t}, \widehat \bfgamma_{m+1,t}, \widehat \bfxi_{m+1,t}\}_{t \neq t_m} = \{\widehat \bfalpha_{m,t}, \widehat \bfbeta_{m,t}, \widehat \bfgamma_{m,t}, \widehat \bfxi_{m,t}\}_{t \neq t_m} = \left\{\bfalpha_t(\bfphi_0),\bfbeta_t(\bfphi_0),\bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0)\right\}_{t \neq t_m}$ since only the weights at index $t_m$ are updated at step $m$.
+        \item First note that if $P = \texttt{False}$ or if $P = \texttt{True}$ and $t \neq t_m$, then the conditional probability approximations are not updated, so $\widehat \bfalpha^{(m+1)}_t = \widehat \bfalpha^{(m)}_t  = \bfalpha_t(\bfphi^{(0)})$ and $\widehat \bfbeta^{(m+1)}_t = \widehat \bfbeta^{(m)}_t = \bfbeta_t(\bfphi^{(0)})$ by inductive hypothesis (1).
         
-        The conditional probabilities $\widehat \bfalpha_{m+1,t_m}$ and $\widehat \bfbeta_{m+1,t_m}$ are calculated in line 4 of Algorithm (\ref{alg:EM-VRSO}) using the mappings $\widehat \bfalpha_{m+1,t_m} = \widetilde \bfalpha_{t_m}(\widehat \bfalpha_{m,t_m-1},\bfphi_m)$ and $\widehat \bfbeta_{m+1,t_m} = \widetilde \bfbeta_{t_m}(\widehat \bfbeta_{m,t_m+1} ,\bfphi_m)$. By the inductive hypothesis, $\bfphi_m = \bfphi_0$, $\widehat \bfalpha_{m,t_m-1} = \bfalpha_{t_m-1}(\bfphi_0)$, and $\widehat \bfbeta_{m,t_m+1} = \bfbeta_{t_m+1}(\bfphi_0)$. Further, by construction we have that $\widetilde \bfalpha_{t_m}(\bfalpha_{t_m-1}(\bfphi_0),\bfphi_0) = \bfalpha_{t_m}(\bfphi_0)$ and $\widetilde \bfbeta_{t_m}(\bfbeta_{t_m+1}(\bfphi_0),\bfphi_0) = \bfbeta_{t_m}(\bfphi_0)$. Putting this together, we have
-        \begin{equation}
-            \widehat \bfalpha_{m+1,t_m} = \bfalpha_{t_m}(\bfphi_0) \quad \text{and} \quad \widehat \bfbeta_{m+1,t_m} = \bfbeta_{t_m}(\bfphi_0).
-            \label{eqn:ab_inductive_step}
-        \end{equation}
-
-        The conditional probabilities $\widehat \bfgamma_{m+1,t_m}$ and $\widehat \bfxi_{m+1,t_m}$ are calculated in line 5 of Algorithm (\ref{alg:EM-VRSO}) using the mappings $\widehat \bfgamma_{m+1,t_m} = \widetilde \bfgamma_{t_m}(\widehat \bfalpha_{m+1,t_m},\widehat \bfbeta_{m+1,t_m})$ and $\widehat \bfxi_{m+1,t_m} = \widetilde \bfxi_{t_m}(\widehat \bfalpha_{m,t_m-1} , \widehat \bfbeta_{m+1,t_m}  ,\bfphi_m)$. By the inductive hypothesis, $\bfphi_m = \bfphi_0$ and $\widehat \bfalpha_{m,t_m-1} = \bfalpha_{t_m-1}(\bfphi_0)$. By Equation (\ref{eqn:ab_inductive_step}), $\widehat \bfalpha_{m+1,t_m} = \bfalpha_{t_m}(\bfphi_0)$ and $\widehat \bfbeta_{m+1,t_m} = \bfbeta_{t_m}(\bfphi_0)$. Further, by construction we have that $\widetilde \bfgamma_{t_m}(\bfalpha_{t_m}(\bfphi_0),\bfbeta_{t_m}(\bfphi_0)) = \bfgamma_{t_m}(\bfphi_0)$ and $\widetilde \bfxi_{t_m}(\bfalpha_{t_m-1}(\bfphi_0),\bfbeta_{t_m}(\bfphi_0),\bfphi_0) = \bfxi_{t_m}(\bfphi_0)$. Putting this together, we have
-        \begin{equation}
-            \widehat \bfgamma_{m+1,t_m} = \bfgamma_{t_m}(\bfphi_0) \quad \text{and} \quad \widehat \bfxi_{m+1,t_m} = \bfxi_{t_m}(\bfphi_0).
-        \end{equation}
+        If $P = \texttt{True}$ and $t = t_m$, then both $\widehat \bfalpha^{(m+1)}_{t_m}$ and $\widehat \bfbeta^{(m+1)}_{t_m}$ are updated in line 9 of Algorithm (\ref{alg:EM-VRSO}). The approximation $\widehat \bfalpha^{(m+1)}_{t_m}$ is updated using the mapping 
+        %
+        \begin{align}
+            \widehat \bfalpha^{(m+1)}_{t_m} &= \widetilde \bfalpha_{t_m}(\widehat \bfalpha^{(m)}_{t_m-1},\bfphi^{(m)}) \nonumber \\
+            %
+            &= \widetilde \bfalpha_{t_m}(\bfalpha_{t_m-1}(\bfphi^{(0)}),\bfphi^{(0)}) \nonumber \\
+            %
+            &= 
+            \begin{cases}
+                \bfdelta(\bfeta^{(0)}) ~ P(y_1;\bftheta^{(0)}), & \text{for } t_m = 1 \\
+                \bfalpha_{t_m-1}(\bfphi^{(0)}) ~ \bfGamma(\bfeta^{(0)}) ~P(y_{t_m};\bftheta^{(0)}), & \text{for } t_m = 2,\ldots,T
+            \end{cases} \nonumber \\
+            %
+            &= \bfalpha_{t_m}(\bfphi^{(0)}) \label{eqn:a_inductive_step}
+        \end{align}
+        The second line is true by inductive hypotheses (1) and (3), the third line is the definition of $\widetilde \bfalpha_{t_m}$, and the final line is the definition of $\bfalpha_{t_m}(\bfphi^{(0)})$. Similar logic can be used to show that 
         
-        %This proves that $\{\widehat \bfalpha_{m+1,t}, \widehat \bfbeta_{m+1,t}, \widehat \bfgamma_{m+1,t}, \widehat \bfxi_{m+1,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0),\bfbeta_t(\bfphi_0),\bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0)\right\}_{t=1}^T$.
-        %
-        \item The parameter $\bfphi_{m+1}$ is calculated in line 7 of \texttt{VRSO-PE}. By the inductive hypothesis, we have that $\bfphi_{m} = \bfphi_{0}$, $\widehat \nabla F_m = 0$, and $\widehat \nabla F_{m,t_m} = \nabla F_{t_m}(\bfphi_0 \mid \bfgamma_{t_m}(\bfphi_0), \bfxi_{t_m}(\bfphi_0))$. Further, by the reasoning above we have that $\widehat \bfgamma_{m+1,t_m} = \bfgamma_{t_m}(\bfphi_0)$ and $\widehat \bfxi_{m+1,t_m} = \bfxi_{t_m}(\bfphi_0)$. Therefore, $\nabla F_{t_m}(\bfphi_m \mid \widehat \bfgamma_{m+1,t_m}, \widehat \bfxi_{m+1,t_m}) = \nabla F_{t_m}(\bfphi_0 \mid \bfgamma_{t_m}(\bfphi_0), \bfxi_{t_m}(\bfphi_0)) = \widehat \nabla F_{m,t_m}$, so
         \begin{equation}
-            \bfphi_{m+1} = \bfphi_m - \lambda \left[\nabla F_{t_m}(\bfphi_m \mid \widehat \bfgamma_{m+1,t_m}, \widehat \bfxi_{m+1,t_m}) - \widehat \nabla F_{m,t_m} + \widehat \nabla F_m \right] = \bfphi_0.
+            \widehat \bfbeta^{(m+1)}_{t_m} = \bfbeta_{t_m}(\bfphi^{(0)}). \label{eqn:b_inductive_step}
         \end{equation}
-        %This proves that $\bfphi_{m+1} = \bfphi_0$.
         %
-        \item $\widehat \nabla F_{m+1}$ is calculated in line 8 of \texttt{VRSO-PE}. By the inductive hypothesis we have that and $\widehat \nabla F_m = 0$, and from above we have that $\nabla F_{t_m}(\bfphi_m \mid \widehat \bfgamma_{m+1,t_m}, \widehat \bfxi_{m+1,t_m}) = \nabla F_{t_m}(\bfphi_0 \mid \bfgamma_{t_m}(\bfphi_0), \bfxi_{t_m}(\bfphi_0)) = \widehat \nabla F_{m,t_m}$. Therefore:
+        \item First note that if $P = \texttt{False}$ or if $P = \texttt{True}$ and $t \neq t_m$, then the conditional probability approximations are not updated, so $\widehat \bfgamma^{(m+1)}_t = \widehat \bfgamma^{(m)}_t = \bfgamma_t(\bfphi^{(0)})$ and $\widehat \bfxi^{(m+1)}_t = \widehat \bfxi^{(m)}_t = \bfxi_t(\bfphi^{(0)})$ by inductive hypothesis (2).
+        
+        If $P = \texttt{True}$ and $t = t_m$, both $\widehat \bfgamma^{(m+1)}_{t_m}$ and $\widehat \bfxi^{(m+1)}_{t_m}$ are calculated in line 10 of Algorithm (\ref{alg:EM-VRSO}). $\widehat \bfxi^{(m+1)}_{t_m}$ is updated using the mapping 
+        
+        \begin{align}
+            \widehat \bfxi^{(m+1)}_{t_m} &= \widetilde \bfxi_{t_m}(\widehat \bfalpha^{(m+1)}_{t_m-1},\widehat \bfbeta^{(m+1)}_{t_m}, \bfphi^{(m)}) \nonumber \\
+            %
+            &= \widetilde \bfxi_{t_m}(\bfalpha_{t_m-1}(\bfphi^{(0)}),\bfbeta_{t_m}(\bfphi^{(0)}), \bfphi^{(0)}) \nonumber  \\
+            %
+            &= \frac{\text{diag}(\bfalpha_{t-1}(\bfphi^{(0)})) ~~ \bfGamma(\bfeta^{(0)}) ~~ P(y_t;\bftheta^{(0)}) ~~ \text{diag}(\bfbeta_t(\bfphi^{(0)}))}{\bfalpha_{t-1}(\bfphi^{(0)}) ~~ \bfGamma(\bfeta^{(0)}) ~~ P(y_{t};\bftheta^{(0)}) ~~ \bfbeta_{t}(\bfphi^{(0)})^\top} \nonumber  \\
+            %
+            &= \bfxi_{t_m}(\bfphi^{(0)}). \label{eqn:g_inductive_step}
+        \end{align}
+        The second line is true by Equations (\ref{eqn:a_inductive_step} -- \ref{eqn:b_inductive_step}) and inductive hypothesis (3), the third line is the definition of $\widetilde \bfxi_{t_m}$, and the final line is the definition of $\bfxi_{t_m}(\bfphi^{(0)})$. Similar logic can be used to show that 
+        
         \begin{equation}
-            \widehat \nabla F_{m+1} = \widehat \nabla F_m + \frac{1}{T} \left(\nabla F_{t_m}(\bfphi_m \mid \widehat \bfgamma_{m+1,t_m}, \widehat \bfxi_{m+1,t_m}) - \widehat \nabla F_{m,t_m}\right) = 0.
+            \widehat \bfgamma^{(m+1)}_{t_m} = \bfgamma_{t_m}(\bfphi^{(0)}). \label{eqn:x_inductive_step}
         \end{equation}
-        %This proves that $\widehat \nabla F_{m+1} = 0$.
         %
-        \item For $t \neq t_m$, we have that $\{\widehat \nabla F_{m+1,t_m}\}_{t \neq t_m} = \{\widehat \nabla F_{m,t_m}\}_{t \neq t_m} = \left\{\nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0))\right\}_{t \neq t_m}$ since only the gradient approximations at index $t_m$ are updated at step $m$. For $t = t_m$, $\widehat \nabla F_{m+1,t_m}$ is calculated in line 8 of \texttt{VRSO-PE}. Since $\nabla F_{t_m}(\bfphi_m \mid \widehat \bfgamma_{m+1,t_m}, \widehat \bfxi_{m+1,t_m}) = \nabla F_{t_m}(\bfphi_0 \mid \bfgamma_{t_m}(\bfphi_0), \bfxi_{t_m}(\bfphi_0)) = \widehat \nabla F_{m,t_m}$, we have that
-        \begin{equation}
-            \widehat \nabla F_{m+1,t_m} = \nabla F_{t_m}(\bfphi_m \mid \widehat \bfgamma_{m+1,t_m}, \widehat \bfxi_{m+1,t_m}) = \nabla F_{t_m}(\bfphi_0 \mid \bfgamma_{t_m}(\bfphi_0), \bfxi_{t_m}(\bfphi_0)).
-        \end{equation}
-        %This proves that $\left\{\widehat \nabla F_t\right\}_{t=1}^T = \left\{\nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0))\right\}_{t=1}^T$.
+        \item The parameter $\bfphi^{(m+1)}$ is calculated in line 12 of \texttt{VRSO-PE} as follows: 
+        
+        \begin{align*}
+            \bfphi^{(m+1)} &= \bfphi^{(m)} - \lambda \left[\nabla F_{t_m}\left(\bfphi^{(m)} \mid \widehat \bfgamma^{(m+1)}_{t_m}, \widehat \bfxi^{(m+1)}_{t_m}\right) - \widehat \nabla F^{(m)}_{t_m} + \widehat \nabla F^{(m)} \right] \\
+            %
+            &= \bfphi^{(0)} - \lambda \left[\nabla F_{t_m}\left(\bfphi^{(0)} \mid \widehat \bfgamma^{(m+1)}_{t_m}, \widehat \bfxi^{(m+1)}_{t_m}\right) - \nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right) + 0 \right] \\
+            %
+            &= \bfphi^{(0)} - \lambda \left[ \nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right) - \nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right) \right] \\
+            %
+            &= \bfphi^{(0)}.
+        \end{align*}
+        The second line is true by the inductive hypotheses (3), (4), and (5), and the third line is true by Equations (\ref{eqn:g_inductive_step} -- \ref{eqn:x_inductive_step}).
+        %
+        \item Note that if $A = \text{SVRG}$ or if $A = \text{SAGA}$ and $t \neq t_m$, then the gradient approximation at index $t$ is not updated, so $\widehat \nabla F^{(m+1)}_t = \widehat \nabla F^{(m)}_t = \nabla F_t\left(\bfphi^{(0)} \mid \bfgamma_t(\bfphi^{(0)}),\bfxi_t(\bfphi^{(0)})\right)$ by inductive hypothesis (4).
+        
+        If $A = \text{SAGA}$ and $t = t_m$, then $\widehat \nabla F^{(m+1)}_{t_m}$ is calculated in line 14 of \texttt{VRSO-PE} as follows:
+        
+        \begin{align}
+            \widehat \nabla F^{(m+1)}_{t_m} &= \nabla F_{t_m}\left(\bfphi^{(m)} \mid \widehat \bfgamma^{(m+1)}_{t_m}, \widehat \bfxi^{(m+1)}_{t_m}\right) \nonumber \\
+            %
+            &= \nabla F_{t_m}\left(\bfphi^{(0)} \mid \widehat \bfgamma^{(m+1)}_{t_m}, \widehat \bfxi^{(m+1)}_{t_m}\right) \nonumber \\
+            %
+            &= \nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right). \label{eqn:nabla_hat_inductive_step}
+        \end{align}
+        The second line is true by inductive hypothesis (3), and the third line is true by Equations (\ref{eqn:g_inductive_step} -- \ref{eqn:x_inductive_step}).
+        %
+        \item If $A = \text{SVRG}$, then the full gradient approximation is not updated, so $\widehat \nabla F^{(m+1)} = \widehat \nabla F^{(m)} = 0$ by inductive hypothesis (5).
+        
+        If $A = \text{SAGA}$, then $\widehat \nabla F^{(m+1)}$ is calculated in line 14 of \texttt{VRSO-PE} as follows:
+        
+        \begin{align*}
+            \widehat \nabla F^{(m+1)} &= \widehat \nabla F^{(m)} + \frac{1}{T} \left(\widehat \nabla F^{(m+1)}_{t_m} - \widehat \nabla F^{(m)}_{t_m}\right) \\
+            %
+            &= 0 + \frac{1}{T} \left[\widehat \nabla F^{(m+1)}_{t_m} - \nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right)\right] \\
+            %
+            &= \frac{1}{T} \left[\nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right) - \nabla F_{t_m}\left(\bfphi^{(0)} \mid \bfgamma_{t_m}(\bfphi^{(0)}), \bfxi_{t_m}(\bfphi^{(0)})\right)\right] \\
+            %
+            &= 0.
+        \end{align*}
+        The second line is true by inductive hypotheses (4) and (5), and the third line is true by Equation (\ref{eqn:nabla_hat_inductive_step}).
+        %
     \end{enumerate}
     This completes the inductive step, and proves the lemma.
+\end{proof}
+
+We now prove Theorem 2.
+
+\begin{proof}
+
+We use induction and show that if $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\bfphi_{k} = \bfphi_0$ for all iterations $k$ of Algorithm (\ref{alg:EM-VRSO}). The base case, $k = 0$, is trivial. For the inductive case, we assume that $\bfphi_k = \bfphi_0$ and prove that $\bfphi_{k+1} = \bfphi_k$. First, note that 
+
+\begin{align}
+    \nabla F(\bfphi_{0} \mid \bfgamma(\bfphi_{0}), \bfxi(\bfphi_{0})) &= \frac{1}{T} \sum_{t=1}^T \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0)) \nonumber \\
+    &= -\frac{1}{T} \nabla Q(\bfphi_0 \mid \bfphi_0) \nonumber \\
+    &= -\frac{1}{T} \nabla \log p(\bfy ~;~ \bfphi_0) \nonumber \\
+    &= 0 \label{eqn:nabla_zero}.
+\end{align}
+%
+By Equation (\ref{eqn:nabla_zero}), the conditions within Lemma 6 are satisfied with $\bfphi^{(0)} = \bfphi_0$. Further, step 2 of Algorithm (\ref{alg:EM-VRSO}) performs the E step of the EM algorithm so that $\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k) \right\}_{t=1}^T$. So:
+
+\begin{align*}
+    \bfphi_{k,1} &= \texttt{VRSO-PE}\Big(\left\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\right\}_{t=1}^T, \bfphi_k, \lambda, A, P, M \Big) \\
+    %
+    &= \texttt{VRSO-PE}\Big(\left\{\bfalpha_t(\bfphi_k),\bfbeta_t(\bfphi_k),\bfgamma_t(\bfphi_k),\bfxi_t(\bfphi_k)\right\}_{t=1}^T, \bfphi_k, \lambda, A, P, M \Big)\\
+    %
+    &= \texttt{VRSO-PE}\Big(\left\{\bfalpha_t(\bfphi_0),\bfbeta_t(\bfphi_0),\bfgamma_t(\bfphi_0),\bfxi_t(\bfphi_0)\right\}_{t=1}^T, \bfphi_0, \lambda, A, P, M \Big)\\
+    %
+    &= \bfphi_0.
+\end{align*}
+
+The second line is true by the definition of the E step in the EM algorithm, the third line is true by the inductive hypothesis, and the final line is true by Lemma 6. Since $\log p(\bfy; \bfphi_{k,1}) = \log p(\bfy;\bfphi_{k}) = \log p(\bfy; \bfphi_{0})$, $\bfphi_{k,1}$ satisfies the condition to exit the while loop of Algorithm (\ref{alg:EM-VRSO}), so $\bfphi_{k+1} = \bfphi_{k,1} = \bfphi_{0}$. 
+
+This completes the inductive step, so $\bfphi_k = \bfphi_0$ for all $k \geq 0$. To complete the proof, note that Algorithm (\ref{alg:EM-VRSO}) returns $\bfphi_K$, so $\texttt{EM-VRSO}(\bfphi_0, \lambda, A, M, K) = \bfphi_K = \bfphi_0$.
 \end{proof}

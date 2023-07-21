@@ -1,14 +1,23 @@
-We tested the performance of our optimization algorithm by modelling the movement of eight resident killer whales off the coast of British Columbia, Canada with a data set of over $5000$ dives and $80000$ depth readings. Ecologists often use biologging data to identify the phases of marine animal dives because meaningful activities often occur during the bottom phase \citep[e.g. searching and hunting for prey,][]{Wright:2017,Jensen:2023}. They also use biologging data sets to estimate behavioral states associated with each dive \citep[e.g. foraging, resting, and travelling,][]{Tennessen:2023}. As such, we developed an HMM to identify three common dive phases (ascent, descent, and bottom) and three dive types that may indicate distinct behaviors of the animal, including resting, foraging, and travelling. We performed inference on the resulting model using our optimization algorithm in order to illustrate its computational advantages.
+%\section{Case Study}
 
-\subsection{Data collection and preprocessing}
+We tested the performance of our optimization algorithm by modeling the movement of eight resident killer whales off the coast of British Columbia, Canada with a data set of over $5000$ dives and $80000$ depth readings. Ecologists often use biologging data to identify the phases of marine animal dives because meaningful activities often occur during the bottom phase \citep[e.g. searching and hunting for prey,][]{Wright:2017,Jensen:2023}. They also use biologging data sets to estimate behavioral states associated with each dive \citep[e.g. foraging, resting, and travelling,][]{Tennessen:2023}. As such, we developed an HMM to identify three common dive phases (ascent, descent, and bottom) and three dive types that may indicate distinct behaviors of the animal, including resting, foraging, and traveling. We performed inference on the resulting model using our optimization algorithm in order to illustrate its computational advantages.
+
+\subsection{Data Collection and Preprocessing}
 
 The data used in this case study were collected in August and September of 2020 and consist of depth readings over time. Observations were collected at a rate of 50 Hz using a CATS time-depth recorder, or TDR (Customizable Animal Tracking Solutions, {\em{www.cats.is}}). We calibrated the depth readings using a MATLAB package developed by \citet{Cade:2021}, and defined a dive as any sequence of depth readings under 0.5 meters that lasted for at least two seconds. We then down-sampled the depth readings to a frequency of 0.5 Hz. The processed data set contained a total of $5858$ dives and $89462$ depth readings. Figure (\ref{fig:data}) shows the depth and change in depth for a subset of dives for one whale in the data set. 
-
-\subsection{Model formulation}
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=5in]{plt/decoded_dives_kw_I107_K_3_3_nWhales_8.png}
+    \caption{Depth profile and change in depth by time of day for a selected killer whale off the coast of British Columbia, Canada. Data is color-coded according to the most likely hidden fine-scale state (panels two and four) or coarse-scale state (panels one and three) of each two-second window.}
+    \label{fig:data}
+\end{figure}
+%
+\subsection{Model Formulation}
 
 Dive phases may vary depending upon the animal's behavior. For example, foraging dives tend to be deeper and longer than resting dives, so it is natural to model the phases of foraging dives differently compared to those of resting dives \citep{Tennessen:2019b}. As such, we used a hierarchical HMM to jointly model dive types and dive phases \citep{Barajas:2017}. Hierarchical HMMs are specific instances of traditional HMMs, so the machinery developed here is applicable to perform inference. 
 
-We assumed that there are three dive types, which is consistent with other studies of cetaceans \citep[e.g.][]{Barajas:2017}. We also assumed that there are three dive phases per dive type: descent, bottom, and ascent, which is also consistent with other studies of diving birds and mammals \citep[e.g.][]{Vivant:2014}. This resulted in a total of $N = 9$ hidden states, each corresponding to a different dive phase / dive type combination.
+We assumed that there are three dive types, which is consistent with other studies of cetaceans \citep[e.g.][]{Barajas:2017}. We also assumed that there are three dive phases per dive type (descent, bottom, and ascent), which is also consistent with other studies of diving birds and mammals \citep[e.g.][]{Vivant:2014}. This resulted in a total of $N = 9$ hidden states, each corresponding to a different dive phase / dive type combination.
 %
 Since each dive must begin with the descent phase, we set the initial distribution $\bfdelta$ to have the form
 %
@@ -19,7 +28,7 @@ Since each dive must begin with the descent phase, we set the initial distributi
 %
 where $\delta^{(i)}$ represents the probability that a killer whale begins its dive profile with a dive of type $i$. 
 %
-For this hierarchical HMM, we allowed the dive type to change between dives, but not within a given dive. As such, the transition probability matrix changed at the beginning of each dive, so we denoted the probability transition matrix as $\bfGamma_t$. We defined a coarse-scale, inter-dive transition probability matrix $\bfGamma^{(c)} \in \bbR^{3 \times 3}$. For each dive type $i$, we also defined a fine-scale, intra-dive probability transition matrix $\bfGamma^{(f,i)} \in \bbR^{3 \times 3}$. 
+For this hierarchical HMM, we allowed the dive type to change between dives, but not within a given dive. As such, the form of transition probability matrix changed over time, so we denoted the probability transition matrix as $\bfGamma_t$. We defined a coarse-scale, inter-dive transition probability matrix $\bfGamma^{(c)} \in \bbR^{3 \times 3}$. For each dive type $i$, we also defined a fine-scale, intra-dive probability transition matrix $\bfGamma^{(f,i)} \in \bbR^{3 \times 3}$. 
 %
 To ensure that the dive type did not change within a dive, we defined the probability transition matrix \textit{within} a dive to have a block-diagonal form:
 %
@@ -32,7 +41,7 @@ To ensure that the dive type did not change within a dive, we defined the probab
     \end{pmatrix},
 \end{equation}
 %
-where $\bfGamma^{(f,i)}$ is upper-triangular for $i \in \{1,2,3\}$. The transition matrices were upper-triangular because the descent and bottom phases of a dive cannot occur after ascent, and the descending phase of a dive cannot occur after the bottom phase.
+where $\bfGamma^{(f,i)}$ is upper-triangular for $i \in \{1,2,3\}$. The transition matrices were upper-triangular because the descent and bottom phases of a dive cannot occur after ascent, and the descent phase of a dive cannot occur after the bottom phase.
 %
 However, \textit{between} dives, we allowed the coarse-scale dive type to transition, but forced each dive to begin in the descent phase. As such, $\bfGamma_t$ took the following form:
 %
@@ -43,14 +52,14 @@ However, \textit{between} dives, we allowed the coarse-scale dive type to transi
 where $\otimes$ denotes the Kronecker product.
 
 Rather than modelling raw depth every two seconds as the observation sequence, we encoded each two-second window of depth data with summary statistics. Namely, we denoted an observation as $Y_t = \{D_t,E_t\}$, where $D_t \in \bbR$ is the change in depth in meters and $E_t = 1$ if a dive ended at index $t$ and $E_t = 0$ otherwise. 
-Within dive type $i$ and dive phase $j$, we assumed $D_t$ followed a normal distribution with mean $\mu^{(i,j)}$ and standard deviation $\bfSigma^{(i,j)}$, and we assumed that $E_t$ followed a Bernoulli distribution with probability $p^{(i,j)}$. We assumed that dives must end on the ascent phase, so we set $p^{(i,1)} = p^{(i,2)} = 0$ for $i = 1,2,3$. Conditioned on the dive type and dive phase ($X_t$), $D_t$ and $E_t$ were assumed to be independent of one another.
+Within dive type $i$ and dive phase $j$, we assumed $D_t$ followed a normal distribution with mean $\mu^{(i,j)}$ and standard deviation $\bfSigma^{(i,j)}$, and we assumed that $E_t$ followed a Bernoulli distribution with probability $p^{(i,j)}$. We assumed that dives must end on the ascent phase, so we set $p^{(i,1)} = p^{(i,2)} = 0$ for dive types $i = 1,2,3$. Conditioned on the dive type and dive phase, $D_t$ and $E_t$ were assumed to be independent of one another.
 
-\subsection{Optimization procedure}
+\subsection{Optimization Procedure}
 
-We used a procedure similar to the simulation study to initialize the case study parameters. Let $\bar D$ denote the sample mean and $s$ denote sample standard deviation of $\{D_t\}_{t=1}^T$. We initialized the initial estimates for the mean ($\mu^{(i,j)}_0$) and standard deviation ($\bfSigma^{(i,j)}_0$) of the state-dependent density of $D_t$ as
+We used a procedure similar to the simulation study to initialize the case study parameters. Let $\bar D$ denote the sample mean and $s$ denote sample standard deviation of $\{D_t\}_{t=1}^T$. We initialized the initial estimates for the mean $\left(\mu^{(i,j)}_0\right)$ and standard deviation $\left(\sigma^{(i,j)}_0\right)$ of the state-dependent density of $D_t$ as
 %
 %\begin{equation}
-    $\mu^{(i,j)}_0 \sim \calN(\bar D, s)$ and $\log\left(\bfSigma^{(i,j)}_0\right) \sim \calN(\log(s),1/2)$ for $i,j = 1,2,3$,
+    $\mu^{(i,j)}_0 \sim \calN(\bar D, s^2)$ and $\log\left(\sigma^{(i,j)}_0\right) \sim \calN(\log(s),1)$ for $i,j = 1,2,3$,
 %\end{equation}
 %
 where $i$ refers to the dive type and $j$ to the dive phase. Further, let $\bar E$ represent the mean of $\{E_t\}_{t=1}^T$. We initialized the state-dependent probability of observing a dive end as
@@ -63,7 +72,7 @@ where $p^{(i,j)}_0$ is the initial estimate corresponding to the Bernoulli distr
 
 Let $\bfeta^{(\bfdelta)}_k \in \bbR^3$ denote the parameters associated with $\bfdelta$ at iteration $k$ of a given optimization algorithm. The reparameterization from $\bfeta^{(\bfdelta)}_k$ to $\bfdelta_k$ is given in Equation (\ref{eqn:reparam}). We initialized the first element of $\eta^{(\bfdelta)}_0$ as zero for identifiability and the second and third elements with a standard normal distribution, $\calN(0,1)$.
 
-Let $\bfeta_k^{(c)} \in \bbR^{3 \times 3}$ denote the parameters associated with the coarse-scale probability transition matrix at iteration $k$ of a given optimization algorithm. The reparameterization from $\bfeta_k^{(c)}$ to $\bfGamma_k^{(c)}$ is given in Equation (\ref{eqn:reparam}). We initialized the diagonal elements of $\bfeta_0^{(c)}$ as zeros, and we initialized the off-diagonal elements of $\bfeta_k^{(c)}$ with a normal distribution with mean -3 and unit variance, $\calN(-3,1)$.
+Let $\bfeta_k^{(c)} \in \bbR^{3 \times 3}$ denote the parameters associated with the coarse-scale probability transition matrix at iteration $k$ of a given optimization algorithm. The reparameterization from $\bfeta_k^{(c)}$ to $\bfGamma_k^{(c)}$ is given in Equation (\ref{eqn:reparam}). We initialized the diagonal elements of $\bfeta_0^{(c)}$ as zeros, and we initialized the off-diagonal elements of $\bfeta_0^{(c)}$ with a normal distribution with mean -3 and unit variance, $\calN(-3,1)$.
 
 Let $\bfeta_k^{(f,i)} \in \bbR^{3 \times 3}$ denote the parameters associated with fine-scale transition probability matrix $\bfGamma_k^{(f,i)}$. The reparameterization from $\bfeta_k^{(f,i)}$ to $\bfGamma_k^{(f,i)}$ is given in Equation (\ref{eqn:reparam}). We initialized all diagonal elements of $\bfeta_0^{(f,i)}$ as zeros and all off-diagonal elements of $\bfeta_0^{(f,i)}$ with a normal distribution with mean -1 and unit variance, $\calN(-1,1)$.
 
@@ -74,35 +83,28 @@ Similar to the simulation study, we estimated the parameters of the hierarchical
 %
 All algorithms were run using 50 random initializations for a total of 12 hours each on Compute Canada Cedar nodes with 16GB of RAM.
 
-\subsection{Case study results}
-%
-\begin{figure}
-    \centering
-    \includegraphics[width=5in]{plt/decoded_dives_kw_I107_K_3_3_nWhales_8.png}
-    \caption{Depth profile and change in depth by time of day for a selected killer whale off the coast of British Columbia, Canada. Data is color-coded according to the most likely hidden fine-scale state (top three panels) or coarse-scale state (bottom three panels) of each two-second window.}
-    \label{fig:data}
-\end{figure}
-%
-Our model predicted dive phases and dive types that are in line with the current understanding of killer whale dive behavior. Dive types are separated by shallow, medium, and deep depths, and each dive type has a well-characterized bottom phase (see Figure (\ref{fig:data}) and supplement B material for further detail).
+\subsection{Case Study Results}
+
+Our model predicted dive phases and dive types that are in line with the current understanding of killer whale dive behavior. Dive types are separated by shallow, medium, and deep depths, and each dive type has a well-characterized bottom phase. See Figure (\ref{fig:data}) and supplement B for further detail.
 %This section focuses on results from the optimization procedure rather than the parameter estimates and decoded dive types / dive phases. For parameter estimates and decoded dive phases, see Supplement B.
 
-Most importantly, this case study demonstrates that all of our stochastic algorithms converged in fewer epochs and to regions of higher likelihood compared to the full-batch baselines (see Figures (\ref{fig:ll_trace_case}--\ref{fig:scatterplot_case})).
+Most importantly, this case study demonstrates that all of our stochastic algorithms converged in fewer epochs and to regions of higher likelihood compared to the full-batch baselines; see Figures (\ref{fig:ll_trace_case}--\ref{fig:scatterplot_case}).
 %
 \begin{figure}[h]
     \centering
-    \includegraphics[width=4in]{../plt/log-like_v_epoch_K-3-3.png}
-    \caption{Log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch after 12 hours or 100 epochs (whichever came first) for the HMM from the killer whale case study. For each optimization algorithm, we present the random initialization that resulted in the highest likelihood after 12 hours of computation. The dots correspond to the epoch and likelihood at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+    \includegraphics[width=3.5in]{../plt/log-like_v_epoch_K-3-3.png}
+    \caption{Log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (divided by $T$) at each epoch after 12 hours or 100 epochs (whichever came first) for the HMM from the killer whale case study. For each optimization algorithm, we present the random initialization that resulted in the highest likelihood after 12 hours of computation. The dots correspond to the epoch and likelihood at convergence for each algorithm. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
     \label{fig:ll_trace_case}
 \end{figure}
 %
 \begin{figure}[h]
     \centering
-    \includegraphics[width=4in]{../plt/scatterplot_case_study.png}
-    \caption{Log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence versus epochs to converge for the killer whale case study. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis is on a log-scale.}
+    \includegraphics[width=3.5in]{../plt/scatterplot_case_study.png}
+    \caption{Log-likelihood (divided by $T$) of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence versus epochs to converge for the killer whale case study. Convergence is defined as the point at which the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. We selected a tolerance of $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
     \label{fig:scatterplot_case}
 \end{figure}
 %
-All algorithms occasionally converged to sub-optimal local minima, but Algorithm (\ref{alg:EM-VRSO}) with $A = \text{SVRG}$ and $P=\texttt{True}$ and $M=T$ tended to converge in the fewest epochs to regions of highest likelihood (see Figure (\ref{fig:scatterplot_case})). As with the simulation study, Algorithm (\ref{alg:EM-VRSO}) with $A = \text{SVRG}$ tended to converge in fewer epochs compared with $A=\text{SAGA}$ (see Figure (\ref{fig:ll_trace_case})). Setting $P = \texttt{True}$ appears to be of particular use early in the optimization procedure (i.e the first $\approx$ 5 epochs, see Figure (\ref{fig:ll_trace_case})). This behavior is intuitive because the proper weights ($\bfgamma(\bfphi)$ and $\bfxi(\bfphi)$) change rapidly early in the optimization procedure. 
+All algorithms occasionally converged to sub-optimal local minima, but Algorithm (\ref{alg:EM-VRSO}) with $A = \text{SVRG}$ and $P=\texttt{True}$ and $M=T$ tended to converge in the fewest epochs to regions of highest likelihood; see Figure (\ref{fig:scatterplot_case}). As with the simulation study, Algorithm (\ref{alg:EM-VRSO}) with $A = \text{SVRG}$ tended to converge in fewer epochs compared with $A=\text{SAGA}$; see Figure (\ref{fig:ll_trace_case}). Setting $P = \texttt{True}$ appears to be of particular use early in the optimization procedure (i.e the first $\approx$ 5 epochs, see Figure (\ref{fig:ll_trace_case})). This behavior is intuitive because the proper weights $\left(\bfgamma(\bfphi^{(m)}) ~ \text{and} ~ \bfxi(\bfphi^{(m)})\right)$ change rapidly early in the optimization procedure. 
 
 %All of the algorithms presented in this paper converge with higher likelihood than BFGS (on average), and all algorithms except for algorithm (\ref{alg:P-EM-SO}) with SAGA tend to converge in fewer epochs than BFGS.
 

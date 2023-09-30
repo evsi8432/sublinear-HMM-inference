@@ -125,7 +125,7 @@ For shorthand, we define the sets $\{\bfalpha, \bfbeta, \bfgamma, \bfxi\} = \{\b
 \subsection{The Baum-Welch Algorithm}
 
 The Baum-Welch algorithm is a specific instance of the EM algorithm used to estimate the parameters of an HMM. %Suppose a sequence of observations $\bfY$ is observed as output of a latent-variable model with unknown latent states $\bfX$ and unknown parameters $\bfphi$.
-At iteration $k$ of the EM algorithm, denote the current parameter estimates as $\bfphi_{k}$. One iteration of the EM algorithm consists of an expectation (or E) step, followed by a maximization (or M) step. For the E step, the function value $Q(\bfphi \mid \bfphi_{k})$ is defined as the expected value of the joint log-likelihood $\log p(\bfX,\bfY; \bfphi)$ taken with respect to $\bfX$, a random variable with density $p(\bfX \mid \bfY ; \bfphi_{k})$. For the M step, the next parameter estimate $\bfphi_{k+1}$ is found by maximizing $Q(\bfphi \mid \bfphi_{k})$ with respect to $\bfphi$:
+At iteration $k$ of the EM algorithm, denote the current parameter estimates as $\bfphi_{k}$. One iteration of the EM algorithm consists of an expectation (or E) step, followed by a maximization (or M) step. For the E step, the function value $Q(\bfphi \mid \bfphi_{k})$ is defined as the expected value of the joint log-likelihood $\log p(\bfX,\bfY; \bfphi)$ taken with respect to $\bfX$, where $\bfX$ has conditional probability mass function $p(\bfX \mid \bfY ; \bfphi_{k})$. For the M step, the next parameter estimate $\bfphi_{k+1}$ is found by maximizing $Q(\bfphi \mid \bfphi_{k})$ with respect to $\bfphi$:
 
 \begin{gather}
     Q(\bfphi \mid \bfphi_{k}) = \bbE_{\bfphi_{k}}\left[\log p(\bfX,\bfY;\bfphi) \mid \bfY \right] \label{eqn:Q}, \\
@@ -209,13 +209,13 @@ The conditional probabilities $\gamma_{k,t}^{(i)}$ and $\xi_{k,t}^{(i,j)}$ thus 
 \end{algorithm}
 %
 In some simple scenarios, the maximization problem in Equation (\ref{eqn:BW_update}) above has a closed-form solution. %For example, if $\bfGamma$ does not depend upon any covariates and $f^{(i)}(y_t;\theta^{(i)})$ is a normal or Poisson probability density function with respect to $y_t$, then the solution of Equation (\ref{eqn:BW_update}) is given in Section 4.2 of \citet{Zucchini:2016}. 
-However, in many cases, this maximization problem is not straightforward and requires numerical maximization techniques. %For example, finding closed-form solutions to the M step for the HHMM defined in section \ref{subsec:HHMM} is not straightforward. 
+However, this maximization problem is not always straightforward and often requires numerical maximization techniques. %For example, finding closed-form solutions to the M step for the HHMM defined in section \ref{subsec:HHMM} is not straightforward. 
 We thus review different methods for numerical maximization via stochastic optimization. %We describe several such scenarios in the subsequent section. 
 
 \subsection{Stochastic Optimization}
 \label{subsec:stoch_optim}
 
-Stochastic optimization techniques are used to solve minimization problems where the objective function is a sum of many terms \citep{Robbins:1951}, %In much of the stochastic optimization literature, this optimization problem takes the form of a minimization over an average:
+Stochastic optimization involves a class of optimization methods that use random variables to maximize or minimize an objective function. We focus on optimization methods to minimize objective functions that can be written as a sum of many terms \citep{Robbins:1951}, %In much of the stochastic optimization literature, this optimization problem takes the form of a minimization over an average:
 namely to solve
 %
 \begin{equation}
@@ -224,19 +224,21 @@ namely to solve
 \end{equation}
 %
 
-We denote the parameter values at step $m$ of an optimization scheme as $\bfphi^{(m)} = \{\bftheta^{(m)},\bfeta^{(m)}\}$ to distinguish between the parameter values $\bfphi_k$ at iteration $k$ of the Baum-Welch algorithm. The bold parameters $\bftheta^{(m)}$ and $\bfeta^{(m)}$ correspond to optimization step $m$ and are not to be confused with $\theta^{(i)}$ and $\eta^{(i)}$, which correspond to hidden state $i$ of the HMM. Standard gradient descent at a given step $m$ with step size $\lambda$ updates the parameter value $\bfphi^{(m)}$ by moving in the direction of the negative gradient of $F$. Formally, the update step is written as
+We denote the parameter values at step $m$ of an optimization scheme as $\bfphi^{(m)} = \{\bftheta^{(m)},\bfeta^{(m)}\}$ to distinguish between the parameter values $\bfphi_k$ at iteration $k$ of the Baum-Welch algorithm. The bold parameters $\bftheta^{(m)}$ and $\bfeta^{(m)}$ correspond to optimization step $m$ and are not to be confused with $\theta^{(i)}$ and $\eta^{(i)}$, which correspond to hidden state $i$ of the HMM. Standard gradient descent at a given step $m$ with step size $\lambda$ updates the parameter value $\bfphi^{(m)}$ by moving in the direction of the negative gradient of $F$. Formally, the update step is
 %
 %\begin{equation}
-    $\bfphi^{(m+1)} = \bfphi^{(m)} - \lambda \nabla F(\bfphi^{(m)})$, which for our problem can be written as $\bfphi^{(m+1)} = \bfphi^{(m)} - (\lambda/T) \sum_{t=1}^T \nabla F_t(\bfphi^{(m)})$.
+    $\bfphi^{(m+1)} = \bfphi^{(m)} - \lambda \nabla F(\bfphi^{(m)})$, or $\bfphi^{(m+1)} = \bfphi^{(m)} - (\lambda/T) \sum_{t=1}^T \nabla F_t(\bfphi^{(m)})$ for our problem.
 %\end{equation}
 %
-The step size $\lambda$ is a user-defined value that should be large enough to allow the algorithm to move quickly to a minimum of $F$, but not so large that $\bfphi^{(m+1)}$ ``overshoots" the minimum. This update requires evaluating a gradient for all $t = 1,\ldots,T$, which can be prohibitively expensive if $T$ is large. In contrast, stochastic gradient descent (SGD) updates $\bfphi$ using
+The step size $\lambda$ is user-defined. It should be large enough so $\bfphi^{(m+1)}$ moves quickly towards a minimum of $F$, but not so large that $\bfphi^{(m+1)}$ ``overshoots" the minimum. This update requires evaluating a gradient for all $t = 1,\ldots,T$, which can be prohibitively expensive if $T$ is large.
+
+In contrast, stochastic gradient descent (SGD) updates $\bfphi$ using
 %
 %\begin{equation}
 $\bfphi^{(m+1)} = \bfphi^{(m)} - \lambda_m \nabla F_{t_m}(\bfphi^{(m)}),$
 %\end{equation}
 %
-for some $t_m \in \{1,\ldots,T\}$ selected uniformly at random at step $m$ of the algorithm \citep{Robbins:1951}. Stochastic gradient descent reduces the amount of time between updates by using an unbiased estimate of the gradient to update $\bfphi^{(m)}$. However, the gradient estimates themselves can have high variance, so stochastic gradient descent requires that the step size $\lambda_m$ decays at each iteration $m$ to ensure convergence. In addition, SGD has slower convergence rates compared to full gradient descent \citep{Schmidt:2017}.
+where $t_m \in \{1,\ldots,T\}$ is selected uniformly at random at step $m$ of the algorithm \citep{Robbins:1951}. Stochastic gradient descent reduces the amount of time between updates by using an unbiased estimate of the gradient to update $\bfphi^{(m)}$. However, the gradient estimates can have very high variance, so stochastic gradient descent requires that the step size $\lambda_m$ is smaller than that of full gradient descent. The step size must also decay to zero as $m \to \infty$ to ensure convergence. Further, SGD has slower convergence rates than full gradient descent \citep{Schmidt:2017}.
 
 Variance-reduced stochastic optimization techniques such as stochastic average gradient descent (SAG) \citep{Schmidt:2017}, stochastic variance reduced gradient descent (SVRG) \citep{Johnson:2013}, and SAGA \citep{Defazio:2014} enjoy the speed of stochastic gradient descent as well as the convergence rates of full gradient descent. These algorithms involve storing gradient approximations at each gradient step $m$, $\widehat \nabla F_{t}^{(m)}$ for $t = 1,\ldots,T$, whose average approximates the full gradient $\nabla F(\bfphi^{(m)})$. The gradient approximations are updated at various stages in the optimization algorithm and are used to reduce the variance of the full gradient estimate. 
 %In particular, SAG uses the update rule:
@@ -249,7 +251,7 @@ Variance-reduced stochastic optimization techniques such as stochastic average g
 For example, SVRG and SAGA update $\bfphi^{(m)}$ via
 %
 %\begin{equation}
-    $\bfphi^{(m+1)} = \bfphi^{(m)} - \lambda \left[\nabla F_{t_m}(\bfphi^{(m)}) - \widehat \nabla F_{t_m}^{(m)} + \widehat \nabla F^{(m)} \right],$
+    $\bfphi^{(m+1)} = \bfphi^{(m)} - \lambda_m \left[\nabla F_{t_m}(\bfphi^{(m)}) - \widehat \nabla F_{t_m}^{(m)} + \widehat \nabla F^{(m)} \right],$
     %\label{eqn:SAGA_update}
 %\end{equation}
 %
@@ -267,7 +269,7 @@ where $t_m \in \{1,\ldots,T\}$ is chosen uniformly at random and
 %    &= \frac{1}{T} \sum_{t=1}^T \nabla F^{(k)}_{t}(\bfphi^{(m)}) = \nabla F^{(k)}(\bfphi^{(m)}).
 %\end{align}
 %
-This update corresponds to an unbiased estiamte of the gradient. After updating the parameters at step $m$, SAGA updates the gradient approximation $\widehat \nabla F_{t_m}^{(m+1)}$ and recalculates the resulting gradient average $\widehat \nabla F^{(m+1)}$.
+Like SGD, this stochastic update has the same expectation as that of standard gradient descent, but it empirically exhibits lower variance than SGD and it is guaranteed to converge without decaying the step size $\lambda_m$ (under certain regularity conditions). After updating the parameters at step $m$, SAGA updates the gradient approximation $\widehat \nabla F_{t_m}^{(m+1)}$ and recalculates the resulting gradient average $\widehat \nabla F^{(m+1)}$.
 %
 %\begin{gather}
 %    \widehat \nabla F \gets \widehat \nabla F + \frac{1}{T} \nabla F_{t}(\bfphi^{(m)}) - \frac{1}{T} \widehat \nabla F_{t}, \\
@@ -279,7 +281,7 @@ This update corresponds to an unbiased estiamte of the gradient. After updating 
 %
 %This trade-off should be considered by practitioners when deciding between the two algorithms. 
 %
-Algorithm (\ref{alg:VRSO}) outlines SVRG and SAGA in pseudocode. SAGA involves running the algorithm until convergence. However, the gradient approximations $\widehat \nabla F_{t}^{(m)}$ are never updated when using SVRG within Algorithm (\ref{alg:VRSO}). As such, SVRG requires repeatedly running Algorithm (\ref{alg:VRSO}) with $M$ scaling approximately with $T$ so the set of gradient approximations remains up-to-date.
+Algorithm (\ref{alg:VRSO}) outlines SVRG and SAGA in pseudocode, and we denote it as \textit{variance-reduced stochastic optimization}, or $\texttt{VRSO}$. 
 
 \begin{algorithm}
 \caption{\texttt{VRSO}$(F,\bfphi^{(0)},\lambda,A,M)$}\label{alg:VRSO}
@@ -316,5 +318,7 @@ Algorithm (\ref{alg:VRSO}) outlines SVRG and SAGA in pseudocode. SAGA involves r
 \State \Return $\bfphi^{(M)}$
 \end{algorithmic}
 \end{algorithm}
+
+SAGA involves running Algorithm (\ref{alg:VRSO}) until convergence. However, the gradient approximations $\widehat \nabla F_{t}^{(m)}$ are never updated when using SVRG within Algorithm (\ref{alg:VRSO}). As such, SVRG requires repeatedly running Algorithm (\ref{alg:VRSO}) with $M$ scaling approximately with $T$ so the set of gradient approximations remains up-to-date.
 
 %%%%%%%%%%%%

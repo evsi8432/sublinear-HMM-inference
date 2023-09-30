@@ -6,16 +6,16 @@ Algorithm (\ref{alg:EM-VRSO}) outlines a method to perform the Baum-Welch algori
 \label{subsec:est_L}
 
 One drawback of stochastic optimization is that the step size can greatly affect the practical performance of the algorithm. %\citet{Schmidt:2017} suggest using step sizes of $\lambda_F = 1/(16L_F)$ and $\lambda_G = 1/(16L_G)$ for theoretical guarantees within the SAG algorithm, where $L_F$ and $L_G$ are defined in Theorem 1. Similarly, 
-\citet{Defazio:2014} suggest step sizes of $\lambda = 1/(3L)$ for SAGA, where $L$ is the Lipschitz constant defined in Theorem 1. However, the Lipschitz constants are rarely known in practice. Therefore, following \citet{Schmidt:2017}, we initialize an estimate of the Lipschitz constant, $\hat L$, and update it if the following inequality does not hold at any step $m$ of the optimization algorithm:
+\citet{Defazio:2014} suggest a step size of $\lambda = 1/(3L)$ for SAGA, where $L$ is the Lipschitz constant defined in Theorem 1. However, the Lipschitz constants are rarely known in practice. Therefore, following \citet{Schmidt:2017}, we initialize an estimate of the Lipschitz constant, $\hat L$, and update it if the following inequality does not hold at any step $m$ of the optimization algorithm:
 
 \begin{gather}
-    F^{(m+1)}_{t_m}\Big(\bfphi^{(m)} - \frac{1}{\hat L} \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big) \leq F^{(m+1)}_{t_m}\Big(\bfphi^{(m)}\Big) - \frac{1}{2 \hat L} \Big| \Big| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)})  \Big| \Big| ^2, \quad \text{where} \label{ineq:F} \\
+    F^{(m+1)}_{t_m}\Big(\bfphi^{(m)} - \frac{1}{\hat L} \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big) \leq F^{(m+1)}_{t_m}\Big(\bfphi^{(m)}\Big) - \frac{1}{2 \hat L} \Big\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big\| ^2, \quad \text{where} \label{ineq:F} \\
     %
     F_{t_m}^{(m+1)} = F_{t_m}\left(\cdot ~ \Big | ~ \widehat \bfgamma^{(m+1)}_{t_m}, \widehat \bfxi^{(m+1)}_{t_m}\right)
     \label{ineq:F}
 \end{gather}
 %
-The inequality above is obeyed if $\hat L = L$, so if it is violated, then we double the Lipschitz constant estimate $\hat L$. We also follow \citet{Schmidt:2017} and do not check the inequality if $|| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)})|| < 10^{-8}$ due to numerical instability. 
+The inequality above is obeyed if $\hat L = L$, so if it is violated, then we double the Lipschitz constant estimate $\hat L$. We also follow \citet{Schmidt:2017} and do not check the inequality if $\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)})\| < 10^{-8}$ due to numerical instability. 
 
 In addition, the Lipschitz constant $L$ is a global quantity, but the algorithm will likely remain in a neighborhood around a local maximum of $F$ later in the optimization algorithm. Within this local neighborhood, a smaller value of $L$ may apply \citep{Schmidt:2017}, so the Lipschitz constant estimate is decreased by a small amount after each parameter update:
 %
@@ -51,7 +51,7 @@ To this end, let $\widehat \nabla G^{(m)}_{t}$ be equal to the components of $\w
     \bfeta^{(m+1)} &= \bfeta^{(m)} - \lambda_{\bfeta} \left[\nabla H_{t_m}\left(\bfeta^{(m)} ~ \Big | ~ \widehat \bfgamma_{t_m}^{(m+1)}, \widehat \bfxi_{t_m}^{(m+1)}\right) - \widehat \nabla H_{t_m}^{(m)} + \widehat \nabla H^{(m)} \right].
 \end{align}
 %
-where $\lambda_{\bftheta} = \lambda_{\bfeta} = \lambda$. Note that $G_t$ is a function of $\bftheta$ alone and $H_t$ is a function of $\bfeta$ alone for given $\widehat \bfgamma_{t}$ and $\widehat \bfxi_{t}$ for all $t = 1,\ldots,T$. As such, we allow $\lambda_{\bftheta} \neq \lambda_{\bfeta}$ and have each depend upon different Lipschitz constant estimates: $\lambda_{\bftheta} = 1/(3\hat L_G)$ and $\lambda_{\bfeta} = 1/(3\hat L_H)$. The line search described in Section 4.1 can then be used to update the estimates $\hat L_G$ and $\hat L_H$.
+where $\lambda_{\bftheta} = \lambda_{\bfeta} = \lambda$. Note that $G_t$ is a function of $\bftheta$ alone and $H_t$ is a function of $\bfeta$ alone for given $\widehat \bfgamma_{t}$ and $\widehat \bfxi_{t}$ and all $t = 1,\ldots,T$. As such, we allow $\lambda_{\bftheta} \neq \lambda_{\bfeta}$ and have each depend upon different Lipschitz constant estimates: $\lambda_{\bftheta} = 1/(3\hat L_G)$ and $\lambda_{\bfeta} = 1/(3\hat L_H)$. The line search described in Section 4.1 can then be used to update the estimates $\hat L_G$ and $\hat L_H$ separately.
 
 \subsection{Adaptive Step Size for Fixed Lipschitz Constants}
 \label{subsec:L_divider}
@@ -61,4 +61,4 @@ Under certain regularity conditions, \citet{Defazio:2014} prove that SAGA conver
 \subsection{Sampling for SAGA and SVRG Without Replacement}
 \label{subsec:wo_replacement}
 
-Finally, we sample each random index $t$ \textit{without} replacement for Algorithm (\ref{alg:VRSO-PE}). If $M > T$, then we sample without replacement until all time indices are sampled, and then re-sample the data set without replacement. Sampling without replacement for SGD is often easier to implement and performs better than sampling with replacement \citep{Gurbuzbalaban:2015}. \citet{Ohad:2016} also gives several convergence results for SVRG when indices are sampled without replacement.
+Finally, we sample each random index $t$ \textit{without} replacement within Algorithm (\ref{alg:VRSO-PE}). If $M > T$, then we sample without replacement until all time indices are sampled, and then re-sample the data set without replacement. Sampling without replacement for SGD is often easier to implement and performs better than sampling with replacement \citep{Gurbuzbalaban:2015}. \citet{Ohad:2016} also gives several convergence results for SVRG when indices are sampled without replacement.

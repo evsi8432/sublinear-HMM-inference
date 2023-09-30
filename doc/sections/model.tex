@@ -1,4 +1,4 @@
-Both the E step and the M step of the Baum-Welch algorithm are expensive when the length of the observation sequence ($T$) is large. The E step is expensive because $\bfgamma_t(\bfphi_{k})$ and $\bfxi_t(\bfphi_{k})$ must be calculated for $t = 1,\ldots,T$ to define $Q(\bfphi \mid \bfphi_k)$. The M step is also expensive if closed-form solutions to (\ref{eqn:BW_update}) are not readily available because evaluating full gradients of $Q(\bfphi \mid \bfphi_{k})$ takes $\calO(T)$ time. In this section, we introduce an original algorithm that speeds up both the expensive M step as well as the expensive E step of the Baum-Welch algorithm. %The SVRG variant of Algorithm (\ref{alg:EM-VRSO}) introduced in section \ref{subsec:stoch_M} is similar to the algorithm from \citet{Zhu:2017} with a focus on applications to HMMs. However, to the best of our knowledge, our focus on applying SVRG and SAGA to the Baum-Welch algorithm is original, and our implementation of a partial E step in the Baum-Welch algorithm is also original. 
+Both the E step and the M step of the Baum-Welch algorithm are expensive when the length of the observation sequence ($T$) is large. The E step is expensive because $\bfgamma_t(\bfphi_{k})$ and $\bfxi_t(\bfphi_{k})$ must be calculated for $t = 1,\ldots,T$ to define $Q(\bfphi \mid \bfphi_k)$. If closed-form solutions to (\ref{eqn:BW_update}) are not readily available, then the M step is also expensive because evaluating full gradients of $Q(\bfphi \mid \bfphi_{k})$ takes $\calO(T)$ time. In this section, we introduce an original algorithm that speeds up both the expensive M step as well as the expensive E step of the Baum-Welch algorithm. %The SVRG variant of Algorithm (\ref{alg:EM-VRSO}) introduced in section \ref{subsec:stoch_M} is similar to the algorithm from \citet{Zhu:2017} with a focus on applications to HMMs. However, to the best of our knowledge, our focus on applying SVRG and SAGA to the Baum-Welch algorithm is original, and our implementation of a partial E step in the Baum-Welch algorithm is also original. 
 
 \subsection{Variance-Reduced Stochastic M Step}
 \label{subsec:stoch_M}
@@ -19,7 +19,7 @@ To speed up the expensive M step, we notice from Equation (\ref{eqn:Q_sum}) that
 %
 The two functions $F$ and $Q$ are closely related to one another, as $F(\bfphi \mid \bfgamma(\bfphi_k), \bfxi(\bfphi_k)) = - Q(\bfphi \mid \bfphi_k) / T$. However, we make a distinction between the two to bridge the gap between existing EM literature (which uses $Q$) and stochastic optimization literature (which uses $F$). At any iteration $k$ of the EM algorithm, the loss function $F(\cdot \mid \bfgamma(\bfphi_k),\bfxi(\bfphi_k))$ can be minimized using Algorithm (\ref{alg:VRSO}). %Namely, Algorithm (\ref{alg:EM-VRSO}) without a partial E-step is a specific instance of the generalized EM algorithm \citep{Dempster:1977} in which either SVRG or SAGA is implemented to perform the M step. 
 
-There are additional reasons to use SAGA and SVRG within the Baum-Welch algorithm beyond the standard benefits of variance-reduced stochastic optimization. Traditionally, SAGA is more memory intensive than SVRG because the gradient at every index must be stored. However, the Baum-Welch algorithm involves storing weights for each time index $t$ to define $F(\cdot \mid \bfgamma(\bfphi_k), \bfxi(\bfphi_k))$, so storing each gradient for SAGA is not significantly more memory intensive than the Baum-Welch algorithm itself. Alternatively, SVRG can be more computationally expensive than SAGA partially because it requires periodically re-calculating the full gradient approximation $\widehat \nabla F^{(0)}$, and this involves a full pass of the underlying data set. However, the E step of the Baum-Welch algorithm also involves a full pass of the data set, so using SVRG is not any more computationally expensive than the Baum-Welch algorithm itself. In this way, using either SAGA or SVRG in the M step adds minimal computational and memory complexity to the Baum-Welch algorithm.
+There are additional reasons to use SAGA and SVRG within the Baum-Welch algorithm beyond the standard benefits of variance-reduced stochastic optimization. Traditionally, SAGA is more memory intensive than SVRG because the gradient at every index must be stored. However, the Baum-Welch algorithm involves storing weights for each time index $t$ to define $F(\cdot \mid \bfgamma(\bfphi_k), \bfxi(\bfphi_k))$, so storing each gradient for SAGA is not considerably more memory intensive than the Baum-Welch algorithm itself. Alternatively, SVRG can be more computationally expensive than SAGA partially because it requires periodically re-calculating the full gradient approximation $\widehat \nabla F^{(0)}$, and this involves a full pass of the underlying data set. However, the E step of the Baum-Welch algorithm also involves a full pass of the data set, so using SVRG is not considerably more computationally expensive than the Baum-Welch algorithm itself. In this way, using either SAGA or SVRG in the M step adds minimal computational and memory complexity to the Baum-Welch algorithm.
 
 \subsection{Partial E Step within the M step}
 \label{subsec:stoch_E}
@@ -27,11 +27,12 @@ There are additional reasons to use SAGA and SVRG within the Baum-Welch algorith
 %While Algorithm (\ref{alg:EM-VRSO}) reduces the computational burden of the expensive M step, 
 Variance-reduced stochastic optimization reduces the computational cost of the M step, but the E step itself still has a time complexity of $\calO(T)$, which can be prohibitive for large $T$. To decrease this computational burden, \citet{Neal:1998} justify a partial E step within the EM algorithm for general latent variable models. However, they assume that the optimization of the M step has a closed-form solution. We use their method as inspiration and add a partial E step to the stochastic M step of the Baum-Welch algorithm. 
 
-Consider running one iteration of our version of the Baum-Welch algorithm with an initial parameter estimate $\bfphi^{(0)}$. The E step involves calculating the conditional probabilities $\bfgamma(\bfphi^{(0)})$ and $\bfxi(\bfphi^{(0)})$, and the M step involves running variance-reduced stochastic optimization with loss function $F(\cdot \mid \bfgamma(\bfphi^{(0)}),\bfxi(\bfphi^{(0)}))$ and initial parameter value $\bfphi^{(0)}$. Suppose $\bfphi_k^{(m)}$ is to be updated using a gradient estimate using a random time index $t_m$. The function $F_{t_m}(\cdot \mid \bfgamma_{t_m}(\bfphi^{(0)}),\bfxi_{t_m}(\bfphi^{(0)}))$ depends on $\bfgamma_{t_m}(\bfphi^{(0)})$ and $\bfxi_{t_m}(\bfphi^{(0)})$, each of which are vectors of conditional probabilities given $\bfphi^{(0)}$. However, $\bfphi^{(0)}$ is an out-of-date parameter estimate since the current parameter estimate is $\bfphi^{(m)}$. Therefore, it is natural to update $\bfgamma_{t_m}$ and $\bfxi_{t_m}$ and redefine $F_{t_m}(\cdot \mid \bfgamma_{t_m}, \bfxi_{t_m})$ before calculating $\bfphi^{(m+1)}$. 
+Consider running one iteration of our version of the Baum-Welch algorithm with an initial parameter estimate $\bfphi^{(0)}$. The E step involves calculating the conditional probabilities $\bfgamma(\bfphi^{(0)})$ and $\bfxi(\bfphi^{(0)})$, and the M step involves running variance-reduced stochastic optimization with loss function $F(\cdot \mid \bfgamma(\bfphi^{(0)}),\bfxi(\bfphi^{(0)}))$ and initial parameter value $\bfphi^{(0)}$. Now, suppose $\bfphi^{(m)}$ is to be updated using a gradient estimate using a random observation index $t_m$. The function $F_{t_m}(\cdot \mid \bfgamma_{t_m}(\bfphi^{(0)}),\bfxi_{t_m}(\bfphi^{(0)}))$ depends on $\bfgamma_{t_m}(\bfphi^{(0)})$ and $\bfxi_{t_m}(\bfphi^{(0)})$, each of which are vectors of conditional probabilities given $\bfphi^{(0)}$. However, $\bfphi^{(0)}$ is an out-of-date parameter estimate since the current parameter estimate is $\bfphi^{(m)}$. Therefore, it is natural to update $\bfgamma_{t_m}$ and $\bfxi_{t_m}$ and redefine $F_{t_m}(\cdot \mid \bfgamma_{t_m}, \bfxi_{t_m})$ before calculating $\bfphi^{(m+1)}$. 
 
-A naive method would be to calculate the new conditional probabilities $\bfgamma_{t_m}(\bfphi^{(m)})$ and $\bfxi_{t_m}(\bfphi^{(m)})$ and then update $F_{t_m}$ as $F_{t_m}(\cdot \mid \bfgamma_{t_m}(\bfphi^{(m)}), \bfxi_{t_m}(\bfphi^{(m)}))$. This would ensure that $\bfgamma_{t_m}$ and $\bfxi_{t_m}$ are completely up-to-date, but evaluating $\bfgamma_{t_m}(\bfphi^{(m)})$ and $\bfxi_{t_m}(\bfphi^{(m)})$ takes $\calO(TN^2)$ time and requires a full E step. Instead, our goal is to update $\bfgamma_{t_m}$ and $\bfxi_{t_m}$ in $\calO(N^2)$ time to achieve a parameter update step that does not scale with $T$.
+A naive method would be to calculate the new conditional probabilities $\bfgamma_{t_m}(\bfphi^{(m)})$ and $\bfxi_{t_m}(\bfphi^{(m)})$ and then update $F_{t_m}$ as $F_{t_m}(\cdot \mid \bfgamma_{t_m}(\bfphi^{(m)}), \bfxi_{t_m}(\bfphi^{(m)}))$. This would ensure that $\bfgamma_{t_m}$ and $\bfxi_{t_m}$ are completely up-to-date, but evaluating $\bfgamma_{t_m}(\bfphi^{(m)})$ and $\bfxi_{t_m}(\bfphi^{(m)})$ takes $\calO(TN^2)$ time and requires a full E step. Instead, our goal is to update $\bfgamma_{t_m}$ and $\bfxi_{t_m}$ in a way that does not scale with $T$.
 %
-To accomplish this goal, we define the mappings $\widetilde \bfalpha_t$, $\widetilde \bfbeta_t$, $\widetilde \bfgamma_t$, and $\widetilde \bfxi_t$ for $t = 1,\ldots,T$ similarly to Equations (\ref{eqn:alpha}--\ref{eqn:xi}):
+
+To this end, we define the mappings $\widetilde \bfalpha_t$, $\widetilde \bfbeta_t$, $\widetilde \bfgamma_t$, and $\widetilde \bfxi_t$ for $t = 1,\ldots,T$ similarly to Equations (\ref{eqn:alpha}--\ref{eqn:xi}):
 
 \begin{gather}
     \widetilde \bfalpha_1(\mathbf{a},\bfphi) = \bfdelta ~ P(y_1;\bftheta), \qquad \widetilde \bfalpha_t(\mathbf{a},\bfphi) = \mathbf{a} ~ \bfGamma ~ P(y_t;\bftheta), \quad t = 2,\ldots,T, \label{eqn:tilde_alpha} \\
@@ -48,6 +49,8 @@ all of which take $\calO(N^2)$ time to compute. Further, at the beginning of the
 %We thus introduce the conditional probability \textit{approximations} $\{\hat \bfalpha, \hat \bfbeta, \hat \bfgamma, \hat \bfxi\}$ and update them using the mappings defined above. 
 
 %In total, we perform step $k$ of our new Baum-Welch algorithm as follows. For the E step, we set $\hat \bfalpha_1 = \widetilde \bfalpha_1(\emptyset,\bfphi_k)$ and $\hat \bfbeta_T = \widetilde \bfbeta_T(\emptyset,\bfphi_k)$, followed by $\hat \bfalpha_t = \widetilde \bfalpha_t(\hat \bfalpha_{t-1},\bfphi_k)$ and $\hat \bfbeta_{T-t+1} = \widetilde \bfbeta_{T-t+1}(\hat \bfbeta_{T-t+2},\bfphi_k)$ for $t =2,\ldots,T$. Then, we set $\hat \bfgamma(\bfphi_k) = \widetilde \gamma (\hat \bfalpha, \hat \bfbeta)$ update $\bfgamma_{t}$ and $\bfxi_{t}$ before each parameter update by first updating $\bfalpha_{t} = \widetilde \bfalpha_{t}(\bfalpha_{t-1},\bfphi_{k,m})$ and $\bfbeta_{t} = \widetilde \bfbeta_{t}(\bfbeta_{t+1},\bfphi_{k,m})$ and then setting $\bfgamma_{t} = \widetilde \bfgamma_{t}(\bfalpha_{t},\bfbeta_{t})$ and $\bfxi_{t} = \widetilde \bfxi_{t}(\bfalpha_{t-1},\bfbeta_{t},\bfphi_{k,m})$.
+
+The partial E step detailed above is closely related to belief propagation, an algorithm that calculates conditional probabilities of variables within graphical models \citep{Pearl:1982}. In fact, the E step of the Baum-Welch algorithm is a specific instance of belief propagation, where Equations (\ref{eqn:tilde_alpha} -- \ref{eqn:tilde_xi}) above correspond to ``passing messages" within the graphical model. Belief propagation can only perform exact inference on acyclic graphical models (including HMMs), but a generalization called loopy belief propagation can perform approximate inference on general graphical models \citep{Pearl:1988}. Practitioners balance approximation error and computational complexity to decide how long to run loopy belief propagation. Likewise, we consider computational complexity when running belief propagation and evaluate Equations (\ref{eqn:tilde_alpha} -- \ref{eqn:tilde_xi}) only once to approximate $\bfgamma_{t_m}(\bfphi^{(m)})$ and $\bfxi_{t_m}(\bfphi^{(m)})$. This forms the basis of the partial E step within the stochastic M step of our modified Baum-Welch algorithm.
 
 \begin{algorithm}
 \caption{\texttt{VRSO-PE}$(\{\widehat \bfalpha_t^{(0)}, \widehat \bfbeta_t^{(0)}, \widehat \bfgamma_t^{(0)}, \widehat \bfxi_t^{(0)}\}_{t=1}^T,\bfphi^{(0)},\lambda,A,P,M)$}\label{alg:VRSO-PE}
@@ -68,11 +71,10 @@ all of which take $\calO(N^2)$ time to compute. Further, at the beginning of the
     \vspace{10pt}
     %
     \State $\left\{\widehat \bfalpha^{(m+1)}_t, \widehat \bfbeta^{(m+1)}_t, \widehat \bfgamma^{(m+1)}_t, \widehat \bfxi^{(m+1)}_t\right\} = \left\{\widehat \bfalpha^{(m)}_{t}, \widehat \bfbeta^{(m)}_{t}, \widehat \bfgamma^{(m)}_{t}, \widehat \bfxi^{(m)}_{t}\right\} \enspace$ for $t = 1,\ldots,T$.
-    \Comment{partial E step}
     %
     \vspace{5pt}
     %
-    \If{$P = \texttt{True}$}
+    \If{$P = \texttt{True}$} \Comment{partial E step}
     \State $\widehat \bfalpha_{t_m}^{(m+1)} = \widetilde \bfalpha_{t_m}\left(\widehat \bfalpha_{t_m-1}^{(m)},\bfphi^{(m)}\right), \quad \widehat \bfbeta_{t_m}^{(m+1)} = \widetilde \bfbeta_{t_m}\left(\widehat \bfbeta_{t_m+1}^{(m)},\bfphi^{(m)}\right)$ 
     %\State $\beta_{t} = \widetilde \beta_{t}(\beta_{t+1},\bfphi^{(m)})$ 
     \vspace{5pt}
@@ -142,23 +144,23 @@ In principal, it is possible to run Algorithm (\ref{alg:VRSO-PE}) alone without 
 \end{algorithmic}
 \end{algorithm}
 
-There are two versions of Algorithm (\ref{alg:EM-VRSO}). Version 1 requires the likelihood to not decrease (i.e. $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$) in order to exit the while loop in the M step. Version 2 of the algorithm, which we detail in the appendix, requires the likelihood to \textit{strictly} increase by some threshold to exit the while loop in the M step. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice. Therefore, we use version 1 in our simulation and case studies and defer version 2 to the appendix. Our simulation and case studies show that version 1 of Algorithm (\ref{alg:EM-VRSO}) converges to local maxima of the log-likelihood function in practice. 
+There are two versions of \texttt{EM-VRSO}. Version 1 (Algorithm \ref{alg:EM-VRSO}), requires the likelihood to not decrease (i.e. $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$) in order to exit the while loop of the M step. Version 2 (Algorithm \ref{alg:EM-VRSO-v2}) requires the likelihood to \textit{strictly} increase by some threshold to exit the while loop of the M step. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice. Therefore, we use version 1 in our simulation and case studies and defer version 2 to the online appendix. Our simulation and case studies show that version 1 of \texttt{EM-VRSO} converges to local maxima of the log-likelihood function in practice. 
 
 %At first it seems troubling that Algorithm (\ref{alg:EM-VRSO}) involves evaluating $\log p(\bfy;\bfphi_{k,\ell})$ after each M step because evaluating the full likelihood takes $\calO(TN^2)$ time. However, note that evaluating $\texttt{E-step}(\bfphi_{k,\ell})$ involves calculating $\alpha_T(\bfphi_{k,\ell})$, and $\log p(\bfy;\bfphi_{k,\ell}) = \log(\sum_{i=1}^{N}\alpha_T(\bfphi_{k,\ell}))$, and  $F_T^{(k+1)} = $, as well as evaluate $\log p(\bfy;\bfphi_{k,\ell})$.
 
-At first, it seems troubling to require $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$ to exit the while loop of Algorithm (\ref{alg:EM-VRSO}), since this requirement may cause an infinite loop if it cannot be met. %for version 1, or $Q^*(\bfphi_k) - Q(\bfphi_{k,\ell,M} \mid \bfphi_k) \leq (\zeta+1)/2 \left(Q^*(\bfphi_k) - Q(\bfphi_{k} \mid \bfphi_k) \right)$ for version 2. 
-Denote $\ell^*(k)$ as the (random) maximum value obtained by $\ell$ within Algorithm (\ref{alg:EM-VRSO}) for a given value of $k$. We prove in Theorem 1 below that 
+At first, it seems troubling to require $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$ to exit the while loop of \texttt{EM-VRSO}, since this requirement may cause an infinite loop if it cannot be met. %for version 1, or $Q^*(\bfphi_k) - Q(\bfphi_{k,\ell,M} \mid \bfphi_k) \leq (\zeta+1)/2 \left(Q^*(\bfphi_k) - Q(\bfphi_{k} \mid \bfphi_k) \right)$ for version 2. 
+Denote $\ell^*(k)$ as the (random) number of runs through the inner loop of \texttt{EM-VRSO} for iteration $k$ (i.e. the maximum value obtained by $\ell$ for a given value of $k$). We prove in Theorem 1 below that 
 %for all $k > 0$, $\ell^*(k)$ follows a geometric distribution with a strictly positive probability of success, thus 
 $\bbP(\ell^*(k) < \infty) = 1$. %The condition for version 2 of the algorithm implies the condition for version 1.
 %
-One final concern is whether the sequence $\{\bfphi_{k}\}_{k=0}^\infty$ generated by Algorithm (\ref{alg:EM-VRSO}) converges to a local maximum of the likelihood as $K \to \infty$. %it is well-known that the EM algorithm converges under certain regularity conditions \citep{Wu:1983}, but algorithm (\ref{alg:EM-VRSO}) does not complete the M step of the EM-algorithm, which complicates convergence analysis. Under standard regularity conditions, 
-Theorem 1 below guarantees convergence under standard regularity conditions. %Unfortunately there is no guarantee that this stationary point will be a global (or even local) minimum, but this issue is well known in the EM literature \citep{Wu:1983}.
+One final concern is whether the sequence $\{\bfphi_{k}\}_{k=0}^\infty$ generated by \texttt{EM-VRSO} converges to a local maximum of the likelihood as $K \to \infty$. %it is well-known that the EM algorithm converges under certain regularity conditions \citep{Wu:1983}, but algorithm (\ref{alg:EM-VRSO}) does not complete the M step of the EM-algorithm, which complicates convergence analysis. Under standard regularity conditions, 
+Theorem 1 below guarantees such convergence under standard regularity conditions. We prove Theorem 1 in the online appendix. %Unfortunately there is no guarantee that this stationary point will be a global (or even local) minimum, but this issue is well known in the EM literature \citep{Wu:1983}.
 
 %%%%%
     
 \begin{theorem}
 
-    Suppose the following:
+    Suppose the following conditions are met in Algorithm (\ref{alg:EM-VRSO-v2}) with $P = \texttt{False}$ and $A = \text{SVRG}$:
     
     \begin{enumerate}
         \item The parameters $\bfphi$ lie in $\bfPhi = \bbR^r$ for some dimension $r$.
@@ -174,13 +176,13 @@ Theorem 1 below guarantees convergence under standard regularity conditions. %Un
         \end{equation}
         %
         \begin{equation}
-            F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) \geq F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) + \nabla F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi'))^T(\bfphi-\bfphi_0) + \frac{C}{2} ||\bfphi - \bfphi_0||_2^2.
+            F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) \geq F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) + \nabla F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi'))^T(\bfphi-\bfphi_0) + \frac{C}{2} \|\bfphi - \bfphi_0\|_2^2.
         \end{equation}
         %
         \item $F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is uniformly Lipschitz-smooth with respect to $\bfphi$ for all $t$ and $\bfphi'$ with constant $L \geq C > 0$. Namely, for all $t$, $\bfphi$, $\bfphi_0$ and $\bfphi'$:
         %
         \begin{equation}
-            F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) \leq F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) + \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))^T(\bfphi - \bfphi_0) + \frac{L}{2} || \bfphi - \bfphi_0 ||_2^2.
+            F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) \leq F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) + \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))^T(\bfphi - \bfphi_0) + \frac{L}{2} \| \bfphi - \bfphi_0 \|_2^2.
         \end{equation}
         %
         \item The step size $\lambda$ is sufficiently small and $M$ is sufficiently large such that
@@ -190,10 +192,9 @@ Theorem 1 below guarantees convergence under standard regularity conditions. %Un
         \end{equation}
         %
         \item $\nabla F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is uniformly continuous in $(\bfphi,\bfphi')$ for all $t$.
-        %
     \end{enumerate}
     
-    Further, suppose $P = \texttt{False}$ and $A = \text{SVRG}$ in Algorithm (\ref{alg:EM-VRSO-v2}), and let $\calS = \{\ell^*(k) < \infty \text{ for all } k \}$. Then, $\bbP\{\calS\} = 1$, and the following holds on $\calS$: all limit points of $\{\bfphi_{k}\}_{k=0}^\infty$  are stationary points of $\log p(\bfy;\cdot)$, and $\log p(\bfy;\bfphi_{k})$ converges monotonically to $\log p^* = \log p(\bfy;\bfphi^*)$ for some stationary point of $\log p(\bfy;\cdot)$, $\bfphi^*$.
+    Further, let $\calS = \{\ell^*(k) < \infty \text{ for all } k \}$. Then, $\bbP\{\calS\} = 1$, and the following holds on $\calS$: all limit points of $\{\bfphi_{k}\}_{k=0}^\infty$  are stationary points of $\log p(\bfy;\cdot)$, and $\log p(\bfy;\bfphi_{k})$ converges monotonically to $\log p^* = \log p(\bfy;\bfphi^*)$ for some stationary point of $\log p(\bfy;\cdot)$, $\bfphi^*$.
 \end{theorem}
 %
 
@@ -244,7 +245,7 @@ Condition (2) from \citet{Wu:1983} and condition (5) of \citet{Johnson:2013} can
 
 %After completing the E and the M step, Algorithm (\ref{alg:EM-VRSO}) with $P = \texttt{True}$ requires evaluating $\log p(\bfy;\bfphi_{k,\ell,M})$, which has a time complexity of $\calO(T)$. However, $F_t^{(k+1,0)}$ depends upon $\alpha_T(\bfphi_{k+1})$, and $p(\bfy;\bfphi_{k+1}) = \sum_{i=1}^N \alpha_T^{(i)}(\bfphi_{k+1})$. Therefore, if in fact $\bfphi_{k,\ell,M} = \bfphi_{k+1}$, then evaluating $\log p(\bfy;\bfphi_{k,\ell,M})$ is trivial after initializing $F_t^{(k+1,0)}$ and $G_t^{(k+1,0)}$. 
 
-Theorem 1 above applies only to version 2 of \texttt{EM-VRSO} when $P = \texttt{False}$ and $A = \text{SAGA}$. Unfortunately, convergence analysis for \texttt{EM-VRSO} is more complicated when $P = \texttt{True}$ than when $P = \texttt{False}$ because the E and M steps are mixed. However, Theorem 2 below shows that stationary points of the log-likelihood are fixed points of Algorithm (\ref{alg:EM-VRSO}) for all values of $P$ and $A$.
+Theorem 1 above applies only to version 2 of \texttt{EM-VRSO} when $P = \texttt{False}$ and $A = \text{SVRG}$. Unfortunately, convergence analysis for \texttt{EM-VRSO} is more complicated when $P = \texttt{True}$ than when $P = \texttt{False}$ because the E and M steps are mixed. However, Theorem 2 below shows that stationary points of the log-likelihood are fixed points of Algorithm (\ref{alg:EM-VRSO}) for all values of $P$ and $A$. We prove Theorem 2 in the online appendix. 
 
 \begin{theorem}
     If $\nabla \log p(\bfy;\bfphi_0) = 0$, then for all $\lambda \in \bbR$, $A \in \{\text{SAGA}, \text{SVRG}\}$, $P \in \{\texttt{True},\texttt{False}\}$, $M \in \bbN$, and $K \in \bbN$, $\texttt{EM-VRSO}(\bfphi_0, \lambda, A, P, M, K) = \bfphi_0$ with probability 1, where $\texttt{EM-VRSO}$ is defined in Algorithm (\ref{alg:EM-VRSO}).

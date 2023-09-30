@@ -23,7 +23,7 @@ For the purposes of readability, we abuse notation and use the shorthand $F(\bfp
 %
 \While{$\ell = 0$ or $F(\bfphi_{k,\ell} \mid \bfphi_{k}) > K(\bfphi_{k})$}
 \State $\ell \gets \ell+1$
-\State $\bfphi_{k,\ell} = \texttt{VRSO-PE}(\{\bfalpha_t,\bfbeta_t,\bfgamma_t,\bfxi_t\}_{t=1}^{T},\bfphi_{k},\lambda,A,P,M)$
+\State $\bfphi_{k,\ell} = \texttt{VRSO-PE}(\{\bfalpha_{k,t},\bfbeta_{k,t},\bfgamma_{k,t},\bfxi_{k,t}\}_{t=1}^{T},\bfphi_{k},\lambda,A,P,M)$
 %
 \EndWhile
 \State $\bfphi_{k+1} = \bfphi_{k,\ell}$
@@ -32,7 +32,7 @@ For the purposes of readability, we abuse notation and use the shorthand $F(\bfp
 \end{algorithmic}
 \end{algorithm}
 
-One concern with Algorithm (\ref{alg:EM-VRSO-v2}) is that it requires quantities that are not known in practice, namely $\zeta$ and $F^{*}(\bfphi_{k})$. However, these quantities are only used in the while loop to ensure a strict increase in the likelihood for every iteration of \texttt{VRSO-PE}. In addition, version 1 of the algorithm is intuitively preferable since it will accept new parameters that increase the likelihood by any amount. We only use version 2 above to prove Theorem 1.
+One potential concern with Algorithm (\ref{alg:EM-VRSO-v2}) is that it requires quantities that are not known in practice, namely $\zeta$ and $F^{*}(\bfphi_{k})$. However, these quantities are only used in the while loop to ensure a strict increase in the likelihood for every iteration of \texttt{VRSO-PE}. In addition, version 1 of the algorithm is intuitively preferable since it will accept new parameters that increase the likelihood by any amount. We only use version 2 above to prove Theorem 1.
 
 Another concern with Algorithm (\ref{alg:EM-VRSO-v2}) is that $F^{*}(\bfphi_{k})$ is defined using an infimum, which can be problematic in some settings. However, we prove in Lemma 1 that if the conditions of Theorem 1 hold, then $F^*(\bfphi')$ is finite, has a unique minimizer, and is uniformly continuous.
 
@@ -103,7 +103,7 @@ $\psi_i$                              & $F_t(\cdot \mid \bfphi_k)$
 \end{table}
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold. Then, the while loop within Algorithm (\ref{alg:EM-VRSO-v2}) almost surely terminates in finite time, i.e. $\bbP(\ell^*(k) < \infty) = 1$ for all $k \geq 0$. Furthermore, $\bbP\{\ell^*(k) < \infty \forall k\} = 1$.
+    Suppose all conditions from Theorem 1 hold. Then, the while loop within Algorithm (\ref{alg:EM-VRSO-v2}) almost surely terminates in finite time, i.e. $\bbP\{\ell^*(k) < \infty\} = 1$ for all $k \geq 0$. Furthermore, $\bbP\{\forall k : \ell^*(k) < \infty \} = 1$.
 \end{lemma}
 
 \begin{proof}
@@ -129,7 +129,7 @@ Taking the complement of the above expression and rearranging terms gives
 
 so with some probability greater than or equal to $(1-\zeta)/(1+\zeta) > 0$, the condition to exit the while loop at iteration $\ell$ of Algorithm (\ref{alg:EM-VRSO-v2}) is satisfied.
 
-Further, repeated iteration through Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to drawing \textit{independent} samples of $\bfphi_{k,\ell}$ conditioned on $\bfphi_k$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k \geq (1-\zeta)/(1+\zeta)$. Therefore, $\bbP\Big\{\ell^*(k) < \infty \Big\} = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1$, and 
+Further, repeatedly calling \texttt{VRSO-PE} within the inner while loop of Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to drawing \textit{independent} samples of $\bfphi_{k,\ell}$ conditioned on $\bfphi_k$. The draws are independent because $\texttt{VRSO-PE}^*$ is only random due to $I_{k,\lambda}$ after conditioning on $\bfphi_k$, and each iteration of the inner while loop of Algorithm (\ref{alg:EM-VRSO-v2}) involves drawing independent samples of $I_{k,\lambda}$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k \geq (1-\zeta)/(1+\zeta)$. Therefore, $\bbP\Big\{\ell^*(k) < \infty \Big\} = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1$, and 
 
 \begin{equation*}
     \bbP\Big\{\forall k : \ell^*(k) < \infty \Big\} = 1 - \bbP\Big\{\exists k : \ell^*(k) = \infty \Big\} = 1.
@@ -208,7 +208,7 @@ Condition (a) is satisfied by Lemma 4, and condition (b) is satisfied by Lemma 5
 
 \section{Proof of Theorem 2}
 
-We first give a basic outline of the proof. If $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\nabla F(\bfphi_0 \mid \bfphi_0) = 0$, so every gradient step of SAGA and SVRG within $\texttt{VRSO-PE}$ does not change $\bfphi_0^{(m)}$, so $ = \bfphi_0^{(m+1)} =  \bfphi_0^{(m)} = \bfphi^{(0)}_0$. As a result, the gradient approximations do not change either, so $\widehat F^{(m+1)} = \widehat F^{(m)}$ and $\widehat F^{(m+1)}_t = \widehat F^{(m)}_t$ for $t = 1,\ldots,T$. Finally, since the parameter estimates do not change, the conditional probability approximations $\left\{\widehat \bfalpha^{(m)}_t, \widehat \bfbeta^{(m)}_t, \widehat \bfgamma^{(m)}_t, \widehat \bfxi^{(m)}_t\right\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0), \bfbeta_t(\bfphi_0), \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0) \right\}_{t=1}^T$ do not change either. Because $\texttt{VRSO-PE}$ returns $\bfphi_1 = \bfphi_0^{(M)} = \bfphi_0$, each iteration of $\texttt{EM-VRSO}$ must do the same, so by induction $\bfphi_K = \bfphi_0$.
+We first give a basic outline of the proof. If $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\nabla F(\bfphi_0 \mid \bfphi_0) = 0$, so every gradient step of SAGA and SVRG within $\texttt{VRSO-PE}$ does not change $\bfphi_0^{(m)}$, so $ = \bfphi_0^{(m+1)} =  \bfphi_0^{(m)} = \bfphi^{(0)}_0$ (we prove this in step 3 of lemma 6). As a result, the gradient approximations do not change either, so $\widehat \nabla F^{(m+1)} = \widehat \nabla F^{(m)}$ and $\widehat \nabla F^{(m+1)}_t = \widehat \nabla F^{(m)}_t$ for $t = 1,\ldots,T$ (we prove this in steps 4 and 5 of lemma 6). Finally, since the parameter estimates do not change, the conditional probability approximations $\left\{\widehat \bfalpha^{(m)}_t, \widehat \bfbeta^{(m)}_t, \widehat \bfgamma^{(m)}_t, \widehat \bfxi^{(m)}_t\right\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_0), \bfbeta_t(\bfphi_0), \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0) \right\}_{t=1}^T$ do not change either (we prove this in steps 1 and 2 of lemma 6). Because $\texttt{VRSO-PE}$ returns $\bfphi_1 = \bfphi_0^{(M)} = \bfphi_0$, each iteration of $\texttt{EM-VRSO}$ must do the same, so by induction $\bfphi_K = \bfphi_0$ (we prove this in the body of theorem 2).
 
 To prove the Theorem more formally, we first prove a useful Lemma.
 
@@ -221,7 +221,7 @@ To prove the Theorem more formally, we first prove a useful Lemma.
         %
         \item $\nabla F(\bfphi^{(0)} \mid \bfgamma(\bfphi^{(0)}),\bfxi(\bfphi^{(0)})) = 0$,
     \end{enumerate}
-    then with probability 1, for algorithm (\ref{alg:VRSO-PE}):
+    then with probability 1,
     \begin{equation}
         \texttt{VRSO-PE}\Big(\left\{\widehat \bfalpha_t^{(0)},\widehat \bfbeta_t^{(0)},\widehat \bfgamma_t^{(0)},\widehat \bfxi_t^{(0)}\right\}_{t=1}^T, \bfphi^{(0)}, \lambda, A, P, M \Big) = \bfphi^{(0)}
     \end{equation}
@@ -349,7 +349,7 @@ We use induction and show that if $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\bfp
     &= 0 \label{eqn:nabla_zero}.
 \end{align}
 %
-By Equation (\ref{eqn:nabla_zero}), the conditions within Lemma 6 are satisfied with $\bfphi^{(0)} = \bfphi_0$. Further, step 2 of Algorithm (\ref{alg:EM-VRSO}) performs the E step of the EM algorithm so that $\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k) \right\}_{t=1}^T$. So:
+Equation (\ref{eqn:nabla_zero}) shows that the condition for Lemma 6 are satisfied with $\bfphi^{(0)} = \bfphi_0$. Further, step 2 of Algorithm (\ref{alg:EM-VRSO}) performs the E step of the EM algorithm so that $\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k) \right\}_{t=1}^T$. So:
 
 \begin{align*}
     \bfphi_{k,1} &= \texttt{VRSO-PE}\Big(\left\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\right\}_{t=1}^T, \bfphi_k, \lambda, A, P, M \Big) \\

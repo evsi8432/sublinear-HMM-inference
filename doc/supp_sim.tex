@@ -45,7 +45,7 @@
       %
       \and
       %
-      \textbf{Alexandre Bouchard-C\^ot\'e?} \\
+      \textbf{Alexandre Bouchard-C\^ot\'e} \\
       Department of Statistics \\
       University of British Columbia \\
       Vancouver, Canada \\
@@ -97,14 +97,14 @@ Below are results for the experiments with $T=10^{3}$. They are analogous to Fig
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/boxplots_sim_T_1000.png}
-    \caption{Box plots showing epochs to converge (top) and the log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence (bottom) for each optimization algorithm. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
+    \caption{Box plots showing epochs to converge (top) and the maximum log-likelihood minus the log-likelihood at convergence (all divided by $T$, bottom) for each optimization algorithm. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
     \label{fig:boxplots_sim}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/scatter_sim_T_1000.png}
-    \caption{Log-likelihood of the maximum log-likelihood minus the log-likelihood (all divided by $T$) at convergence versus epochs to converge for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Maximum log-likelihood minus the log-likelihood at convergence (all over $T$) versus epochs to converge for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
     \label{fig:scatter_sim}
 \end{figure}
 

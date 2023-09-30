@@ -42,6 +42,14 @@ import time
 import pickle
 import random
 
+'''
+This file has helper functions for VARIANCE-REDUCED STOCHASTIC OPTIMIZATION FOR
+EFFICIENT INFERENCE OF HIDDEN MARKOV MODELS by Sidrow et al. (2023). The first
+four functions here either transform eta and eta0 to Gamma and delta and
+vice-versa, the fifth implements log-dot-exp to take matrix multiplication of
+log-parameters, and and the last function generates data for the simulation study.
+'''
+
 def eta_2_log_Gamma(eta):
 
     # get coarse-scale Gamma

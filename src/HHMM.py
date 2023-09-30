@@ -35,6 +35,22 @@ from helper_funcs import eta0_2_log_delta
 from helper_funcs import log_delta_2_eta0
 from helper_funcs import logdotexp
 
+'''
+This file defines the HHMM (hierarhcical hidden Markov model) class in
+VARIANCE-REDUCED STOCHASTIC OPTIMIZATION FOR EFFICIENT INFERENCE OF HIDDEN
+MARKOV MODELS by Sidrow et al. (2023). This class contains all of the data and
+parameters of the HHMM. It holds the parameters of the HMM as objects as well
+as a vector (x). It also contains the conditional probabilities used to perform
+smoothing on the hidden states of the HHMM (alpha, beta, p_Xt and p_Xtm1_Xt).
+
+It can initialize the parameters used to do the optimization algorithm. It can
+also update the conditional probabilites based on the parameters, convert
+parameters from a vector to an object (and vice-versa), and get the log-likelihood
+of the data given the parameters. We do not add a full E-step here because we
+initialize the gradients with the E-step (therefore, the E-step is in the
+optimizor class).
+'''
+
 class HHMM:
 
     def __init__(self,data,features,share_params,K,fix_theta=None,fix_eta=None,fix_eta0=None):
@@ -81,7 +97,13 @@ class HHMM:
         self.p_Xtm1_Xt = np.zeros((self.T,self.K_total,self.K_total))
 
         # initialize x
-        self.initialize_nparams()
+        self.nparams = len(self.share_params) # theta
+        self.nparams += self.K[0]**2 # eta-coarse
+        self.nparams += self.K[0]*self.K[1]**2 # eta-fine
+        self.nparams += self.K[0] # eta0-coarse
+        self.nparams += self.K[0]*self.K[1] # eta0-fine
+
+        # make sure x and params agree
         self.x = self.params_2_x()
         self.x_2_params(self.x)
 
@@ -93,16 +115,20 @@ class HHMM:
             print("no data")
             return
 
+        # initialize theta
         theta = [{} for _ in range(self.K[0])]
 
+        # if no fix_theta is provided, we have to build it with all `Nones`
         if fix_theta is None:
             build_fix_theta = True
             fix_theta = [{} for _ in range(self.K[0])]
         else:
             build_fix_theta = False
 
+        # initialize the parameter bounds object
         param_bounds = {}
 
+        # initialize theta, fix_theta, and param_bounds for each feature
         for feature,settings in self.features.items():
 
             feature_data = [datum[feature] for datum in data]
@@ -114,52 +140,59 @@ class HHMM:
                 theta[k0][feature] = {}
                 if build_fix_theta:
                     fix_theta[k0][feature] = {}
-
                 dist = settings['f']
 
+                # initialize differently based on the distribution
                 if dist == 'normal':
 
+                    # initialize theta
                     theta[k0][feature]['mu'] = np.nanmean(feature_data)*np.ones(self.K[1])
                     theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
 
+                    # add random noise
                     theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
                     theta[k0][feature]['log_sig'] += norm.rvs(np.zeros(self.K[1]),1.0)
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
 
-                    # deal with fixed parameters
+                    # initialize fixed parameters
                     if build_fix_theta:
                         fix_theta[k0][feature]['mu'] = np.array([None]*self.K[1])
                         fix_theta[k0][feature]['log_sig'] = np.array([None]*self.K[1])
 
+                    # initialize param_bounds
                     if k0 == 0:
                         param_bounds[feature]['mu'] = [min(feature_data),
                                                        max(feature_data)]
 
-                        param_bounds[feature]['log_sig'] = [-5.0,#np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
+                        param_bounds[feature]['log_sig'] = [-5.0,
                                                             np.log(np.nanmax(feature_data) -
                                                                    np.nanmin(feature_data))]
 
                 elif dist == 'normal_AR':
 
+                    # initialize theta
                     theta[k0][feature]['mu'] = np.nanmean(feature_data)*np.ones(self.K[1])
                     theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
                     theta[k0][feature]['logit_rho'] = -1.0*np.ones(self.K[1])
 
+                    # add random noise
                     theta[k0][feature]['mu'] += norm.rvs(np.zeros(self.K[1]),np.exp(theta[k0][feature]['log_sig']))
                     theta[k0][feature]['log_sig'] += norm.rvs(np.zeros(self.K[1]),1.0)
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
                     theta[k0][feature]['logit_rho'] += norm.rvs(np.zeros(self.K[1]),1.0)
 
+                    # initialize fix_theta
                     if build_fix_theta:
                         fix_theta[k0][feature]['mu'] = np.array([None]*self.K[1])
                         fix_theta[k0][feature]['log_sig'] = np.array([None]*self.K[1])
                         fix_theta[k0][feature]['logit_rho'] = np.array([None]*self.K[1])
 
+                    # initialize param_bounds
                     if k0 == 0:
                         param_bounds[feature]['mu'] = [min(feature_data),
                                                        max(feature_data)]
 
-                        param_bounds[feature]['log_sig'] = [-5.0,#np.log(np.nanmin(np.diff(sorted(set(feature_data))))/2),
+                        param_bounds[feature]['log_sig'] = [-5.0,
                                                             np.log(np.nanmax(feature_data) -
                                                                    np.nanmin(feature_data))]
 
@@ -168,17 +201,21 @@ class HHMM:
 
                 elif dist == 'gamma':
 
+                    # initialize theta
                     theta[k0][feature]['log_mu'] = np.log(np.nanmean(feature_data))*np.ones(self.K[1])
                     theta[k0][feature]['log_sig'] = np.ones(self.K[1])*np.log(np.nanstd(feature_data))
 
+                    # add random noise
                     theta[k0][feature]['log_mu'] *= norm.rvs(np.ones(self.K[1]),np.log(1.1))
                     theta[k0][feature]['log_sig'] += norm.rvs(np.zeros(self.K[1]),1.0)
                     theta[k0][feature]['log_sig'] = np.maximum(theta[k0][feature]['log_sig'],np.log(0.001))
 
+                    # initialize fix_theta
                     if build_fix_theta:
                         fix_theta[k0][feature]['log_mu'] = np.array([None]*self.K[1])
                         fix_theta[k0][feature]['log_sig'] = np.array([None]*self.K[1])
 
+                    # initialize param_bounds
                     if k0 == 0:
                         param_bounds[feature]['log_mu'] = [np.log(min(feature_data)),
                                                            np.log(max(feature_data))]
@@ -189,25 +226,29 @@ class HHMM:
 
                 elif dist == 'bern':
 
+                    # initialize theta
                     theta[k0][feature]['logit_p'] = np.ones(self.K[1])*logit(np.nanmean(feature_data))
                     theta[k0][feature]['logit_p'] += norm.rvs(0.0,1.0,size=self.K[1])
 
+                    # initialize fix_theta
                     if build_fix_theta:
                         fix_theta[k0][feature]['logit_p'] = np.array([None]*self.K[1])
 
+                    # initialize param_bounds
                     if k0 == 0:
                         param_bounds[feature]['logit_p'] = [-np.infty,np.infty]
 
                 else:
                     pass
 
-                # set parameters equal within fix_theta (if you have it)
+                # set parameters equal to the fixed value for features in fix_theta
                 if not build_fix_theta:
                     for param in fix_theta[k0][feature]:
                         for k1 in range(self.K[1]):
                             if not (fix_theta[k0][feature][param][k1] is None):
                                 theta[k0][feature][param][k1] = fix_theta[k0][feature][param][k1]
 
+        # record the final parameters
         self.theta = theta
         self.fix_theta = fix_theta
         self.param_bounds = param_bounds
@@ -219,7 +260,7 @@ class HHMM:
         # initialize eta
         self.eta = []
 
-        # determine if we need to build fix_eta
+        # initialize fix_eta
         if fix_eta is None:
             self.fix_eta = []
             build_fix_eta = True
@@ -227,22 +268,23 @@ class HHMM:
             self.fix_eta = fix_eta
             build_fix_eta = False
 
-        # fill in coarse eta
+        # initialize coarse eta
         eta_crude = -3.0 + 1.0*np.random.normal(size=(self.K[0],self.K[0]))
         for i in range(self.K[0]):
             eta_crude[i,i] = 0
         self.eta.append(eta_crude)
 
-        # fill in coarse fix_eta
+        # initialize fix_eta on coarse scale
         if build_fix_eta:
             self.fix_eta.append(np.array([[None for _ in range(self.K[0])] for _ in range(self.K[0])]))
         else:
+            # set parameteres according to fix_eta on coarse scale
             for i in range(self.K[0]):
                 for j in range(self.K[0]):
                     if not (self.fix_eta[0][i,j] is None):
                         self.eta[0][i,j] = self.fix_eta[0][i,j]
 
-        # fill in fine eta
+        # initialize fine eta
         eta_fine = []
         fix_eta_fine = []
         for _ in range(self.K[0]):
@@ -251,14 +293,13 @@ class HHMM:
                 eta_fine_k[i,i] = 0
             eta_fine.append(eta_fine_k)
             fix_eta_fine.append(np.array([[None for _ in range(self.K[1])] for _ in range(self.K[1])]))
-
-        # fill in fine eta
         self.eta.append(eta_fine)
 
-        # fill in fine fix_eta
+        # initialize fix_eta on fine scale
         if build_fix_eta:
             self.fix_eta.append(fix_eta_fine)
         else:
+            # set parameteres according to fix_eta on fine scale
             for k0 in range(self.K[0]):
                 for i in range(self.K[1]):
                     for j in range(self.K[1]):
@@ -274,12 +315,13 @@ class HHMM:
                      [np.concatenate(([0.0],np.random.normal(size=(self.K[1]-1)))) \
                       for _ in range(self.K[0])]]
 
-        # determine if we need to build fix_eta0
+        # initialize fix_eta0
         if fix_eta0 is None:
             self.fix_eta0 = [np.array([None for _ in range(self.K[0])]),
                              [np.array([None for _ in range(self.K[1])]) \
                               for _ in range(self.K[0])]]
         else:
+            # set parameteres according to fix_eta0
             self.fix_eta0 = fix_eta0
 
             for k0 in range(self.K[0]):
@@ -293,20 +335,9 @@ class HHMM:
 
         return
 
-    def initialize_nparams(self):
-
-        self.nparams = len(self.share_params)
-
-        self.nparams += self.K[0]**2 # eta-coarse
-        self.nparams += self.K[0]*self.K[1]**2 # eta-fine
-
-        self.nparams += self.K[0] # eta0-coarse
-        self.nparams += self.K[0]*self.K[1] # eta0-fine
-
-        return
-
     def get_log_f(self,t,theta=None):
 
+        # set theta if not given
         if theta is None:
             theta = deepcopy(self.theta)
 
@@ -327,13 +358,16 @@ class HHMM:
 
             if dist == 'normal':
 
+                # format the parameters
                 mu = np.concatenate([theta_i[feature]['mu'] for theta_i in theta])
                 log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
                 sig = np.exp(log_sig)
 
+                # define upper and lower limits for a truncated normal
                 a = self.features[feature]['lower_bound']
                 b = self.features[feature]['upper_bound']
 
+                # add to log likelihood for no data, normal, or truncated normal
                 if np.isnan(y[feature]):
                     pass
                 elif (a is None) or (b is None):
@@ -350,17 +384,20 @@ class HHMM:
 
             elif dist == 'normal_AR':
 
+                # format the parameters
                 mu = np.concatenate([theta_i[feature]['mu'] for theta_i in theta])
                 log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
                 sig = np.exp(log_sig)
                 logit_rho = np.concatenate([theta_i[feature]['logit_rho'] for theta_i in theta])
                 rho = expit(logit_rho)
 
+                # get previous observation for AR process
                 if t == 0 or np.isnan(self.data[t-1][feature]):
                     y_tm1 = mu
                 else:
                     y_tm1 = self.data[t-1][feature]
 
+                # add to log likelihood
                 if np.isnan(y[feature]):
                     pass
                 else:
@@ -369,6 +406,7 @@ class HHMM:
 
             elif dist == "gamma":
 
+                # format the parameters
                 log_mu = np.concatenate([theta_i[feature]['log_mu'] for theta_i in theta])
                 mu = np.exp(log_mu)
                 log_sig = np.concatenate([theta_i[feature]['log_sig'] for theta_i in theta])
@@ -377,6 +415,7 @@ class HHMM:
                 shape = mu**2 / sig**2
                 scale = sig**2 / mu
 
+                # add to log likelihood
                 if np.isnan(y[feature]):
                     pass
                 elif y[feature] <= 0:
@@ -386,8 +425,10 @@ class HHMM:
 
             elif dist == 'bern':
 
+                # format parameters
                 logit_p = np.concatenate([theta_i[feature]['logit_p'] for theta_i in theta])
 
+                # add to log-likelihood
                 if np.isnan(y[feature]):
                     pass
                 elif y[feature] == 0:
@@ -399,38 +440,42 @@ class HHMM:
 
             elif dist.startswith("cat"):
 
+                # format parameters
                 ncats = int(dist[3:])
-
                 log_py = np.zeros(self.K_total)
                 for i in range(self.K[0]):
                     for j in range(self.K[1]):
                         psis = [0.0]+[theta[i][feature]["psi%d"%cat_num][j] for cat_num in range(1,ncats)]
                         log_py[(i*K[1]) + j] = psis[y[feature]] - logsumexp(psis)
 
+                # add to log-likleihood
                 log_f += log_py
 
             else:
                 print("unidentified emission distribution %s for %s"%(dist,feature))
                 return
 
-        # return the result
         return log_f
 
     def get_log_delta(self,eta=None,eta0=None):
 
+        # set eta if not given
         if eta0 is None:
             eta0 = self.eta0
 
+        # extract log-delta
         log_coarse_delta = np.repeat(eta0[0] - logsumexp(eta0[0]),self.K[1])
         log_fine_delta = np.concatenate([(eta01 - logsumexp(eta01)) for eta01 in eta0[1]])
-
         log_delta = log_coarse_delta + log_fine_delta
+
+        # set delta in the object
         self.log_delta = np.copy(log_delta)
 
         return log_delta
 
     def get_log_Gamma(self,eta=None,eta0=None,jump=True):
 
+        # set eta and eta0 if not given
         if eta is None:
             eta = self.eta
 
@@ -452,12 +497,15 @@ class HHMM:
         for i in range(self.K[0]):
             for j in range(self.K[0]):
 
+                # set Gamma if dive type can change
                 if jump:
                     log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
                               (self.K[1]*j):(self.K[1]*(j+1))] += log_coarse_Gamma[i,j]
 
                     log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
                               (self.K[1]*j):(self.K[1]*(j+1))] += np.tile(log_fine_deltas[j],[self.K[1],1])
+
+                # set Gamma if dive types can NOT change
                 else:
                     if i == j:
                         log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
@@ -466,6 +514,7 @@ class HHMM:
                         log_Gamma[(self.K[1]*i):(self.K[1]*(i+1)),
                                   (self.K[1]*j):(self.K[1]*(j+1))] += -np.infty
 
+        # set Gamma in the object
         if jump:
             self.log_Gamma_jump = np.copy(log_Gamma)
         else:
@@ -532,17 +581,21 @@ class HHMM:
         seq_num = np.argmax(self.initial_ts > t)-1
         t0 = self.initial_ts[seq_num]
 
+        # check that we aren't at the begining of a time series
         if t == t0:
             raise("p_Xtm1_Xt not defined for t = t0")
 
+        # set log_f if not given
         if log_f is None:
             log_f = self.get_log_f(t)
 
+        # determine the form of Gamma_t
         if t in self.jump_inds:
             log_Gamma = self.log_Gamma_jump
         else:
             log_Gamma = self.log_Gamma
 
+        # set p_XX
         p_XX = np.zeros((self.K_total,self.K_total))
         for i in range(self.K_total):
             for j in range(self.K_total):
@@ -550,15 +603,11 @@ class HHMM:
                             + log_Gamma[i,j] \
                             + log_f[j] \
                             + self.log_betas[t,j]
-
         self.p_Xtm1_Xt[t] = np.exp(p_XX - logsumexp(p_XX))
+
         return
 
     def x_2_params(self,x):
-
-        '''
-        set parameters of HHMM with "x" output from optimizors
-        '''
 
         # update parameters
         ind = 0
@@ -614,10 +663,6 @@ class HHMM:
 
     def params_2_x(self):
 
-        '''
-        set parameters of HHMM with "x" output from optimizors
-        '''
-
         # update parameters
         x = np.zeros(self.nparams)
         ind = 0
@@ -670,7 +715,9 @@ class HHMM:
 
     def get_log_like(self):
 
+        # do a forward pass of the data
         for t in range(self.T):
             self.update_alpha(t)
 
+        # return the sum of alpha_T
         return logsumexp(self.log_alphas[self.T-1])

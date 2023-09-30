@@ -54,6 +54,13 @@ from helper_funcs import log_delta_2_eta0
 from helper_funcs import logdotexp
 from helper_funcs import generate_data
 
+'''
+This script runs the simulation study of VARIANCE-REDUCED STOCHASTIC
+OPTIMIZATION FOR EFFICIENT INFERENCE OF HIDDEN MARKOV MODELS
+by Sidrow et al. (2023). This script was run in using the command
+`python case_study.py 12 x` for x in 0:500.
+'''
+
 # parse command-line args
 max_time = 3600*float(sys.argv[1])
 id = int(sys.argv[2])
@@ -75,7 +82,7 @@ ds = [3,6]
 rand_seed = range(5)
 data_set = range(5)
 
-# set methods
+# set T, K, d, random seed, method, P (partial E step), and M (steps before refresh)
 for i,settings0 in enumerate(product(Ts,Ks,ds,rand_seed,data_set,method_partialEs)):
     if i == id:
         settings = settings0
@@ -92,6 +99,7 @@ partial_E = settings[5][1]
 random.seed(rand_seed)
 np.random.seed(rand_seed)
 
+# print settings for this experiment
 print("method: %s" % method)
 print("partial E_step: %.1f" % partial_E)
 print("T: %d" % T)
@@ -118,19 +126,18 @@ step_sizes = {"EM"  : [None,None],
               "SAGA": [0.01,0.01],
               "Adam": [0.001,0.001]}
 
-jump_every = 1
-
-### checks on optimization parameters ###
+# checks on optimization parameters
 if partial_E > 0 and method in ["EM","BFGS","Nelder-Mead","CG"]:
     raise("partial_E not consistent with method")
 
-### features of data ###
+# define distributions for all features
 features = {'Y%d'%d0  : {'f'           : 'normal',
                           'lower_bound' : None,
                           'upper_bound' : None,
                           'share_coarse': False,
                           'share_fine'  : False} for d0 in range(d)}
 
+# define shared parameters for all features (no parameters are shared)
 share_params = []
 for feature in features:
     for param in ['mu','log_sig']:
@@ -141,7 +148,7 @@ for feature in features:
                                      "K_coarse":[k0],
                                      "K_fine"  :[k1]})
 
-### load in (or generate) data ###
+# load in (or generate) data
 data_fname = "../dat/data_Y_T-%d_K-%d-%d_d-%d_%03d" % (T,K[0],K[1],d,data_set)
 
 if not os.path.isfile(data_fname):
@@ -158,12 +165,10 @@ for d0 in range(d):
     optim.param_bounds["Y%d"%d0]["log_sig"] = [-5,5]
 
 if method == "control":
-    optim.step_size = step_sizes["SAGA"]
     if not (step_sizes["SAGA"][0] is None):
         optim.L_theta = 1.0 / (3.0*step_sizes["SAGA"][0])
         optim.L_eta = 1.0 / (3.0*step_sizes["SAGA"][1])
 else:
-    optim.step_size = step_sizes[method]
     if not (step_sizes[method][0] is None):
         optim.L_theta = 1.0 / (3.0*step_sizes[method][0])
         optim.L_eta = 1.0 / (3.0*step_sizes[method][1])
@@ -189,7 +194,7 @@ print("true parameters:")
 print(true_params)
 print("")
 
-# get optimal value via SAGA:
+# get optimal value via A = SVRG, P = True, and M = T with true initial parameters
 if method == "control":
 
     optim.theta = []
@@ -219,6 +224,7 @@ if method == "control":
                            grad_buffer=grad_buffer,
                            buffer_eps=1e-3)
 
+# run model with P = False and M = T:
 elif partial_E == 0:
     optim.train_HHMM_stoch(num_epochs=num_epochs,
                            max_time=max_time,
@@ -232,6 +238,7 @@ elif partial_E == 0:
                            grad_buffer=grad_buffer,
                            buffer_eps=1e-3)
 
+# run model with P = True and M = T:
 elif partial_E == 0.5:
     if method in ["SGD","SAG","SVRG","SAGA","Adam"]:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
@@ -246,6 +253,7 @@ elif partial_E == 0.5:
                               grad_buffer=grad_buffer,
                               buffer_eps=1e-3)
 
+# run model with P = False and M = 10T:
 elif partial_E == 1:
     if method in ["SGD","SAG","SVRG","SAGA","Adam"]:
         optim.train_HHMM_stoch(num_epochs=num_epochs,
@@ -261,10 +269,11 @@ elif partial_E == 1:
                               buffer_eps=1e-3)
 
 
-# reduce storage
+# store file name of data rather than the data itself to reduce storage
 optim.data = data_fname
 
-# cut variables with size complexity O(T) (can recalculate with E-step)
+# delete variables with size complexity O(T) to reduce storage
+# users can recalculate these by running `optim.E_step()`
 optim.grad_eta_t = None
 optim.grad_eta0_t = None
 optim.grad_theta_t = None
@@ -275,6 +284,7 @@ optim.log_betas = None
 optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
+# save file
 fname = "../params/sim_study/T-%d_K-%d-%d_d-%d_%s_%.1f_%03d_%03d" % (T,K[0],K[1],d,method,partial_E,rand_seed,data_set)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

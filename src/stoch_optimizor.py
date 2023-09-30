@@ -35,6 +35,23 @@ from helper_funcs import log_Gamma_2_eta
 from helper_funcs import eta0_2_log_delta
 from helper_funcs import log_delta_2_eta0
 
+'''
+This file defines the StochOptimizor (stochastic optimizor) class in
+VARIANCE-REDUCED STOCHASTIC OPTIMIZATION FOR EFFICIENT INFERENCE OF HIDDEN
+MARKOV MODELS by Sidrow et al. (2023). This class inherets from Optimizor.
+It contains all of the parameters and weights needed to calculate the old
+gradient at each point for SVRG, the old full gradient needed for SVRG, the
+estimated Lipshitz constants to determine the right step size, and a divider
+to adjust the step size for the partial E steps.
+
+It can record the log-likelihood at any point while keeping the weights of the
+optimization procedure fixed. It can also check the lipschitz constants associated
+with eta and theta at any observation index t. It can also update the variables
+needed for SVRG. Most importantly, it implements the stochastic M-step in from
+the manuscript (M_step), and combines everything together for the full optimization
+algorithm (train_HHMM_stoch).
+'''
+
 class StochOptimizor(Optimizor):
 
     def __init__(self,data,features,share_params,K,fix_theta=None,fix_eta=None,fix_eta0=None):
@@ -61,20 +78,11 @@ class StochOptimizor(Optimizor):
         self.p_Xt_tilde = deepcopy(self.p_Xt)
         self.p_Xtm1_Xt_tilde = deepcopy(self.p_Xtm1_Xt)
 
-        self.theta_tilde = deepcopy(self.theta)
-        self.eta_tilde = deepcopy(self.eta)
-        self.eta0_tilde = deepcopy(self.eta0)
+        # initialize step size and Lipshitz constants
+        init_step_size = 0.01
 
-        # initialize step sizes and parameter bounds
-        self.step_size = 0.01
-
-        # Lipshitz constants
-        if self.step_size != 0:
-            self.L_theta = 1.0/(3.0*self.step_size)
-            self.L_eta = 1.0/(3.0*self.step_size)
-        else:
-            self.L_theta = np.infty
-            self.L_eta = np.infty
+        self.L_theta = 1.0/(3.0*init_step_size)
+        self.L_eta = 1.0/(3.0*init_step_size)
 
         # divider of Lipshitz constant
         self.divider = 3.0
@@ -148,9 +156,10 @@ class StochOptimizor(Optimizor):
 
     def check_L_eta(self,t):
 
-        # get gradient and its norm
+        # get gradient at given time point
         grad_G_eta_t,grad_G_eta0_t = self.get_grad_eta_t(t)
 
+        # get gradient norm
         grad_G_t_norm2 = np.sum(grad_G_eta_t[0]**2)
         for k0 in range(self.K[0]):
             grad_G_t_norm2 += np.sum(grad_G_eta_t[1][k0]**2)
@@ -186,7 +195,7 @@ class StochOptimizor(Optimizor):
             G_t_new = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=eta_new,eta0=eta0_new,jump=False)))
             G_t  = -np.sum(np.nan_to_num(self.p_Xtm1_Xt[t] * self.get_log_Gamma(eta=self.eta,eta0=self.eta0,jump=False)))
 
-        # check inequality
+        # recursively check inequality
         check_again = False
 
         if grad_G_t_norm2 < 1e-8:
@@ -245,6 +254,7 @@ class StochOptimizor(Optimizor):
 
     def update_tilde(self):
 
+        # set parameter, weight and gradient values for SVRG
         self.grad_theta_tilde = deepcopy(self.grad_theta)
         self.grad_eta_tilde = deepcopy(self.grad_eta)
         self.grad_eta0_tilde = deepcopy(self.grad_eta0)
@@ -260,12 +270,14 @@ class StochOptimizor(Optimizor):
 
     def M_step(self,max_epochs=1,max_time=np.infty,alpha_theta=None,alpha_eta=None,method="EM",partial_E=False,tol=1e-5,record_like=False,weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
 
+        # set step size
         if alpha_theta is None:
-            alpha_theta = 1.0 / self.L_theta
+            alpha_theta = 1.0/(self.divider*self.L_theta)
 
         if alpha_eta is None:
-            alpha_eta = np.divide(1.0,self.divider*self.L_eta,where=self.L_eta!=0.0)
+            alpha_eta = 1.0/(self.divider*self.L_eta)
 
+        # do one gradient step for gradient descent method
         if method == "GD":
 
             # update eta0
@@ -311,20 +323,22 @@ class StochOptimizor(Optimizor):
 
         for epoch_num in range(max_epochs):
 
+            # pick ts without replacement
             ts = np.random.permutation(range(self.T))
 
+            # m is the step number, t is the observation index
             for m,t in enumerate(ts):
 
-                # get old gradient
+                # calculate the old gradient at index t
+                # (SVRG doesn't require gradient storage)
                 if method == "SVRG":
 
-                    # get old gradients
+                    # get old gradient of log_f
                     grad_log_f = self.get_grad_log_f(t,theta=deepcopy(self.theta_tilde))
 
-                    # get initial index
+                    # get old gradient of log_delta and log_Gamma
                     seq_num = np.argmax(self.initial_ts > t)-1
                     t0 = self.initial_ts[seq_num]
-
                     if t == t0:
                         grad_eta0_log_delta,_ = self.get_grad_log_delta(eta0=self.eta0_tilde)
                         grad_eta_log_Gamma = [np.zeros((self.K[0],self.K[0],self.K[0],self.K[0])),
@@ -338,31 +352,28 @@ class StochOptimizor(Optimizor):
                                                                                          eta0=self.eta0_tilde,
                                                                                          jump=False)
 
-                    # get old weights
-                    p_Xt = self.p_Xt_tilde[t]
-                    p_Xtm1_X1 = self.p_Xtm1_Xt_tilde[t]
-
-                    # calculate old gradient
+                    # calculate old gradient wrt theta
                     old_grad_theta_t = self.get_grad_theta_t(t,
                                                              grad_log_f=grad_log_f,
                                                              grad_log_p_theta=None,
-                                                             p_Xt=p_Xt)
+                                                             p_Xt=self.p_Xt_tilde[t])
 
+                    # calculate old gradient wrt eta and eta0
                     old_grad_eta_t,old_grad_eta0_t = self.get_grad_eta_t(t,
                                                                          grad_eta0_log_delta=grad_eta0_log_delta,
                                                                          grad_eta_log_Gamma=grad_eta_log_Gamma,
                                                                          grad_log_p_eta=None,
                                                                          grad_log_p_eta0=None,
-                                                                         p_Xtm1_Xt=p_Xtm1_X1)
+                                                                         p_Xtm1_Xt=self.p_Xtm1_Xt_tilde[t])
 
                 else:
 
-                    # get old gradient at index
+                    # get old gradient from storage (SAGA)
                     old_grad_theta_t = deepcopy(self.grad_theta_t[t])
                     old_grad_eta0_t = deepcopy(self.grad_eta0_t[t])
                     old_grad_eta_t = deepcopy(self.grad_eta_t[t])
 
-                # update weights
+                # update weights for partial E step
                 if partial_E:
 
                     old_p_Xt = np.copy(self.p_Xt[t])
@@ -381,18 +392,17 @@ class StochOptimizor(Optimizor):
                     if t != tf:
                         self.update_p_Xtm1_Xt(t+1)
 
-                # check Lipshitz constants
+                # check Lipshitz constants and update step size
                 self.check_L_eta(t)
                 alpha_eta = 1.0/(self.divider*self.L_eta)
-
                 self.check_L_theta(t)
                 alpha_theta = 1.0/(self.divider*self.L_theta)
 
-                # get new gradients
+                # calculate new gradients at index t
                 new_grad_theta_t = self.get_grad_theta_t(t)
                 new_grad_eta_t,new_grad_eta0_t = self.get_grad_eta_t(t)
 
-                # update parameters
+                # update the parameters
                 if method == "SVRG":
 
                     # update eta0
@@ -423,16 +433,16 @@ class StochOptimizor(Optimizor):
                         for feature in new_grad_theta_t[k0]:
                             for param in new_grad_theta_t[k0][feature]:
                                 delta = alpha_theta * (new_grad_theta_t[k0][feature][param] \
-                                                       - old_grad_theta_t[k0][feature][param] \
-                                                       + self.grad_theta_tilde[k0][feature][param]/self.T)
+                                                     - old_grad_theta_t[k0][feature][param] \
+                                                     + self.grad_theta_tilde[k0][feature][param]/self.T)
                                 self.theta[k0][feature][param] += delta
 
                 elif method == "SAGA":
 
                     # update eta0
                     delta = alpha_eta * (new_grad_eta0_t[0] \
-                                         - old_grad_eta0_t[0] \
-                                         + self.grad_eta0[0]/self.T)
+                                       - old_grad_eta0_t[0] \
+                                       + self.grad_eta0[0]/self.T)
                     self.eta0[0] += delta
                     for k0 in range(self.K[0]):
                         delta = alpha_eta * (new_grad_eta0_t[1][k0] \
@@ -442,13 +452,13 @@ class StochOptimizor(Optimizor):
 
                     # update eta
                     delta = alpha_eta * (new_grad_eta_t[0] \
-                                         - old_grad_eta_t[0] \
-                                         + self.grad_eta[0]/self.T)
+                                       - old_grad_eta_t[0] \
+                                       + self.grad_eta[0]/self.T)
                     self.eta[0] += delta
                     for k0 in range(self.K[0]):
                         delta = alpha_eta * (new_grad_eta_t[1][k0] \
-                                             - old_grad_eta_t[1][k0] \
-                                             + self.grad_eta[1][k0]/self.T)
+                                           - old_grad_eta_t[1][k0] \
+                                           + self.grad_eta[1][k0]/self.T)
                         self.eta[1][k0] += delta
 
                     # update theta
@@ -457,8 +467,8 @@ class StochOptimizor(Optimizor):
                         for feature in new_grad_theta_t[k0]:
                             for param in new_grad_theta_t[k0][feature]:
                                 delta = alpha_theta * (new_grad_theta_t[k0][feature][param] \
-                                                           - old_grad_theta_t[k0][feature][param] \
-                                                           + self.grad_theta[k0][feature][param]/self.T)
+                                                     - old_grad_theta_t[k0][feature][param] \
+                                                     + self.grad_theta[k0][feature][param]/self.T)
                                 self.theta[k0][feature][param] += delta
 
                 else:
@@ -570,8 +580,10 @@ class StochOptimizor(Optimizor):
 
                 if record_like:
 
-                    # record time trace and stop timer
+                    # stop timer
                     self.train_time += time.time() - self.start_time
+
+                    # record time and epoch trace
                     self.time_trace.append(self.train_time)
                     self.epoch_trace.append(self.epoch_num)
 
@@ -588,6 +600,7 @@ class StochOptimizor(Optimizor):
                     # start timer back up
                     self.start_time = time.time()
 
+                # check for convergence or time limit
                 grad_norm = np.linalg.norm(self.grad_params_2_xprime()) / self.T
                 if (grad_norm < tol):
                     print("M-step sucesssfully converged")
@@ -603,8 +616,8 @@ class StochOptimizor(Optimizor):
     def train_HHMM_stoch(self,num_epochs=10,max_time=np.infty,max_epochs=1,alpha_theta=None,alpha_eta=None,tol=1e-5,grad_tol=1e-5,method="EM",partial_E=False,record_like=False,weight_buffer="none",grad_buffer="none",buffer_eps=1e-3):
 
         # check that the method makes sense
-        if method not in ["EM","BFGS","Nelder-Mead","CG",
-                          "GD","SGD","SAG","SVRG","SAGA"]:
+        if method not in ["BFGS","Nelder-Mead","CG",
+                          "GD","SVRG","SAGA"]:
             print("method %s not recognized" % method)
             return
 
@@ -613,7 +626,7 @@ class StochOptimizor(Optimizor):
         self.train_time = 0.0
         self.start_time = time.time()
 
-        # do direct likelihood maximization
+        # do direct likelihood maximization for baselines
         if method in ["Nelder-Mead","BFGS","CG"]:
             res = self.train_HHMM(num_epochs=num_epochs,
                                   method=method,tol=tol,gtol=grad_tol,
@@ -633,6 +646,7 @@ class StochOptimizor(Optimizor):
 
         while (self.epoch_num < num_epochs) and (self.train_time < max_time):
 
+            # print current status
             print("starting epoch %.1f" % (self.epoch_num))
             print("")
 
@@ -646,7 +660,7 @@ class StochOptimizor(Optimizor):
             print("...done")
             print("")
 
-            # show current parameters
+            # print current parameters and gradients
             print("current parameters:")
             print(self.theta)
             print(self.eta)
@@ -670,7 +684,7 @@ class StochOptimizor(Optimizor):
             print("current log-likelihood: %f" % ll_new)
             print("")
 
-            # check for convergence
+            # check if we did worse after that epoch
             if (ll_new < ll_old) or np.isnan(ll_new):
 
                 print("log-likelihood decreased.")
@@ -702,12 +716,14 @@ class StochOptimizor(Optimizor):
                 print("returned log-likelihood: %f" % ll_new)
                 print("Trying again...")
 
+            # check for convergence
             elif ((ll_new - ll_old)/np.abs(ll_old)) < tol:
 
                 print("relative change of log-likelihood is less than %.1E. returning..." % tol)
                 self.train_time += time.time() - self.start_time
                 return
 
+            # otherwise do it again
             else:
                 ll_old = ll_new
 

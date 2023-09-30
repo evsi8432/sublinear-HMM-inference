@@ -16,4 +16,4 @@ source ~/Whale_Paper_1/bin/activate
 module load python/3.9
 module load scipy-stack
 
-python case_study_updown.py 12 $SLURM_ARRAY_TASK_ID
+python case_study.py 12 $SLURM_ARRAY_TASK_ID

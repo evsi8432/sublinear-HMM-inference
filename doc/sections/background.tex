@@ -32,9 +32,9 @@ To ensure that all entries are positive and all rows sum to one, it is convenien
 %
 where $i,j = 1,\ldots,N$ and $\eta^{(i,i)}$ and $\eta^{(1)}$ are set to zero for identifiability. This formulation simplifies likelihood maximization by removing constraints in the optimization problem. One may also incorporate covariates into $\bfGamma$ by setting $\eta_t^{(i,j)}(\bfbeta) = \left(\bfbeta^{(i,j)}\right)^{\top} \bfz_t$, where $\bfz_t$ is a column vector of known covariates at time index $t$ and $\bfbeta^{(i,j)}$ is a column vector of unknown regression coefficients. While $\bfGamma$ and $\bfdelta$ are functions of $\bfeta$, we abuse notation in future sections and treat $\bfGamma$ and $\bfdelta$ as variables since the mapping is a bijection.
 
-If $X_t=i$, then we denote the conditional density or probability mass function of $Y_t$ as $f^{(i)}(\cdot ; \theta^{(i)})$, where $\theta^{(i)}$ are the parameters describing the state-dependent distribution of $Y_t$. The collection of all state-dependent parameters is $\bftheta = \{\theta^{(i)}\}_{i=1}^N$. For brevity, we denote the full set of parameters as $\bfphi = \{\bftheta,\bfeta\}$. Figure \ref{fig:HMM} shows an HMM as a graphical model.
-%
-\begin{figure}[h]
+If $X_t=i$, then we denote the conditional density or probability mass function of $Y_t$ as $f^{(i)}(\cdot ; \theta^{(i)})$, where $\theta^{(i)}$ are the parameters describing the state-dependent distribution of $Y_t$. The collection of all state-dependent parameters is $\bftheta = \{\theta^{(i)}\}_{i=1}^N$. For brevity, we denote the full set of parameters as $\bfphi = \{\bftheta,\bfeta\}$. Figure (\ref{fig:HMM}) shows an HMM as a graphical model.
+
+\begin{figure}%[ht]
     \centering
     \includegraphics[width=5in]{../plt/HMM.png}
     \caption{Graphical representation of an HMM. $X_t$ corresponds to an unobserved latent state at time $t$ whose distribution is described by a Markov chain. $Y_t$ corresponds to an observation at time $t$, where $Y_t$ given all other observations $\bfY \setminus \{Y_t\}$ and hidden states $\bfX$ depends only on $X_t$.}
@@ -60,21 +60,6 @@ Alternatively, the marginal likelihood of the observed data $\bfY$ alone is
 where $\mathbf{1}_N$ is an $N$-dimensional row vector of ones and $P(Y_t;\bftheta)$ is an $N \times N$ diagonal matrix with entry $(i,i)$ equal to $f^{(i)}(Y_t; \theta^{(i)})$. For a more complete introduction to HMMs, see \citet{Zucchini:2016}.
 %
 \subsection{State Decoding}
-%
-%GET RID OF TILDE FUNCTIONS IN BACKGROUND SECTION
-%
-%ADD FUNCTIONS (TILDES) RIGHT BEFORE ALG 4 AND MAKE TILDE FUNCTION ARGUMENTS NOT ALPHA t-1, and then comment that putting in $\alpha_t-1(\bfphi)$ gives the right value
-%
-%SAY THAT WE ASSUME PHI IS FIXED
-%
-%CHANGE GRADIENT ESTIMATES TO GRADIENT APPROXIMATIONS???
-%
-%ADD HATS TO ALPHAS, BETAS, ETC
-%
-%CHANGE WORDING FOR GRADIENTS TO APPROXIMATIONS
-%
-% MAKE ALL PARAMETERS BOLDED
-%
 
 One appealing feature of HMMs is that it is simple to determine the distribution of a given hidden state ($X_t$) conditioned on the set of observations $\bfY$. Assuming that the HMM parameters $\bfphi$ are fixed, define the probability density of the observations between times $s$ and $t$ as $p(Y_{s:t};\bfphi)$. Likewise, define \textit{forward probabilities} $\alpha^{(i)}_t = p(Y_{1:t},X_t = i;\bfphi)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T$) and \textit{backward probabilities} $\beta^{(i)}_t = p(Y_{(t+1):T} \mid X_t = i;\bfphi)$ (for $i = 1,\ldots,N$ and $t = 1,\ldots,T-1$). By convention, $\beta^{(i)}_T = 1$ for $i = 1,\ldots,N$. We thus define the row vectors $\bfalpha_t = \begin{pmatrix} \alpha_t^{(1)} & \cdots & \alpha_t^{(N)} \end{pmatrix}$ and $\bfbeta_t = \begin{pmatrix} \beta_t^{(1)} & \cdots & \beta_t^{(N)} \end{pmatrix}$ . Both $\bfalpha_t$ and $\bfbeta_t$ can be calculated using the following recursions: % We define the mapping from $\alpha_{t-1}(\bfphi)$ and $\bfphi$ to $\alpha_t(\bfphi)$ as $\tilde \alpha_t(\alpha_{t-1}(\bfphi),\bfphi)$. However, $\alpha_t(\bfphi)$ itself is a function of $\bfphi$ alone, which we denote as $\alpha_t$. Similarly, we define the mapping from $\beta_{t+1}(\bfphi)$ and $\bfphi$ to $\beta_{t}(\bfphi)$ as $\tilde \beta_t(\alpha_{t+1}(\bfphi),\bfphi)$ and the mapping from only $\bfphi$ to $\beta_t$ as $\beta_t(\bfphi)$. 
 
@@ -135,7 +120,7 @@ At iteration $k$ of the EM algorithm, denote the current parameter estimates as 
     \bfphi_{k+1} = \argmax_{\bfphi} Q(\bfphi \mid \bfphi_{k}). \label{eqn:BW_update}
 \end{gather}
 %
-For notational convenience, we denote the set of conditional probabilities as $\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k)\}$ as $\{\bfalpha_{k,t},\bfbeta_{k,t},\bfgamma_{k,t},\bfxi_{k,t}\}$. Substituting Equation (\ref{eqn:like}) into Equation (\ref{eqn:Q}) and performing some algebra yields a closed form expression for $Q$: %separate the expected value into three convenient terms:
+For notational convenience, we occasionally denote the set of conditional probabilities $\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k)\}$ as $\{\bfalpha_{k,t},\bfbeta_{k,t},\bfgamma_{k,t},\bfxi_{k,t}\}$. Substituting Equation (\ref{eqn:like}) into Equation (\ref{eqn:Q}) and performing some algebra yields a closed form expression for $Q$: %separate the expected value into three convenient terms:
 \begin{equation}
     Q(\bfphi \mid \bfphi_{k}) %&= \bbE_{\bfphi_{k}}\left[\log p(\bfX,\bfY;\bfphi) \mid \bfY \right] \\
     %
@@ -202,7 +187,7 @@ The conditional probabilities $\gamma_{k,t}^{(i)}$ and $\xi_{k,t}^{(i,j)}$ thus 
 \Require Initial parameter values $\bfphi_0$, number of iterations $K$
 \For{$k = 0,\ldots,K-1$}
     \State $\{\bfalpha_{k,t},\bfbeta_{k,t},\bfgamma_{k,t},\bfxi_{k,t}\}_{t=1}^T = \texttt{E-step}(\bfphi_{k})$ \Comment{E step} 
-    \State \Comment{M step} $$\bfphi_{k+1} = \argmax_{\{\bftheta,\bfeta\}} \sum_{i=1}^N \gamma^{(i)}_{k,1} \log \delta^{(i)}(\bfeta) + \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_{k,t} \log f^{(i)}(y_t;\theta^{(i)}) + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_{k,t}^{(i,j)} \log \Gamma^{(i,j)}(\bfeta)$$
+    \State \Comment{M step} \small $$\bfphi_{k+1} = \argmax_{\{\bftheta,\bfeta\}} \sum_{i=1}^N \gamma^{(i)}_{k,1} \log \delta^{(i)}(\bfeta) + \sum_{t = 1}^T \sum_{i=1}^N \gamma^{(i)}_{k,t} \log f^{(i)}(y_t;\theta^{(i)}) + \sum_{t=2}^{T} \sum_{i=1}^N \sum_{j=1}^N \xi_{k,t}^{(i,j)} \log \Gamma^{(i,j)}(\bfeta)$$ \normalsize
 \EndFor
 \State \Return $\bfphi_K$
 \end{algorithmic}

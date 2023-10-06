@@ -13,7 +13,7 @@
     textheight=9in,
     textwidth=6.5in,
     top=1in,
-    headheight=14pt,
+    headheight=15pt,
     headsep=25pt,
     footskip=30pt
   }
@@ -29,7 +29,7 @@
 \pagestyle{fancy}
 \renewcommand{\headrulewidth}{0pt}
 \fancyheadoffset{0pt}
-\rhead{\scshape \today}
+\rhead{\scshape }
 \cfoot{\thepage}
 
 
@@ -41,7 +41,7 @@
 
 % font sizes with reduced leading
 \renewcommand{\normalsize}{%
-  \@setfontsize\normalsize\@xpt\@xipt
+  \@setfontsize\normalsize\@xiipt{14}%\@xpt\@xipt %
   \abovedisplayskip      7\p@ \@plus 2\p@ \@minus 5\p@
   \abovedisplayshortskip \z@ \@plus 3\p@
   \belowdisplayskip      \abovedisplayskip
@@ -49,7 +49,7 @@
 }
 \normalsize
 \renewcommand{\small}{%
-  \@setfontsize\small\@ixpt\@xpt
+  \@setfontsize\small\@xipt\@xiipt%\@ixpt\@xpt %
   \abovedisplayskip      6\p@ \@plus 1.5\p@ \@minus 4\p@
   \abovedisplayshortskip \z@  \@plus 2\p@
   \belowdisplayskip      \abovedisplayskip
@@ -227,7 +227,7 @@
       \begin{tabular}[t]{c}\bf\rule{\z@}{24\p@}\ignorespaces%
     }
     \begin{tabular}[t]{c}\bf\rule{\z@}{24\p@}\@author\end{tabular}%
-  \vskip 0.4in \@minus 0.1in \center{\today}   \vskip 0.2in
+  \vskip 0.4in \@minus 0.1in \center{}   \vskip 0.2in
   }
 }
 

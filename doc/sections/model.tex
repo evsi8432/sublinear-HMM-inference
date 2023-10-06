@@ -55,42 +55,42 @@ The partial E step detailed above is closely related to belief propagation, an a
 \begin{algorithm}
 \caption{\texttt{VRSO-PE}$(\{\widehat \bfalpha_t^{(0)}, \widehat \bfbeta_t^{(0)}, \widehat \bfgamma_t^{(0)}, \widehat \bfxi_t^{(0)}\}_{t=1}^T,\bfphi^{(0)},\lambda,A,P,M)$}\label{alg:VRSO-PE}
 \begin{algorithmic}[1]
-\Require Initial conditional probability approximations $\{\widehat \bfalpha^{(0)}, \widehat \bfbeta^{(0)}, \widehat \bfgamma^{(0)}, \widehat \bfxi^{(0)}\}$, initial parameter $\bfphi^{(0)}$, step size $\lambda$, algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial-E step $P \in \{\texttt{True,False}\}$, and number of iterations $M$.
+\Require Initial conditional probability approximations $\{\widehat \bfalpha^{(0)}, \widehat \bfbeta^{(0)}, \widehat \bfgamma^{(0)}, \widehat \bfxi^{(0)}\}$, initial parameters $\bfphi^{(0)}$, step size $\lambda$, algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial-E step $P \in \{\texttt{True,False}\}$, and number of iterations $M$.
 %
 \For{$t=1,\ldots,T$} \Comment{initialize gradients}
     \State $\widehat \nabla F^{(0)}_{t} = \nabla F_t\left(\bfphi^{(0)} ~ \Big | ~ \widehat \bfgamma^{(0)}_{t}, \widehat \bfxi^{(0)}_{t}\right)$ 
 \EndFor
 \State $\widehat \nabla F^{(0)} = (1/T) \sum_{t=1}^T \widehat \nabla F^{(0)}_{t}$
 %
-\vspace{10pt}
+%\vspace{10pt}
 %
 \For{$m = 0,\ldots,M-1$}:
     %
     \State Pick $t_m \in \{1,\ldots,T\}$ uniformly at random.
     %
-    \vspace{10pt}
+    %\vspace{10pt}
     %
     \State $\left\{\widehat \bfalpha^{(m+1)}_t, \widehat \bfbeta^{(m+1)}_t, \widehat \bfgamma^{(m+1)}_t, \widehat \bfxi^{(m+1)}_t\right\} = \left\{\widehat \bfalpha^{(m)}_{t}, \widehat \bfbeta^{(m)}_{t}, \widehat \bfgamma^{(m)}_{t}, \widehat \bfxi^{(m)}_{t}\right\} \enspace$ for $t = 1,\ldots,T$.
     %
-    \vspace{5pt}
+    %\vspace{5pt}
     %
     \If{$P = \texttt{True}$} \Comment{partial E step}
     \State $\widehat \bfalpha_{t_m}^{(m+1)} = \widetilde \bfalpha_{t_m}\left(\widehat \bfalpha_{t_m-1}^{(m)},\bfphi^{(m)}\right), \quad \widehat \bfbeta_{t_m}^{(m+1)} = \widetilde \bfbeta_{t_m}\left(\widehat \bfbeta_{t_m+1}^{(m)},\bfphi^{(m)}\right)$ 
     %\State $\beta_{t} = \widetilde \beta_{t}(\beta_{t+1},\bfphi^{(m)})$ 
-    \vspace{5pt}
+    %\vspace{5pt}
     \State $\widehat \bfgamma_{t_m}^{(m+1)} = \widetilde \bfgamma_{t_m}\left(\widehat \bfalpha_{t_m}^{(m+1)},\widehat \bfbeta_{t_m}^{(m+1)}\right), 
     \quad \widehat \bfxi_{t_m}^{(m+1)} = \widetilde \bfxi_{t_m}\left(\widehat \bfalpha_{t_m-1}^{(m+1)},\widehat \bfbeta_{t_m}^{(m+1)},\bfphi^{(m)}\right)$
     %\State $\xi_{t} = \widetilde \xi_{t}(\alpha_{t-1},\beta_{t},\bfphi_{m-1})$
     \EndIf
     %
-    \vspace{10pt}
+    %\vspace{10pt}
     %
     \State \Comment{update parameters}
     \begin{gather}
         \bfphi^{(m+1)} = \bfphi^{(m)} - \lambda \left[\nabla F_{t_m}\left(\bfphi^{(m)} ~ \Big | ~ \widehat \bfgamma_{t_m}^{(m+1)}, \widehat \bfxi_{t_m}^{(m+1)}\right) - \widehat \nabla F^{(m)}_{t_m} + \widehat \nabla F^{(m)} \right]
     \end{gather}
     %
-    \vspace{10pt}
+    %\vspace{10pt}
     %
     \State $\widehat \nabla F_{t}^{(m+1)} = \widehat \nabla F_{t}^{(m)} \enspace$ for $t = 1,\ldots,T$ \Comment{update gradients}
     %
@@ -121,13 +121,13 @@ In principal, it is possible to run Algorithm (\ref{alg:VRSO-PE}) alone without 
 \begin{algorithmic}[1]
 \Require Initial parameters ($\bfphi_{0}$), step size ($\lambda$), algorithm $A \in \{\text{SVRG, SAGA}\}$, whether to do a partial E step $P \in \{\texttt{True,False}\}$, iterations per update ($M$), and number of updates ($K$).
 %
-\vspace{5pt}
+%\vspace{5pt}
 \For{$k = 0,\ldots,K-1$}
-\vspace{5pt}
+%\vspace{5pt}
 % 
 \State $\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\}_{t=1}^T = \texttt{E-step}(\bfphi_{k})$ \Comment{E step}
 %
-\vspace{5pt}
+%\vspace{5pt}
 %
 \State $\ell \gets 0$ \Comment{M step}
 %
@@ -144,7 +144,7 @@ In principal, it is possible to run Algorithm (\ref{alg:VRSO-PE}) alone without 
 \end{algorithmic}
 \end{algorithm}
 
-There are two versions of \texttt{EM-VRSO}. Version 1 (Algorithm \ref{alg:EM-VRSO}), requires the likelihood to not decrease (i.e. $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$) in order to exit the while loop of the M step. Version 2 (Algorithm \ref{alg:EM-VRSO-v2}) requires the likelihood to \textit{strictly} increase by some threshold to exit the while loop of the M step. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice. Therefore, we use version 1 in our simulation and case studies and defer version 2 to the online appendix. Our simulation and case studies show that version 1 of \texttt{EM-VRSO} converges to local maxima of the log-likelihood function in practice. 
+There are two versions of \texttt{EM-VRSO}. Version 1 (Algorithm \ref{alg:EM-VRSO}), requires the likelihood to not decrease (i.e. $\log p(\bfy;\bfphi_{k,\ell}) \geq \log p(\bfy;\bfphi_{k})$) in order to exit the while loop of the M step. Version 2 (Algorithm 6) requires the likelihood to \textit{strictly} increase by some threshold to exit the while loop of the M step. We use version 2 to prove theoretical results, but the strict threshold relies on values that are usually not known in practice. Therefore, we use version 1 in our simulation and case studies and defer version 2 to the online appendix. Our simulation and case studies show that version 1 of \texttt{EM-VRSO} converges to local maxima of the log-likelihood function in practice. 
 
 %At first it seems troubling that Algorithm (\ref{alg:EM-VRSO}) involves evaluating $\log p(\bfy;\bfphi_{k,\ell})$ after each M step because evaluating the full likelihood takes $\calO(TN^2)$ time. However, note that evaluating $\texttt{E-step}(\bfphi_{k,\ell})$ involves calculating $\alpha_T(\bfphi_{k,\ell})$, and $\log p(\bfy;\bfphi_{k,\ell}) = \log(\sum_{i=1}^{N}\alpha_T(\bfphi_{k,\ell}))$, and  $F_T^{(k+1)} = $, as well as evaluate $\log p(\bfy;\bfphi_{k,\ell})$.
 
@@ -160,17 +160,18 @@ Theorem 1 below guarantees such convergence under standard regularity conditions
     
 \begin{theorem}
 
-    Suppose the following conditions are met in Algorithm (\ref{alg:EM-VRSO-v2}) with $P = \texttt{False}$ and $A = \text{SVRG}$:
+    Suppose the following conditions are met in Algorithm (6) with $P = \texttt{False}$ and $A = \text{SVRG}$:
     
     \begin{enumerate}
         \item The parameters $\bfphi$ lie in $\bfPhi = \bbR^r$ for some dimension $r$.
         %
-        \item $\bfPhi_{\bfphi_0} = \{\bfphi \in \bfPhi: \log p(\bfy;\bfphi) \geq \log p(\bfy;\bfphi_0)\}$ is compact for any  $\bfphi_0$ with $\log p(\bfy;\bfphi_0) > -\infty$.
+        \item $\bfPhi_{\bfphi_0} = \{\bfphi \in \bfPhi: \log p(\bfy;\bfphi) \geq \log p(\bfy;\bfphi_0)\}$ is compact for all $\bfphi_0$ if $\log p(\bfy;\bfphi_0) > -\infty$.
         %
         \item $\log p(\bfy;\bfphi)$ is differentiable in $\bfphi$ for all $\bfphi \in \bfPhi$.
         %
         \item $F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is convex with respect to $\bfphi$ and $F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi'))$ is strongly convex with respect to $\bfphi$ for all $\bfphi'$ with constant $C > 0$. Namely, for all $\bfphi$, $\bfphi_0$ and $\bfphi'$:
         %
+        \small
         \begin{equation}
             F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) \geq F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) + \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))^T(\bfphi-\bfphi_0),
         \end{equation}
@@ -178,12 +179,15 @@ Theorem 1 below guarantees such convergence under standard regularity conditions
         \begin{equation}
             F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) \geq F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) + \nabla F(\bfphi_0 \mid \bfgamma(\bfphi'), \bfxi(\bfphi'))^T(\bfphi-\bfphi_0) + \frac{C}{2} \|\bfphi - \bfphi_0\|_2^2.
         \end{equation}
+        \normalsize
         %
         \item $F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))$ is uniformly Lipschitz-smooth with respect to $\bfphi$ for all $t$ and $\bfphi'$ with constant $L \geq C > 0$. Namely, for all $t$, $\bfphi$, $\bfphi_0$ and $\bfphi'$:
         %
+        \small
         \begin{equation}
             F_t(\bfphi \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) \leq F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi')) + \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi'), \bfxi_t(\bfphi'))^T(\bfphi - \bfphi_0) + \frac{L}{2} \| \bfphi - \bfphi_0 \|_2^2.
         \end{equation}
+        \normalsize
         %
         \item The step size $\lambda$ is sufficiently small and $M$ is sufficiently large such that
         %

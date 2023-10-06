@@ -86,38 +86,39 @@ We employed several measures to fairly compare the performance of each optimizat
 
 \subsection{Simulation Results}
 
-Simulations results are displayed visually in Figures (2--4).
+The results from the simulation study are shown in Figures (2--4).
 
-\begin{figure}[h]
+\begin{figure}%[ht]
     \centering
     \includegraphics[width=5.5in]{../plt/log-like_v_epoch_T-100000-000.png}
     \caption{
-    Maximum log-likelihood minus the log-likelihood (all over $T$) vs epoch for a selected run of each optimization algorithm. Algorithms were run for at total of 12 hours or 150 epochs (whichever came first) on the first data set of all experiments with $T=10^{5}$, $N \in \{3,6\}$, and $d \in \{3,6\}$. FE corresponds to $P = \texttt{False}$, and PE corresponds to $P = \texttt{True}$.
+    Maximum log-likelihood minus the log-likelihood (all over $T$) vs epoch for a selected run of each optimization algorithm in the simulation study. Algorithms were run for either 12 hours or 150 epochs (whichever came first) on a data set of experiments with $T=10^{5}$, $N \in \{3,6\}$, and $d \in \{3,6\}$. FE corresponds to $P = \texttt{False}$, and PE corresponds to $P = \texttt{True}$.
     %One epoch represents either one full E step, $T$ stochastic gradient evaluations within the M step, or one gradient evaluation for full-gradient algorithms. 
-    The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$, and the y-axis is on a log-scale. We display the random initialization of each algorithm that resulted in the highest likelihood after 12 hours. Dots correspond to the epoch and likelihood at convergence. 
+    The log-likelihood is denoted as $\ell(\bfphi)$, and the y-axis is on a log-scale. We display the random initialization of each algorithm that resulted in the highest likelihood after 12 hours. Dots correspond to the epoch and likelihood at convergence. 
     %Convergence was achieved when the gradient norm of the log-likelihood (divided by $T$) was less than $10^{-2}$. The tolerance was set to $10^{-2}$ because it was the lowest tolerance that all algorithms regularly converged to within 12 hours.
     }
     \label{fig:ll_trace_sim}
 \end{figure}
 %
-\begin{figure}[h]
+\begin{figure}%[ht]
     \centering
-    \includegraphics[width=5.5in]{../plt/boxplots_sim_T_100000.png}
-    \caption{Box plots showing epochs to converge (top) and maximum log-likelihood minus log-likelihood at convergence (all over $T$, bottom) for each optimization algorithm. Unlike Figure (\ref{fig:ll_trace_sim}), results are displayed for all data sets and initial parameter values. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{5}$, $N \in \{3,6\}$, and $d \in \{3,6\}$.
+    \includegraphics[width=6.5in]{../plt/boxplots_sim_T_100000.png}
+    \caption{Box plots showing epochs to converge (top) and maximum log-likelihood minus log-likelihood at convergence (all over $T$, bottom) for each optimization algorithm in the simulation study. Unlike Figure (\ref{fig:ll_trace_sim}), results are displayed for all data sets and initial parameter values. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. %Blue corresponds to SAGA and orange corresponds to SVRG. 
+    Results are shown for all simulation studies with $T=10^{5}$. %, $N \in \{3,6\}$, and $d \in \{3,6\}$.
     %with $T=10^{5}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. 
-    The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$, and the y-axis of the bottom row is on a log-scale.}
+    The log-likelihood is denoted as $\ell(\bfphi)$, and the y-axis of the bottom row is on a log-scale.}
     \label{fig:boxplots_sim}
 \end{figure}
 %
-\begin{figure}[h]
+\begin{figure}%[ht]
     \centering
     \includegraphics[width=5.5in]{../plt/scatter_sim_T_100000.png}
-    \caption{Maximum log-likelihood minus log-likelihood at convergence (all over $T$) versus epochs to converge for all simulation studies with $T=10^{5}$, $N \in \{3,6\}$, and $d \in \{3,6\}$. FE corresponds to $P = \texttt{False}$, and PE corresponds to $P = \texttt{True}$.
+    \caption{Maximum log-likelihood minus log-likelihood at convergence (all over $T$) versus epochs to converge for each optimization algorithm in the simulation study with $T=10^{5}$, $N \in \{3,6\}$, and $d \in \{3,6\}$. FE corresponds to $P = \texttt{False}$, and PE corresponds to $P = \texttt{True}$.
     %, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. 
-    The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale. }
+    The log-likelihood is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
     \label{fig:scatter_sim}
 \end{figure}
-
+%
 Algorithm (\ref{alg:EM-VRSO}) with $A=\text{SVRG}$ markedly sped up the optimization procedure, as it usually converged in at most half as many epochs compared to the baselines for each experiment. Algorithm (\ref{alg:EM-VRSO}) with $A=\text{SAGA}$ also tended to converge faster than the baselines for all experiments except for those with $N=3$. Algorithm (\ref{alg:EM-VRSO}) with $A=\text{SAGA}$ also converged in significantly fewer epochs when $P = \texttt{True}$ and $M=10T$. 
 %
 All methods were prone to converge to local minima, especially when $N=6$, in which case the likelihood surface was highly multi-modal. However, Algorithm (\ref{alg:EM-VRSO}) tended to converge to areas of higher likelihood than the baseline for almost all experiments. The sole exception was when $T=10^3$, $N=6$, and $d=6$, where BFGS and the conjugate gradient method were less likely to get stuck in local minima (see Figures (1--2) in Supplement A). However, the aforementioned experiment is a small-data setting, and we are primarily interested in modeling very large data sets. %This indicates that in a high-dimensional, small-data setting, our methods may have diminishing returns. However, our intention in this paper is to improve inference in big-data settings. 

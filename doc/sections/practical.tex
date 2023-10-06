@@ -9,7 +9,7 @@ One drawback of stochastic optimization is that the step size can greatly affect
 \citet{Defazio:2014} suggest a step size of $\lambda = 1/(3L)$ for SAGA, where $L$ is the Lipschitz constant defined in Theorem 1. However, the Lipschitz constants are rarely known in practice. Therefore, following \citet{Schmidt:2017}, we initialize an estimate of the Lipschitz constant, $\hat L$, and update it if the following inequality does not hold at any step $m$ of the optimization algorithm:
 
 \begin{gather}
-    F^{(m+1)}_{t_m}\Big(\bfphi^{(m)} - \frac{1}{\hat L} \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big) \leq F^{(m+1)}_{t_m}\Big(\bfphi^{(m)}\Big) - \frac{1}{2 \hat L} \Big\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big\| ^2, \quad \text{where} \label{ineq:F} \\
+    F^{(m+1)}_{t_m}\Big(\bfphi^{(m)} - \frac{1}{\hat L} \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big) \leq F^{(m+1)}_{t_m}\Big(\bfphi^{(m)}\Big) - \frac{1}{2 \hat L} \Big\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big\| ^2, \quad \text{where} \nonumber \\
     %
     F_{t_m}^{(m+1)} = F_{t_m}\left(\cdot ~ \Big | ~ \widehat \bfgamma^{(m+1)}_{t_m}, \widehat \bfxi^{(m+1)}_{t_m}\right)
     \label{ineq:F}
@@ -40,7 +40,9 @@ The optimization problem within the M step of the Baum-Welch algorithm can be wr
 \begin{gather}
     G_t(\bftheta \mid  \bfgamma_t,  \bfxi_t) = - \sum_{i=1}^N  \gamma^{(i)}_t \log f^{(i)}(y_t;\theta^{(i)}), \quad t = 1,\ldots,T, \\
     %
-    H_1(\bfeta \mid  \bfgamma_t,  \bfxi_t) = - \sum_{i=1}^N  \gamma^{(i)}_t \log \delta^{(i)}(\bfeta), \qquad H_t(\bfeta \mid  \bfgamma_t,  \bfxi_t) =  - \sum_{i=1}^N \sum_{j=1}^N  \xi^{(i,j)}_t \log \Gamma^{(i,j)}(\bfeta), \quad t = 2,\ldots,T.
+    H_1(\bfeta \mid  \bfgamma_t,  \bfxi_t) = - \sum_{i=1}^N  \gamma^{(i)}_t \log \delta^{(i)}(\bfeta), \\
+    %
+    H_t(\bfeta \mid  \bfgamma_t,  \bfxi_t) =  - \sum_{i=1}^N \sum_{j=1}^N  \xi^{(i,j)}_t \log \Gamma^{(i,j)}(\bfeta), \quad t = 2,\ldots,T.
 \end{gather}
 %
 To this end, let $\widehat \nabla G^{(m)}_{t}$ be equal to the components of $\widehat \nabla F^{(m)}_{t}$ that correspond to $\bftheta$, and let $\widehat \nabla H^{(m)}_{t}$ be equal to the components of $\widehat \nabla F^{(m)}_{t}$ that correspond to $\bfeta$. Likewise, let $\widehat \nabla G^{(m)}$ be equal to the components of $\widehat \nabla F^{(m)}$ that correspond to $\bftheta$, and let $\widehat \nabla H^{(m)}$ be equal to the components of $\widehat \nabla F^{(m)}$ that correspond to $\bfeta$. Then, we can rewrite the gradient step in the stochastic M step of Algorithm (\ref{alg:VRSO-PE}) as

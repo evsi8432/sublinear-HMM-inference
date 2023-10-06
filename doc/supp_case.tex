@@ -27,14 +27,14 @@
 
 \if0\blind
 {
-    \title{Variance-reduced stochastic optimization for efficient inference of hidden Markov models: Supplement B: Case Study}
+    \title{Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models: Supplement B: Case Study}
 
     \author{
       \textbf{Evan Sidrow} \\
       Department of Statistics \\
       University of British Columbia\\
       Vancouver, Canada \\
-      %\texttt{evan.sidrow@stat.ubc.ca} \\
+      \texttt{evan.sidrow@stat.ubc.ca} \\
       %
       \and
       %
@@ -86,6 +86,8 @@
   \medskip
 } \fi
 
+\newpage
+\spacingset{1.75} % DON'T change the spacing!
 
 \section{Case study parameter results}
 
@@ -125,7 +127,7 @@ The coarse-scale, inter-dive transition probability matrix and initial distribut
     0.223 & 0.758 & 0.017 \\
     0.123 & 0.853 & 0.027 \\
     0.074 & 0.857 & 0.068
-    \end{pmatrix}, \\
+    \end{pmatrix}, \\ \nonumber \\
     %
     \hat \bfdelta^{(c)} = \begin{pmatrix} 0.258 & 0.002 & 0.740 \end{pmatrix}.
 \end{gather}
@@ -149,7 +151,7 @@ The fine-scale, intra-dive transition probability matrices and initial distribut
     0.871 & 0.123 & 0.006 \\
     \bf{0} & 0.962 & 0.038 \\
     \bf{0} & \bf{0} & \bf{1}
-    \end{pmatrix}, ~
+    \end{pmatrix}, \quad
     %
     \hat \bfGamma^{(f,2)} = 
     \begin{pmatrix} 
@@ -157,13 +159,13 @@ The fine-scale, intra-dive transition probability matrices and initial distribut
     \bf{0} & 0.788 & 0.212 \\
     \bf{0} & \bf{0} & \bf{1}
     \end{pmatrix}, ~
-    %
+    \\ \nonumber \\
     \hat \bfGamma^{(f,3)} = 
     \begin{pmatrix} 
     0.958 & 0.040 & 0.002 \\
     \bf{0} & 0.982 & 0.018 \\
     \bf{0} & \bf{0} & \bf{1}
-    \end{pmatrix}, \\
+    \end{pmatrix}, \\ \nonumber \\
     %
     \hat \bfdelta^{(f,1)} = \begin{pmatrix} \bf{1} & \bf{0} & \bf{0} \end{pmatrix}, \quad ~
     %

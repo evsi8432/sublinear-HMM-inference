@@ -1,14 +1,14 @@
 %\section{Case Study}
 
-We additionally tested the performance of our optimization algorithm by modeling the movement of eight northern resident killer whales off the coast of British Columbia, Canada with a data set of over $5000$ dives and $80000$ depth readings. Biologgers are an essential tool used to understand the behavior of marine mammals. For example, time-depth recorders allow researchers identify and characterize dive phases, which are important for inferring behavior \citep[e.g., prey capture often occurs in the bottom phase of a foraging dive,][]{Wright:2017,Jensen:2023}. Researchers also use biologging data sets to estimate behavioral states associated with each dive \citep[e.g. foraging, resting, and traveling,][]{Tennessen:2023}. As such, we developed an HMM to identify three common dive phases (ascent, descent, and bottom) and three dive types that may indicate distinct behaviors of the animal, including resting, foraging, and traveling. We performed inference on the resulting model using our optimization algorithm in order to illustrate its computational advantages.
+We additionally tested the performance of our optimization algorithm by modeling the movement of eight northern resident killer whales off the coast of British Columbia, Canada with a data set of over $5000$ dives and $80000$ depth readings. Biologgers are an essential tool used to understand the behavior of marine mammals. For example, time-depth recorders allow researchers to estimate behavioral states associated with each dive \citep[e.g. foraging, resting, and traveling,][]{Tennessen:2023}. Researchers also use biologging data sets to identify and characterize dive phases, which are important for inferring behavior \citep[e.g., prey capture often occurs in the bottom phase of a foraging dive,][]{Wright:2017,Jensen:2023}. As such, we developed an HMM to identify three common dive phases (ascent, descent, and bottom) and three dive types that may indicate distinct behaviors of the animal, including resting, foraging, and traveling. We performed inference on the resulting model using our optimization algorithm in order to illustrate its computational advantages.
 
 \subsection{Data Collection and Preprocessing}
 
-The data used in this case study were collected in August and September of 2020 using a CATS time-depth recorder, or TDR (Customizable Animal Tracking Solutions, {\em{www.cats.is}}). Northern resident killer whales were equipped with suction-cup attached CATs tags in Queen Charlotte Sound using an adjustable 6-8m carbon fiber pole. The tags were programmed to release within 3-24 hours of attachment. Instruments were retrieved following each deploying using a Wildlife Computers 363C SPOT tag (providing Argos satellite positions), goniometer, ultra high frequency receiver and yagi antenna. The tags included 3D kinematic sensors (accelerometer, magnetometer, gyroscope), time-depth recorder, hydrophone and camera. All sensors were programmed to sample at 50 Hertz. However, for the purposes of this study, we focus on the time-depth recorder data to discern behaviorally distinct dives. We calibrated the depth readings using a MATLAB package developed by \citet{Cade:2021}, and defined a dive as any sequence of depth readings under 0.5 meters that lasted for at least two seconds. We then down-sampled the depth readings to a frequency of 0.5 Hz. The processed data set contained a total of $5858$ dives and $89462$ depth readings. Figure (\ref{fig:data}) shows the depth and change in depth for a subset of dives for one whale in the data set. 
-%
-\begin{figure}
+The data used in this case study were collected in August and September of 2020 using a CATS time-depth recorder, or TDR (Customizable Animal Tracking Solutions, {\em{www.cats.is}}). Northern resident killer whales were equipped with suction-cup attached CATs tags in Queen Charlotte Sound using an adjustable 6-8m carbon fiber pole. The tags were programmed to release within 3-24 hours of attachment. Instruments were retrieved following each deployment using a Wildlife Computers 363C SPOT tag (providing Argos satellite positions), goniometer, ultra high frequency receiver, and yagi antenna. The tags included 3D kinematic sensors (accelerometer, magnetometer, gyroscope), time-depth recorder, hydrophone and camera. All sensors were programmed to sample at 50 hertz. However, for the purposes of this study, we focus on the time-depth recorder data to discern behaviorally distinct dives. We calibrated the depth readings using a MATLAB package developed by \citet{Cade:2021}, and defined a dive as any sequence of depth readings under 0.5 meters that lasted for at least two seconds. We then down-sampled the depth readings to a frequency of 0.5 hertz. The processed data set contained a total of $5858$ dives and $89462$ depth readings. Figure (\ref{fig:data}) shows the depth and change in depth for a subset of dives for one whale in the data set. 
+
+\begin{figure}%[ht]
     \centering
-    \includegraphics[width=5in]{plt/decoded_dives_kw_I107_K_3_3_nWhales_8.png}
+    \includegraphics[width=5.5in]{../plt/decoded_dives_kw_I107_K_3_3_nWhales_8.png}
     \caption{Depth profile and change in depth vs time of day for a selected killer whale (I107, male, born 2004) off the coast of British Columbia, Canada. The data in panels one and three are color-coded according to the most likely hidden coarse-scale state (i.e. dive type) for each dive. The data in panels two and four are color-coded according to the most likely hidden fine-scale state (i.e. dive phase) for each two-second window.}
     \label{fig:data}
 \end{figure}
@@ -79,7 +79,7 @@ Let $\bfeta_k^{(f,i)} \in \bbR^{3 \times 3}$ denote the parameters associated wi
 %
 %If the 2-norm of the average estimated gradient $||\frac{1}{T}\sum_{t=1}^T \widehat \nabla F^{(k,m)}_t + \widehat \nabla G^{(k,m)}_t||$ ever fell below a tolerance of $10^{-8}$, we terminated the M step of algorithm and moved on to the E step. Likewise, if the relative change of the log-likelihood after one full E- and M- step of the EM algorithm ever fell below a tolerance of $10^{-10}$, we terminated the algorithm altogether. We found the ground truth MLEs by running the traditional EM algorithm until the relative change in the log-likelihood was on the order of machine precision $10^{-15}$.
 %
-Similarly to the simulation study, we estimated the parameters of the hierarchical HMM using our six inference algorithms ($A \in \{\text{SVRG, SAGA}\}$ and $(P,M) \in \{(\texttt{False},T),(\texttt{True},T),(\texttt{True},10T)\}$) and three baseline algorithms (BFGS, conjugate gradient, and gradient descent). All algorithms were run using 50 random initializations for a total of 12 hours each on Compute Canada Cedar nodes with 16GB of RAM.
+Similarly to the simulation study, we estimated the parameters of the hierarchical HMM using our six inference algorithms ($A \in \{\text{SVRG, SAGA}\}$ in addition to $(P,M) \in \{(\texttt{False},T), (\texttt{True},T), (\texttt{True},10T)\}$) and three baseline algorithms (BFGS, conjugate gradient, and gradient descent). All algorithms were run using 50 random initializations for a total of 12 hours each on Compute Canada Cedar nodes with 16GB of RAM.
 
 We employed similar measures as those in the simulation study to fairly compare the optimization algorithms. In particular, we measured computational complexity in epochs rather than raw computation time and defined an epoch using the definition from the simulation study. We also estimated the maximum likelihood parameters $\bfphi^*$ for each data set / experiment pair using the same method as the simulation study. Finally, we recorded the epoch and likelihood of convergence for each optimization algorithm using the same definition of convergence as the simulation study.
 
@@ -89,8 +89,8 @@ Our model predicted dive phases and dive types that are in line with previous st
 %This section focuses on results from the optimization procedure rather than the parameter estimates and decoded dive types / dive phases. For parameter estimates and decoded dive phases, see Supplement B.
 
 Most importantly, this case study demonstrates that all of our stochastic algorithms converged in fewer epochs and to regions of higher likelihood compared to the full-batch baselines; see Figures (\ref{fig:ll_trace_case}--\ref{fig:scatterplot_case}).
-%
-\begin{figure}[h]
+
+\begin{figure}%[ht]
     \centering
     \includegraphics[width=4in]{../plt/log-like_v_epoch_K-3-3.png}
     \caption{
@@ -99,7 +99,7 @@ Most importantly, this case study demonstrates that all of our stochastic algori
     \label{fig:ll_trace_case}
 \end{figure}
 %
-\begin{figure}[h]
+\begin{figure}%[ht]
     \centering
     \includegraphics[width=4in]{../plt/scatterplot_case_study.png}
     \caption{Maximum log-likelihood minus log-likelihood at convergence (all over $T$) versus epochs to converge for the killer whale case study. FE corresponds to $P = \texttt{False}$, and PE corresponds to $P = \texttt{True}$. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}

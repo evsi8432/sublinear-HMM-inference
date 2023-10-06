@@ -20,6 +20,7 @@ ref/*
 
 ## any data
 dat/*
+!dat/Killer_Whale_Data.csv
 
 ## all parameters
 params/*

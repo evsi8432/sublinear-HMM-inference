@@ -1,3 +1,44 @@
+\section{State-Dependent Observation Distributions}
+
+In the following subsections, we show that $F_t$ is convex and Lipschitz-smooth in several common inference settings. This is useful when applying Theorem 1 to HMMs with either Gaussian or Categorical state-dependent distributions. To this end, we show that $-\log f^{(i)}(y_t ; \theta^{(i)})$, $-\log \Gamma^{(i,j)}(\bfeta)$, and $-\log \delta^{(i)}(\bfeta)$ are uniformly Lipschitz-smooth and convex with respect to either $\theta^{(i)}$ or $\bfeta$. Then, $F_t$ is simply a linear combination of these terms, so it must also be convex and uniformly Lipschitz-smooth.
+
+\subsection{Normal State-dependent Observation Distribution}
+
+If $Y_t \in \bbR$ follows a normal distribution whose parameters depend on $X_t = i$, then one may define the parameters as $\theta^{(i)} = \begin{pmatrix} \mu^{(i)} & \rho^{(i)} \end{pmatrix}$, where $\mu^{(i)}$ is the mean of the distribution and $\rho^{(i)}$ is the logarithm of the variance of the distribution. Then:
+
+\begin{gather}
+    f^{(i)}(y_t ; \theta^{(i)}) = \frac{1}{\sqrt{2\pi\exp(\rho^{(i)})}} \exp\left(-\frac{\left(y_t - \mu^{(i)}\right)^2}{2 \exp(\rho^{(i)})}\right), \\
+    %
+    - \log f^{(i)}(y_t ; \theta^{(i)}) = \frac{1}{2}\left[\log(2\pi) + \rho^{(i)} + \left(y_t - \mu^{(i)}\right)^2 \exp(-2\rho^{(i)})\right].
+\end{gather}
+
+In this case, $-\log f^{(i)}(y_t \mid X_t = i ; \theta^{(i)})$ is uniformly Lipschitz-smooth and convex with respect to $\mu^{(i)}$ and it is convex with respect to $\rho^{(i)}$. It is not uniformly Lipschitz-smooth with respect to $\rho^{(i)}$ because its gradient is unbounded as $\rho^{(i)} \to -\infty$. Nonetheless, estimating $\rho^{(i)}$ often works well practice, and we estimate $\rho^{(i)}$ in our simulation and case studies.
+    
+\subsection{Categorical State-dependent Observation Distribution}
+
+If $Y_t \in \{1,\ldots,J\}$ follows a categorical distribution whose parameters depend on $X_t = i$, then one may define the parameters as $\theta^{(i)} = \begin{pmatrix} \theta^{(i,1)} & \theta^{(i,2)} & \cdots & \theta^{(i,J)} \end{pmatrix}$ so that
+
+\begin{gather}
+    f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)}) = \frac{\exp\left(\theta^{(i,j)}\right)}{\sum_{j' = 1}^{J} \exp(\theta^{(i,j')})}, \\
+    %
+    - \log f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)}) = - \theta^{(i,j)} + \log \left(\sum_{j' = 1}^{J} \exp(\theta^{(i,j')})\right),
+\end{gather}
+    
+where $\theta^{(i,1)} = 0$ for identifiability. Then, $-\log f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)})$ is uniformly Lipschitz-smooth and convex with respect to $\theta^{(i)}$ because the log-sum-exp function is convex and uniformly Lipschitz-smooth.
+
+\subsection{Initial Distribution and Transition Probability Matrix}
+
+When estimating the parameters $\bfeta$, Equation (\ref{eqn:reparam}) gives:
+
+\begin{gather}
+    \Gamma^{(i,j)}(\bfeta) = \frac{\exp(\eta^{(i,j)})}{\sum_{k=1}^N \exp(\eta^{(i,k)})}, \qquad \delta^{(i)}(\bfeta) = \frac{\exp(\eta^{(i)})}{\sum_{k=1}^N \exp(\eta^{(k)})}, \\
+    %
+    - \log \Gamma^{(i,j)}(\bfeta) = - \eta^{(i,j)} + \log \left[\sum_{k=1}^N \exp(\eta^{(i,k)})\right], \\ 
+    -\log \delta^{(i)}(\bfeta) = -\eta^{(i)} + \log \left[\sum_{k=1}^N \exp(\eta^{(k)})\right],
+\end{gather}
+
+Then, both $- \log \Gamma^{(i,j)}(\bfeta)$ and $ - \log \delta^{(i)}(\bfeta)$ are uniformly Lipschitz-smooth and convex with respect to $\bfeta$ because the log-sum-exp function is convex and uniformly Lipschitz-smooth.
+
 \section{Version 2 of \texttt{EM-VRSO}}
 
 For the purposes of readability, we abuse notation and use the shorthand $F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) \equiv F(\bfphi \mid \bfphi')$ and $F_{t}(\bfphi \mid \bfgamma_{t}(\bfphi'), \bfxi_{t}(\bfphi')) \equiv F_{t}(\bfphi \mid \bfphi')$ in this appendix. Further, we denote $F^*(\bfphi') \equiv \inf_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi')$.
@@ -32,9 +73,9 @@ For the purposes of readability, we abuse notation and use the shorthand $F(\bfp
 \end{algorithmic}
 \end{algorithm}
 
-One potential concern with Algorithm (\ref{alg:EM-VRSO-v2}) is that it requires quantities that are not known in practice, namely $\zeta$ and $F^{*}(\bfphi_{k})$. However, these quantities are only used in the while loop to ensure a strict increase in the likelihood for every iteration of \texttt{VRSO-PE}. In addition, version 1 of the algorithm is intuitively preferable since it will accept new parameters that increase the likelihood by any amount. We only use version 2 above to prove Theorem 1.
+One potential concern with Algorithm \ref{alg:EM-VRSO-v2} is that it requires quantities that are not known in practice, namely $\zeta$ and $F^{*}(\bfphi_{k})$. However, these quantities are only used in the while loop to ensure a strict increase in the likelihood for every iteration of \texttt{VRSO-PE}. In addition, version 1 of the algorithm is intuitively preferable since it will accept new parameters that increase the likelihood by any amount. We only use version 2 above to prove Theorem 1.
 
-Another concern with Algorithm (\ref{alg:EM-VRSO-v2}) is that $F^{*}(\bfphi_{k})$ is defined using an infimum, which can be problematic in some settings. However, we prove in Lemma 1 that if the conditions of Theorem 1 hold, then $F^*(\bfphi')$ is finite, has a unique minimizer, and is uniformly continuous.
+Another concern with Algorithm \ref{alg:EM-VRSO-v2} is that $F^{*}(\bfphi_{k})$ is defined using an infimum, which can be problematic in some settings. However, we prove in Lemma 1 that if the conditions of Theorem 1 hold, then $F^*(\bfphi')$ is finite, has a unique minimizer, and is uniformly continuous.
 
 \begin{lemma}
     If the conditions of Theorem 1 hold, then for all $\bfphi_k \in \bfPhi$, $F^{*}(\bfphi_k) = \inf_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi_k)$ is finite and has a unique minimizer, so $F^*(\bfphi_k) = \min_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi_k) = F(\bfphi_{k+1}^* \mid \bfphi_k)$ for a unique $\bfphi_{k+1}^* \in \bfPhi$. Further, $F^*(\bfphi_k)$ is uniformly continuous for all $\bfphi_k \in \bfPhi$.
@@ -81,7 +122,7 @@ We begin by introducing notation needed for the proof. Let $I \in \{1,\ldots,T\}
     Note that $\nabla F_t(\bfphi \mid \bfphi')$ is uniformly continuous in $(\bfphi,\bfphi')$ for each $t$ by condition (7) of Theorem 1. Therefore, the mapping above is also uniformly continuous in $(\bfphi'^{(m)},\bfphi'^{(0)})$, and so $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is uniformly continuous in $\bfphi'$ for fixed $I$ and $\lambda$.
 \end{proof}
 
-If the conditions of Theorem 1 are met, iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) is equivalent to drawing a sequence of index vectors $I_{k,0},I_{k,1},\ldots$ and calculating $\bfphi_{k,\ell} = \texttt{VRSO-PE}^*(I_{k,\ell},\lambda,\bfphi_{k})$ until the condition to exit the while loop is satisfied, which happens in finite time by Lemma 3 below. Lemma 3 depends upon Theorem 1 of \citet{Johnson:2013}, so Table (\ref{tbl:notation}) identifies how our notation corresponds to theirs.
+If the conditions of Theorem 1 are met, iteration $k$ of Algorithm \ref{alg:EM-VRSO-v2} is equivalent to drawing a sequence of index vectors $I_{k,0},I_{k,1},\ldots$ and calculating $\bfphi_{k,\ell} = \texttt{VRSO-PE}^*(I_{k,\ell},\lambda,\bfphi_{k})$ until the condition to exit the while loop is satisfied, which happens in finite time by Lemma 3 below. Lemma 3 depends upon Theorem 1 of \citet{Johnson:2013}, so Table (\ref{tbl:notation}) identifies how our notation corresponds to theirs.
 %
 \begin{table}[]
 \centering
@@ -103,7 +144,7 @@ $\psi_i$                              & $F_t(\cdot \mid \bfphi_k)$
 \end{table}
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold. Then, the while loop within Algorithm (\ref{alg:EM-VRSO-v2}) almost surely terminates in finite time, i.e. $\bbP\{\ell^*(k) < \infty\} = 1$ for all $k \geq 0$. Furthermore, $\bbP\{\forall k : \ell^*(k) < \infty \} = 1$.
+    Suppose all conditions from Theorem 1 hold. Then, the while loop within Algorithm \ref{alg:EM-VRSO-v2} almost surely terminates in finite time, i.e. $\bbP\{\ell^*(k) < \infty\} = 1$ for all $k \geq 0$. Furthermore, $\bbP\{\forall k : \ell^*(k) < \infty \} = 1$.
 \end{lemma}
 
 \begin{proof}
@@ -127,16 +168,16 @@ Taking the complement of the above expression and rearranging terms gives
     \bbP \Big[F(\bfphi_{k,\ell} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + \frac{1 + \zeta}{2} \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) ~\Big\vert~ \bfphi_{k} \Big] \geq \frac{1-\zeta}{1 + \zeta} > 0 \label{eqn:markov_ineq},
 \end{equation}
 
-so with some probability greater than or equal to $(1-\zeta)/(1+\zeta) > 0$, the condition to exit the while loop at iteration $\ell$ of Algorithm (\ref{alg:EM-VRSO-v2}) is satisfied.
+so with some probability greater than or equal to $(1-\zeta)/(1+\zeta) > 0$, the condition to exit the while loop at iteration $\ell$ of Algorithm \ref{alg:EM-VRSO-v2} is satisfied.
 
-Further, repeatedly calling \texttt{VRSO-PE} within the inner while loop of Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to drawing \textit{independent} samples of $\bfphi_{k,\ell}$ conditioned on $\bfphi_k$. The draws are independent because $\texttt{VRSO-PE}^*$ is only random due to $I_{k,\lambda}$ after conditioning on $\bfphi_k$, and each iteration of the inner while loop of Algorithm (\ref{alg:EM-VRSO-v2}) involves drawing independent samples of $I_{k,\lambda}$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k \geq (1-\zeta)/(1+\zeta)$. Therefore, $\bbP\Big\{\ell^*(k) < \infty \Big\} = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1$, and 
+Further, repeatedly calling \texttt{VRSO-PE} within the inner while loop of Algorithm \ref{alg:EM-VRSO-v2} corresponds to drawing \textit{independent} samples of $\bfphi_{k,\ell}$ conditioned on $\bfphi_k$. The draws are independent because $\texttt{VRSO-PE}^*$ is only random due to $I_{k,\lambda}$ after conditioning on $\bfphi_k$, and each iteration of the inner while loop of Algorithm \ref{alg:EM-VRSO-v2} involves drawing independent samples of $I_{k,\lambda}$. As a result, $\ell^*(k)$ follows a geometric distribution with some positive success probability $p_k \geq (1-\zeta)/(1+\zeta)$. Therefore, $\bbP\Big\{\ell^*(k) < \infty \Big\} = \sum_{\ell \geq 1} p_k(1-p_k)^{\ell-1} = 1$, and 
 
 \begin{equation*}
     \bbP\Big\{\forall k : \ell^*(k) < \infty \Big\} = 1 - \bbP\Big\{\exists k : \ell^*(k) = \infty \Big\} = 1.
 \end{equation*}
 \end{proof}
 
-Finally, we introduce $R_{M,\lambda}$ as a point-to-set map corresponding to one iteration of Algorithm (\ref{alg:EM-VRSO-v2}) with $M$ steps of step size $\lambda$. First, recall that
+Finally, we introduce $R_{M,\lambda}$ as a point-to-set map corresponding to one iteration of Algorithm \ref{alg:EM-VRSO-v2} with $M$ steps of step size $\lambda$. First, recall that
 
 \begin{equation}
     K(\bfphi') = F^*(\bfphi') + [(1 + \zeta)/2] \Big(F(\bfphi' \mid \bfphi') - F^*(\bfphi') \Big). 
@@ -148,7 +189,7 @@ Then, we define $R_{M,\lambda}(\bfphi')$ as
     R_{M,\lambda}(\bfphi') = \Big\{\bfphi ~ : ~ \bfphi = \texttt{VRSO-PE}^*(I,\lambda,\bfphi') ~ \text{for some} ~ I \in \{1,\ldots,T\}^M ~\text{and}~ F(\bfphi \mid \bfphi') \leq K(\bfphi')\Big\}.
 \end{equation}
 
-Iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to randomly sampling $\bfphi_{k+1}$ from $R_{M,\lambda}(\bfphi_k)$. If the conditions of Theorem 1 are met, then $\bbP(\ell^*(k) < \infty) = 1$, so $R_{M,\lambda}(\bfphi_k)$ must not be the empty set. We prove two more useful Lemmas regarding $R_{M,\lambda}$ before finally proving Theorem 1.
+Iteration $k$ of Algorithm \ref{alg:EM-VRSO-v2} corresponds to randomly sampling $\bfphi_{k+1}$ from $R_{M,\lambda}(\bfphi_k)$. If the conditions of Theorem 1 are met, then $\bbP(\ell^*(k) < \infty) = 1$, so $R_{M,\lambda}(\bfphi_k)$ must not be the empty set. We prove two more useful Lemmas regarding $R_{M,\lambda}$ before finally proving Theorem 1.
 
 \begin{lemma}
     Suppose all conditions from Theorem 1 hold. Then $R_{M,\lambda}$ is a closed point-to-set map for all non-stationary points $\bfphi' \in \bfPhi$. Note that $R_{M,\lambda}$ is closed at a point $\bfphi'$ if $\bfphi'_{n} \to \bfphi'$ and $\bfphi_{n} \to \bfphi$ with $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$, implies that $\bfphi \in R_{M,\lambda}(\bfphi')$. 
@@ -178,16 +219,16 @@ Iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}) corresponds to randomly sampli
 \end{proof}
 
 \begin{lemma}
-    Suppose all conditions from Theorem 1 hold, and consider the sequence $\{\bfphi_k\}_{k=0}^{K}$ generated from running Algorithm (\ref{alg:EM-VRSO-v2}) with $\bfphi_0 \in \bfPhi$. For $k = 0,\ldots,K-1$, we have that $\log p(\bfy;\bfphi_{k+1}) \geq \log p(\bfy;\bfphi_k)$. Further, if $\bfphi_k$ is not a stationary point of $\log p$, then $\log p(\bfy;\bfphi_{k+1}) > \log p(\bfy;\bfphi_k)$.
+    Suppose all conditions from Theorem 1 hold, and consider the sequence $\{\bfphi_k\}_{k=0}^{K}$ generated from running Algorithm \ref{alg:EM-VRSO-v2} with $\bfphi_0 \in \bfPhi$. For $k = 0,\ldots,K-1$, we have that $\log p(\bfy;\bfphi_{k+1}) \geq \log p(\bfy;\bfphi_k)$. Further, if $\bfphi_k$ is not a stationary point of $\log p$, then $\log p(\bfy;\bfphi_{k+1}) > \log p(\bfy;\bfphi_k)$.
 \end{lemma}
 
 \begin{proof}
 
 First, note that $\bfphi_k$ is a stationary point of $\log p$ if and only if it is a stationary point of $F(\cdot \mid \bfphi_k)$ because $\nabla \log p(\bfphi_k) = \nabla Q(\bfphi_k \mid \bfphi_k) = -\nabla F(\bfphi_k \mid \bfphi_k) / T$.
 
-We begin with the case where $\bfphi_k$ is a stationary point of $\log p$ (and therefore a stationary point of $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) = F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}), it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) = F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) \geq 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) \geq \log p(\bfy ; \bfphi_{k})$.
+We begin with the case where $\bfphi_k$ is a stationary point of $\log p$ (and therefore a stationary point of $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) = F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm \ref{alg:EM-VRSO-v2}, it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) = F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) \geq 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) \geq \log p(\bfy ; \bfphi_{k})$.
 
-Next, we focus on the case where $\bfphi_k$ is \textit{not} a stationary point of $\log p$ (and therefore not a stationary point $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) > F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm (\ref{alg:EM-VRSO-v2}), it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) < F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) > 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) > \log p(\bfy ; \bfphi_{k})$.
+Next, we focus on the case where $\bfphi_k$ is \textit{not} a stationary point of $\log p$ (and therefore not a stationary point $F(\cdot \mid \bfphi_k)$). Then, $F(\bfphi_k \mid \bfphi_k) > F^{*}(\bfphi_{k})$ since $F$ is continuously differentiable and strongly convex. To exit the while loop at iteration $k$ of Algorithm \ref{alg:EM-VRSO-v2}, it must be the case that $F(\bfphi_{k+1} \mid \bfphi_{k}) \leq F^*(\bfphi_{k}) + [(1+\zeta)/2] \Big(F(\bfphi_{k} \mid \bfphi_{k}) - F^*(\bfphi_{k}) \Big) < F(\bfphi_k \mid \bfphi_k)$. Finally, we know from \citet{Dempster:1977} that $\log p(\bfy ; \bfphi_{k+1}) - \log p(\bfy ; \bfphi_{k}) \geq F(\bfphi_{k} \mid \bfphi_{k}) - F(\bfphi_{k+1} \mid \bfphi_{k}) > 0$. This implies that $\log p(\bfy ; \bfphi_{k+1}) > \log p(\bfy ; \bfphi_{k})$.
 \end{proof}
 
 We now prove Theorem 1.
@@ -244,14 +285,14 @@ To prove the Theorem more formally, we first prove a useful Lemma.
         \item $\widehat \nabla F^{(m)} = 0$
     \end{enumerate}
 
-    Algorithm (\ref{alg:VRSO-PE}) returns $\bfphi^{(M)}$ for some finite $M$, so proving the above will prove the lemma. 
+    Algorithm \ref{alg:VRSO-PE} returns $\bfphi^{(M)}$ for some finite $M$, so proving the above will prove the lemma. 
     %
-    The base case ($m=0$) is trivial either from the assumptions of the Lemma or from lines 1--4 of Algorithm (\ref{alg:VRSO-PE}), so we focus on the inductive case. We assume that all of the conditions (1--5) above hold for $m$, and prove each condition holds for $m+1$ sequentially.
+    The base case ($m=0$) is trivial either from the assumptions of the Lemma or from lines 1--4 of Algorithm \ref{alg:VRSO-PE}, so we focus on the inductive case. We assume that all of the conditions (1--5) above hold for $m$, and prove each condition holds for $m+1$ sequentially.
 
     \begin{enumerate}
         \item First note that if $P = \texttt{False}$ or if $P = \texttt{True}$ and $t \neq t_m$, then the conditional probability approximations are not updated, so $\widehat \bfalpha^{(m+1)}_t = \widehat \bfalpha^{(m)}_t  = \bfalpha_t(\bfphi^{(0)})$ and $\widehat \bfbeta^{(m+1)}_t = \widehat \bfbeta^{(m)}_t = \bfbeta_t(\bfphi^{(0)})$ by inductive hypothesis (1).
         
-        If $P = \texttt{True}$ and $t = t_m$, then both $\widehat \bfalpha^{(m+1)}_{t_m}$ and $\widehat \bfbeta^{(m+1)}_{t_m}$ are updated in line 9 of Algorithm (\ref{alg:EM-VRSO}). The approximation $\widehat \bfalpha^{(m+1)}_{t_m}$ is updated using the mapping 
+        If $P = \texttt{True}$ and $t = t_m$, then both $\widehat \bfalpha^{(m+1)}_{t_m}$ and $\widehat \bfbeta^{(m+1)}_{t_m}$ are updated in line 9 of Algorithm \ref{alg:EM-VRSO}. The approximation $\widehat \bfalpha^{(m+1)}_{t_m}$ is updated using the mapping 
         %
         \begin{align}
             \widehat \bfalpha^{(m+1)}_{t_m} &= \widetilde \bfalpha_{t_m}(\widehat \bfalpha^{(m)}_{t_m-1},\bfphi^{(m)}) \nonumber \\
@@ -274,7 +315,7 @@ To prove the Theorem more formally, we first prove a useful Lemma.
         %
         \item First note that if $P = \texttt{False}$ or if $P = \texttt{True}$ and $t \neq t_m$, then the conditional probability approximations are not updated, so $\widehat \bfgamma^{(m+1)}_t = \widehat \bfgamma^{(m)}_t = \bfgamma_t(\bfphi^{(0)})$ and $\widehat \bfxi^{(m+1)}_t = \widehat \bfxi^{(m)}_t = \bfxi_t(\bfphi^{(0)})$ by inductive hypothesis (2).
         
-        If $P = \texttt{True}$ and $t = t_m$, both $\widehat \bfgamma^{(m+1)}_{t_m}$ and $\widehat \bfxi^{(m+1)}_{t_m}$ are calculated in line 10 of Algorithm (\ref{alg:EM-VRSO}). $\widehat \bfxi^{(m+1)}_{t_m}$ is updated using the mapping 
+        If $P = \texttt{True}$ and $t = t_m$, both $\widehat \bfgamma^{(m+1)}_{t_m}$ and $\widehat \bfxi^{(m+1)}_{t_m}$ are calculated in line 10 of Algorithm \ref{alg:EM-VRSO}. $\widehat \bfxi^{(m+1)}_{t_m}$ is updated using the mapping 
         
         \begin{align}
             \widehat \bfxi^{(m+1)}_{t_m} &= \widetilde \bfxi_{t_m}(\widehat \bfalpha^{(m+1)}_{t_m-1},\widehat \bfbeta^{(m+1)}_{t_m}, \bfphi^{(m)}) \nonumber \\
@@ -340,7 +381,7 @@ We now prove Theorem 2.
 
 \begin{proof}
 
-We use induction and show that if $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\bfphi_{k} = \bfphi_0$ for all iterations $k$ of Algorithm (\ref{alg:EM-VRSO}). The base case, $k = 0$, is trivial. For the inductive case, we assume that $\bfphi_k = \bfphi_0$ and prove that $\bfphi_{k+1} = \bfphi_k$. First, note that 
+We use induction and show that if $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\bfphi_{k} = \bfphi_0$ for all iterations $k$ of Algorithm \ref{alg:EM-VRSO}. The base case, $k = 0$, is trivial. For the inductive case, we assume that $\bfphi_k = \bfphi_0$ and prove that $\bfphi_{k+1} = \bfphi_k$. First, note that 
 
 \begin{align}
     \nabla F(\bfphi_{0} \mid \bfgamma(\bfphi_{0}), \bfxi(\bfphi_{0})) &= \frac{1}{T} \sum_{t=1}^T \nabla F_t(\bfphi_0 \mid \bfgamma_t(\bfphi_0), \bfxi_t(\bfphi_0)) \nonumber \\
@@ -349,7 +390,7 @@ We use induction and show that if $\nabla \log p(\bfy;\bfphi_0) = 0$, then $\bfp
     &= 0 \label{eqn:nabla_zero}.
 \end{align}
 %
-Equation (\ref{eqn:nabla_zero}) shows that the condition for Lemma 6 are satisfied with $\bfphi^{(0)} = \bfphi_0$. Further, step 2 of Algorithm (\ref{alg:EM-VRSO}) performs the E step of the EM algorithm so that $\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k) \right\}_{t=1}^T$. So:
+Equation (\ref{eqn:nabla_zero}) shows that the condition for Lemma 6 are satisfied with $\bfphi^{(0)} = \bfphi_0$. Further, step 2 of Algorithm \ref{alg:EM-VRSO} performs the E step of the EM algorithm so that $\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\}_{t=1}^T = \left\{\bfalpha_t(\bfphi_k), \bfbeta_t(\bfphi_k), \bfgamma_t(\bfphi_k), \bfxi_t(\bfphi_k) \right\}_{t=1}^T$. So:
 
 \begin{align*}
     \bfphi_{k,1} &= \texttt{VRSO-PE}\Big(\left\{\bfalpha_{k,t}, \bfbeta_{k,t}, \bfgamma_{k,t}, \bfxi_{k,t}\right\}_{t=1}^T, \bfphi_k, \lambda, A, P, M \Big) \\
@@ -361,7 +402,7 @@ Equation (\ref{eqn:nabla_zero}) shows that the condition for Lemma 6 are satisfi
     &= \bfphi_0.
 \end{align*}
 
-The second line is true by the definition of the E step in the EM algorithm, the third line is true by the inductive hypothesis, and the final line is true by Lemma 6. Since $\log p(\bfy; \bfphi_{k,1}) = \log p(\bfy;\bfphi_{k}) = \log p(\bfy; \bfphi_{0})$, $\bfphi_{k,1}$ satisfies the condition to exit the while loop of Algorithm (\ref{alg:EM-VRSO}), so $\bfphi_{k+1} = \bfphi_{k,1} = \bfphi_{0}$. 
+The second line is true by the definition of the E step in the EM algorithm, the third line is true by the inductive hypothesis, and the final line is true by Lemma 6. Since $\log p(\bfy; \bfphi_{k,1}) = \log p(\bfy;\bfphi_{k}) = \log p(\bfy; \bfphi_{0})$, $\bfphi_{k,1}$ satisfies the condition to exit the while loop of Algorithm \ref{alg:EM-VRSO}, so $\bfphi_{k+1} = \bfphi_{k,1} = \bfphi_{0}$. 
 
-This completes the inductive step, so $\bfphi_k = \bfphi_0$ for all $k \geq 0$. To complete the proof, note that Algorithm (\ref{alg:EM-VRSO}) returns $\bfphi_K$, so $\texttt{EM-VRSO}(\bfphi_0, \lambda, A, M, K) = \bfphi_K = \bfphi_0$.
+This completes the inductive step, so $\bfphi_k = \bfphi_0$ for all $k \geq 0$. To complete the proof, note that Algorithm \ref{alg:EM-VRSO} returns $\bfphi_K$, so $\texttt{EM-VRSO}(\bfphi_0, \lambda, A, M, K) = \bfphi_K = \bfphi_0$.
 \end{proof}

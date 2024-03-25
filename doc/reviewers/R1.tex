@@ -1,0 +1,173 @@
+\documentclass[11pt]{article}
+\pdfoutput=1
+
+\input{header}
+\input{defs}
+
+\pdfminorversion=4
+% NOTE: To produce blinded version, replace "0" with "1" below.
+\newcommand{\blind}{1}
+\linenumbers
+
+% DON'T change margins - should be 1 inch all around.
+\addtolength{\oddsidemargin}{-.5in}%
+\addtolength{\evensidemargin}{-1in}%
+\addtolength{\textwidth}{1in}%
+\addtolength{\textheight}{1.7in}%
+\addtolength{\topmargin}{-1in}%
+
+\date{}
+\begin{document}
+
+%\bibliographystyle{natbib}
+
+\def\spacingset#1{\renewcommand{\baselinestretch}%
+{#1}\small\normalsize} \spacingset{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\if0\blind
+{
+    \title{Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models : Response to Reviewer 1}
+
+    \author{
+      \textbf{Evan Sidrow} \\
+      Department of Statistics \\
+      University of British Columbia\\
+      Vancouver, Canada \\
+      \texttt{evan.sidrow@stat.ubc.ca} \\
+      %
+      \and
+      %
+      \textbf{Nancy Heckman} \\
+      Department of Statistics \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      %
+      \and
+      %
+      \textbf{Alexandre Bouchard-C\^ot\'e} \\
+      Department of Statistics \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      \and
+      %
+      \textbf{Sarah M. E. Fortune} \\
+      Department of Oceanography \\
+      Dalhousie University \\
+      Halifax, Canada \\
+      %
+      \and
+      %
+      \textbf{Andrew W. Trites} \\
+      Department of Zoology \\
+      Institute for the Oceans and Fisheries \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      %
+      \and
+      %
+      \textbf{Marie Auger-M\'eth\'e} \\
+      Department of Statistics \\
+      Institute for the Oceans and Fisheries \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+    }
+    \maketitle
+} \fi
+
+\if1\blind
+{
+  \bigskip
+  \bigskip
+  \bigskip
+  \begin{center}
+    {\LARGE\bf Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models: Response to Reviewer 1}
+  \end{center}
+  \medskip
+} \fi
+
+I really like this paper, I have mostly minor comments. The paper is very well written. For example, after reading and writing basics of HMMs multiple times, I really appreciate the clear and concise description of HMM in section 2.1!
+
+\begin{itemize}
+    \item Thank you very much for the kind words. Your comments are have been insightful and have helped improve the manuscript. We hope that our responses and edits to the manuscript sufficiently address all of the comments given. 
+\end{itemize}
+
+In your simulation study as well as case study, you consider Gaussian observational densities. Consider a case where the observations are categorical, so that for example you only observe some category $j$ when $t < T/2$. When using only partial data based on $F_{t_m}$, could such thing cause problems in the M loop? My gut feeling is that this could be problematic, but that might very well be incorrect. If there is a potential issue here, then I'd like to see an example on how the method performs in categorical data case, or at least a disclaimer that method assumes something about the observational density.
+
+\begin{itemize}
+    \item We are not quite sure what problems could arise in this situation, but we have a couple of ideas 
+    
+    First, note that a categorical distribution is convex and Lipchitz smooth with respect to the parameters of the distribution. Namely, if the emission distribution is categorical with a total of $J$ categories, then one may define the parameters as $\theta^{(i)} = \begin{pmatrix} \theta^{(i,1)} & \theta^{(i,2)} & \cdots & \theta^{(i,J)} \end{pmatrix}$ so that the log-density of the emission distribution is
+    
+    $$\log f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)}) = \theta^{(i,j)} - {\log \left(\sum_{j' = 1}^{J} \exp(\theta^{(i,j')})\right)},$$ 
+    
+    where $\theta^{(i,1)} = 0$ for identifiability. Then, $-\log f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)})$ is convex and uniformly Lipschitz smooth with respect to $\theta^{(i)}$, so theorem 1 from the text still applies (as long as the other conditions from the theorem are satisfied). We have added this point to the appendix of the paper.
+    
+    Another issue that the reviewer may have in mind is that the gradient may become more out-of-date with respect to the parameter related to the rare category. While this may be true, note that the full gradient is refreshed every M step, and each M step is approximately as expensive to compute as one gradient step of gradient-based algorithms.
+    
+    Further, if a category $j$ is only observed when $t < T/2$, then the sequential dependence within the HMM might be extremely strong. This may be a problem if the M step proceeded by iterating though $t = 1,2,\ldots,T$ sequentially. However, we select $t_m$ randomly at each iteration of the M step, which addresses issues caused by sequential dependence. We also sample without replacement and have $M \geq T$ for all of our experiments. This guarantees that we will select all $t = 1,\ldots,T$ within each iteration of the M step of our algorithm.
+    
+    Finally, this comment brings up a good point regarding an issue with stochastic optimization in general. In particular, if the gradients of each term ($\nabla F_t$) are very different from one another, then the variance of the gradient estimates can be very large, which will negatively affect the optimization. This issue is still an area of active research in stochastic optimization, and is the reason why we employ variance-reduced techniques (e.g. SVRG and SAGA) instead of standard SGD. Even in settings with high variance between gradient terms, stochastic optimization is often preferred over standard gradient descent when the loss function is very expensive to compute.
+\end{itemize}
+
+The paper focuses on speeding up the estimation in cases with large $T$. A brief discussion on problems with large number of time series would be nice, although this is often less of a problem as it is possible to parallelize many computations with respect to the number of series.
+
+\begin{itemize}
+    \item We have added a brief discussion to our introduction to address the case when the number of time series is large.
+\end{itemize}
+
+Regarding the requirement of increasing log-likelihood: You prove that this will not require infinite loop, but wouldn't it still be possible that the loop takes infeasibly long to complete? While perhaps theoretically problematic, can you say anything about practical consequences of adding some kind of upper limit to the number of iterations of the M step loop in order to avoid overly long loops? 
+
+\begin{itemize}
+    \item This is a fair point. In practice, we found that it was extremely rare for the log-likelihood to increase after a pass through the M step of our algorithm unless the step size was much too large. However, in that case we halved the step size after each unsuccessful M step, and after that the algorithm usually worked fine. To this end, if the log-likelihood keeps increasing after performing an iteration of an optimization algorithm, then we would suggest re-selecting the initial step-size, increasing the number of iterations within the M step, or doing other forms of trouble-shooting, as this behavior is very unexpected in practice. We have added a bit about this in the main text after the presentation of the algorithm.
+\end{itemize}
+
+Related to this, one of the assumptions of Theorem 1 is that $F_t$ is convex. Isn't this assumption violated for typical HMMs which exhibit multi-modality (not only due to label-switching)? I think implicitly you are considering Theorem 1 in the neighbourhood of some local optimum (as is hinted in line 317)? 
+
+\begin{itemize}
+    \item This is a good point, and the log-likelihood of a typical HMM is indeed multi-modal and non-convex. However, our convexity requirement is for the surrogate function $F_t$ rather than the full log-likelihood $\log p$. We have added a bit to clarify this point and also added a bit to the appendix to show that $F_t$ is indeed convex and Lipschitz-smooth in many common settings.
+\end{itemize}
+
+Continuing on multimodality, can you say anything about how the stochasticity of the proposed algorithm affects to optimization in terms of escaping local modes? This is likely not specific to the proposed algorithm though, so maybe it's enough to say something general about stochastic optimization and mixture models.
+
+\begin{itemize}
+    \item This is again an interesting point. Luckily, because our surrogate function is assumed to be convex, we do not have to worry about escaping local modes within the M step of the EM algorithm. %However, there are implications of EM vs gradient descent in terms of escaping local modes. Both the EM algorithm and gradient-based methods can exhibit poor behavior even in simple in mixture models \citep{Chi:2016}, but there is some work suggesting that the EM algorithm can escape local maxima of the likelihood faster than gradient descent \citep{Zhang:2020}. 
+    Nonetheless, if the M step of the EM algorithm is not convex, then some previous work has shown that stochastic gradient methods can escape local optima more effectively than standard gradient descent. We have added a bit about this after the statement of Theorem 1 and in the appendix.
+\end{itemize}
+
+On 5.1, you state that $\mu^{(i)}$ is $N(0, I)$, i.e. it does not depend on state? Same for the covariance matrix. This probably leads to simulated data where the states are very similar. If you would simulate states for example as $N(i, I)$, they would likely be more easily separable, could you say something about how the results of the simulation might change in such, perhaps more realistic setting? My guess that all methods would perform even better but would be more sensitive to initialization?
+
+\begin{itemize}
+    \item The covariance matrix indeed does not depend upon state, and $\mu^{(i)}$ is drawn from a standard normal distribution for all $i = 1,\ldots,N$. However, we have found that the distance between the means varies. For example, when $d = 3$ and $N = 3$, the euclidean distance between any pair of means within a data set was as low as around 1.0, and as high as around 4.0. When $d = 6$ and $N = 3$, the euclidean distance between any pair of means within a data set was as low as around 2.0, and as high as around 4.7. The standard deviation of the observation distribution was $1/e \approx 0.37$, so the means in our simulation study were relatively well-separated. We have added a bit to section 5.1 to discuss this.
+\end{itemize}
+
+Line 384, why not compare to standard Baum-Welch as well?
+
+\begin{itemize}
+    \item We did not compare our algorithm to the standard Baum-Welch because we are primarily concerned with situations in which the practitioner is not interested in deriving closed-form solutions to the M-step of the EM algorithm, or when such solutions are not possible. If such solutions are available, then we would suggest using the standard Baum-Welch or a partial E-step within the standard Baum-Welch. Although it may have been a good idea to do the simulation study with a model without simple closed-forms solutions to the M step, we choose a simple model to be clear and reproducible. We have added a bit about this in the main text.
+\end{itemize}
+
+Section 5.3, if the interest is in modelling very large data sets (in terms of $T$?), why not show those results in the main text and $T=10^3$ in the supplement?
+
+\begin{itemize}
+    \item Apologies for the confusion: we did show the results for $T=10^5$ in the main text and deferred the results for $T = 10^3$ in the supplement. We have clarified this a bit in Section 5.3.
+\end{itemize}
+
+At the beginning of the case study, I started to wonder what these dives and depth readings are, for which I found an answer later in 6.1, maybe it would be good to mention already at the beginning that definitions will follow.
+
+\begin{itemize}
+    \item Thank you for pointing this out. We introduced the data at the beginning of the section 6 to highlight that the underlying data set was large, but we agree that introducing the data so early is confusing. We have deleted the bit about the data set in the introduction, and simply introduced the underlying data in section 6.1.
+\end{itemize}
+
+The description of the transition matrix in the case study is bit hard to follow. Equation (36) defines $\Gamma_t$, but then (37) redefines it, should (36) be about $\Gamma_c$? Maybe it would be good to show the full transition matrix 37 as expanded as well? Why does $\Gamma_t$ depend on time? At first I though you were using the observed sequences to define the start/end of dives, but as you are also modelling $E_t$ it appears not. 
+
+\begin{itemize}
+    \item We agree that the presentation of the transition matrix was not clear in the case study. It is in fact the case that the transition matrix at time $t$ depends upon the observation $E_{t-1}$, and this fact was skimmed over. Then, technically the model in the case study is actually a generalized version of an HMM. We have addressed this in the main text and added citations from papers that show that allowing the transition matrix to depend upon the previous observation does not affect the inference procedure. 
+
+    We experimented with expanding the transition matrix in (37), but unfortunately the 9-by-9 matrix was very large to write out in the main text. However, we have added an expanded version in supplement B.
+\end{itemize}
+
+%\bibliography{References}
+
+\end{document}

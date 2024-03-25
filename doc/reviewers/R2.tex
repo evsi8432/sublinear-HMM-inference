@@ -1,0 +1,131 @@
+\documentclass[11pt]{article}
+\pdfoutput=1
+
+\input{header}
+\input{defs}
+
+\pdfminorversion=4
+% NOTE: To produce blinded version, replace "0" with "1" below.
+\newcommand{\blind}{1}
+\linenumbers
+
+% DON'T change margins - should be 1 inch all around.
+\addtolength{\oddsidemargin}{-.5in}%
+\addtolength{\evensidemargin}{-1in}%
+\addtolength{\textwidth}{1in}%
+\addtolength{\textheight}{1.7in}%
+\addtolength{\topmargin}{-1in}%
+
+\date{}
+\begin{document}
+
+%\bibliographystyle{natbib}
+
+\def\spacingset#1{\renewcommand{\baselinestretch}%
+{#1}\small\normalsize} \spacingset{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\if0\blind
+{
+    \title{Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models : Response to Reviewer 2}
+
+    \author{
+      \textbf{Evan Sidrow} \\
+      Department of Statistics \\
+      University of British Columbia\\
+      Vancouver, Canada \\
+      \texttt{evan.sidrow@stat.ubc.ca} \\
+      %
+      \and
+      %
+      \textbf{Nancy Heckman} \\
+      Department of Statistics \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      %
+      \and
+      %
+      \textbf{Alexandre Bouchard-C\^ot\'e} \\
+      Department of Statistics \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      \and
+      %
+      \textbf{Sarah M. E. Fortune} \\
+      Department of Oceanography \\
+      Dalhousie University \\
+      Halifax, Canada \\
+      %
+      \and
+      %
+      \textbf{Andrew W. Trites} \\
+      Department of Zoology \\
+      Institute for the Oceans and Fisheries \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+      %
+      \and
+      %
+      \textbf{Marie Auger-M\'eth\'e} \\
+      Department of Statistics \\
+      Institute for the Oceans and Fisheries \\
+      University of British Columbia \\
+      Vancouver, Canada \\
+    }
+    \maketitle
+} \fi
+
+\if1\blind
+{
+  \bigskip
+  \bigskip
+  \bigskip
+  \begin{center}
+    {\LARGE\bf Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models: Response to Reviewer 2}
+  \end{center}
+  \medskip
+} \fi
+
+The authors propose improving the computationally expensive E- and M-steps of the Baum-Welch algorithm via a partial E-step and variance-reduced stochastic optimization techniques, respectively, to infer the parameters of hidden Markov models. The proposed method is supported by two theorems guaranteeing the convergence to a local maximum, and is tested via two numerical studies, one extensive simulation study and one realistic data analysis. The manuscript is very well-written and structured with strong theoretical justification. I only have several minor comments that are listed below. Please feel free to educate me if the authors think I misunderstand the manuscript.
+
+1. Page 2: The authors state that the Baum-Welch algorithm is a special case of EM. It would be great if the authors could briefly explain why (or in what sense) the Baum-Welch algorithm is a special case of EM.
+
+\begin{itemize}
+    \item Thank you for pointing this out. We have added the following to the manuscript:
+    
+    ``The latter predates the more general expectation-maximization (EM) algorithm \citep{Dempster:1977}, but the two are equivalent to one another when applied to HMMs."
+    
+\end{itemize}
+
+2. Page 10: What does the acronym “SAGA” stand for? The authors start using the two acronyms, SAG and SVRG, after specifying the original names, but this is not the case for SAGA.
+
+\begin{itemize}
+    \item Thank you for finding this oversight. Oddly, we could not find what SAGA stood for in the original SAGA paper! After some further research, we found that it stands for ``Stochastic Average Gradient Accelerated". We have updated the manuscript accordingly.
+\end{itemize}
+
+3. Page 10: The authors mention each algorithm by its own algorithm number, for example, ``Algorithm (3)”, in the main text, but it is originally named by ``Algorithm 3” in the corresponding pseudocode.
+
+\begin{itemize}
+    \item Thank you for catching this- we have corrected this for both algorithms and figures.
+\end{itemize}
+
+4. Page 22: As a measure for the convergence speed, the authors adopt the number of iterations until the convergence (among those algorithms run within 12 hours). Summarizing overall CPU times of all of the methods being compared in a table would also be helpful to get a sense of how fast the proposed algorithms are. It may also provide new intuition or insight that is not mentioned in the text.
+
+\begin{itemize}
+    \item This comments aligns with one from another reviewer
+\end{itemize}
+
+5. Page 24: The authors say, “However, Algorithm (5) tended to converge to areas of higher likelihood than the baseline for almost all experiments.” I am wondering whether the authors can provide another quality measure for this argument.
+
+\begin{itemize}
+    \item I don't know that this means
+\end{itemize}
+
+When there are multiple modes, local optimizers may end up with different local maxima when the initial values are spread over the parameter space. Did the authors implement a single run (a single set of initial values) for each algorithm given each data set (among five data sets) in each experiment (among eight experiments), and argue that the proposed methods end up with higher likelihood areas? Then I may not buy this argument because it is possible that the proposed methods might have started with favorable initial values (those close to high likelihood regions) ‘by chance’. Or is the argument based on some average performance among multiple runs with initial values spread throughout the parameter space for each algorithm given the same data set in each experiment?
+
+\begin{itemize}
+    \item For each experiment and data set, we initialized 5 random parameter initializations. We then ran each algorithm on each random parameter initialization. We reported the random initialization (of the 5) of each algorithm that resulted in the highest likelihood after 12 hours in Figure 2 and Figure 6 (the trace plots of the log-likelihood), but we reported the results of all initializations in Figures 3, 4, and 7 (box plots and scatter plots). Figure 2 and Figure 6 aim to show how the algorithms perform when initializing many times, while Figures 3, 4, and 7 aim to show how they perform on average across many initializations. We have added a bit to the main text to address this point.
+\end{itemize} 
+
+\end{document}

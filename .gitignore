@@ -13,6 +13,9 @@
 .*.lb
 *.pyc
 
+## all temp files
+tmp/
+
 ## anything other than the bib file in /ref
 ref/*
 !ref/*.bib
@@ -27,6 +30,9 @@ params/*
 
 ## any plots
 plt/*
+
+## all presentations
+pres/*
 
 ## ipython checkpoints
 Code/.ipynb_checkpoints/*

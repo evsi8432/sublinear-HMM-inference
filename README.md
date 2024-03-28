@@ -2,7 +2,7 @@
 
 This repository contains all of the code and data from "Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models" by Sidrow et al. (2024). All code was run using Python 3.9.12.
 
-In order to run the simualtion study, navigate to the `src` directory and run the command `python sim_study x y`, where `x` is the number hours for the code to run and `y` is an integer between 0 and 399. In the paper, `x` was set to 12 and the code was run on all values of `y` from 0 to 399.
+In order to run the simualtion study, navigate to the `src` directory and run the command `python sim_study.py x y`, where `x` is the number hours for the code to run and `y` is an integer between 0 and 399. In the paper, `x` was set to 12 and the code was run on all values of `y` from 0 to 399.
 
 In order to run the case study, navigate to the `src` directory and run the command `python case_study.py x y`, where `x` is the number hours for the code to run and `y` is an integer between 0 and 499. In the paper, `x` was set to 12 and the code was run on all values of `y` from 0 to 499.
 

@@ -58,7 +58,7 @@ from helper_funcs import generate_data
 This script runs the simulation study of VARIANCE-REDUCED STOCHASTIC
 OPTIMIZATION FOR EFFICIENT INFERENCE OF HIDDEN MARKOV MODELS
 by Sidrow et al. (2023). This script was run in using the command
-`python case_study.py 12 x` for x in 0:500.
+`python sim_study.py 12 x` for x in 0:399.
 '''
 
 # parse command-line args

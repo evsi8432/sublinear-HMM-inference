@@ -13,6 +13,12 @@
 .*.lb
 *.pyc
 
+## all plots
+plt/
+
+## all documents
+doc/
+
 ## all temp files
 tmp/
 

@@ -50,7 +50,7 @@ from numpy import array
 '''
 This script runs the case study of VARIANCE-REDUCED STOCHASTIC OPTIMIZATION FOR
 EFFICIENT INFERENCE OF HIDDEN MARKOV MODELS by Sidrow et al. (2023). This script
-was run in using the command `python case_study.py 12 x` for x in 0:500.
+was run in using the command `python case_study.py 12 x` for x in 0:499.
 '''
 
 # parse command-line args

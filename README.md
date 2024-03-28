@@ -2,4 +2,14 @@
 
 This repository contains all of the code and data from "Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models" by Sidrow et al. (2024).
 
-In order to run
+In order to run the simualtion study, navigate to the `src` directory and run the command `python sim_study x y`, where `x` is the number hours for the code to run and `y` is an integer between 0 and 399. In the paper, `x` was set to 12 and the code was run on all values of `y` from 0 to 399.
+
+In order to run the case study, navigate to the `src` directory and run the command `python case_study.py x y`, where `x` is the number hours for the code to run and `y` is an integer between 0 and 499. In the paper, `x` was set to 12 and the code was run on all values of `y` from 0 to 499.
+
+Running the simulation and case studies will create a two new subdirectories: `params/case_study` and `params/sim_study`, both of which contain pkl files from their respective experiments.
+
+In order to plot the results, run any of the .ipynb files after running the simualtion or case studies:
+
+- `sim-study-optimization-results.ipynb` will plot the optimizaiton results from the simulation study
+- `case-study-optimization-results.ipynb` will plot the optimizaiton results from the case study
+- `case-study-model-results.ipynb` will plot the parameter estimates from the case study

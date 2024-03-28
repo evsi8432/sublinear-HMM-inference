@@ -41,7 +41,10 @@ plt/*
 pres/*
 
 ## ipython checkpoints
-Code/.ipynb_checkpoints/*
+src/.ipynb_checkpoints/*
+
+## bash files
+*.sh
 
 ## Intermediate documents:
 *.dvi

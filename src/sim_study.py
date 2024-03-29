@@ -285,6 +285,11 @@ optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
 # save file
+if not os.path.isdir('../params'):
+    os.mkdir('../params')
+if not os.path.isdir('../params/sim_study'):
+    os.mkdir('../params/sim_study')
+
 fname = "../params/sim_study/T-%d_K-%d-%d_d-%d_%s_%.1f_%03d_%03d" % (T,K[0],K[1],d,method,partial_E,rand_seed,data_set)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

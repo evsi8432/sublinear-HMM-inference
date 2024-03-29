@@ -320,6 +320,11 @@ optim.p_Xt = None
 optim.p_Xtm1_Xt = None
 
 # save file
+if not os.path.isdir('../params'):
+    os.mkdir('../params')
+if not os.path.isdir('../params/case_study'):
+    os.mkdir('../params/case_study')
+
 fname = "../params/case_study/case_study_K-%d-%d_%s_%.1f_%03d" % (K[0],K[1],method,partial_E,rand_seed)
 with open(fname, 'wb') as f:
     pickle.dump(optim, f)

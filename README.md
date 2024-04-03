@@ -6,9 +6,9 @@ This repository contains all of the code and data from "Variance-Reduced Stochas
 
 In order to run the simualtion study, navigate to the `src` directory and run the command `python sim_study.py x y`, where `x` is the number hours for the code to run and `y` is an integer between 0 and 399. `y` corresponds to an experiment index that varies the following:
 
-- the length of the time series ($T \in \{10^3,10^5\}$)
-- the number of hidden states of the HMM ($N \in \{3,6\}$)
-- the dimension of the observations ($d \in \{3,6\}$)
+- the length of the time series ($T \in \\{10^3,10^5\\}$)
+- the number of hidden states of the HMM ($N \in \\{3,6\\}$)
+- the dimension of the observations ($d \in \\{3,6\\}$)
 - the parameter initializations ($\phi_0$, 5 total)
 - the observation dataset (5 total)
 - the optimization algorithm (All baselines, `SVRG` vs `SAGA` in the M step, whether to do a partial E step, and either $T$ or $10T$ M step iterations)

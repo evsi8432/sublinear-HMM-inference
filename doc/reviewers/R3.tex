@@ -88,23 +88,66 @@
 } \fi
 
 Dear Authors,
-I hope this message finds you well. I recently had the opportunity to review your paper titled “Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models”. I would like to express my appreciation for the substantial contributions you have made. Your paper is exceptionally well-written, offering a concise yet comprehensive overview of the stochastic gradient descent (SGD) literature and presenting an elegant marriage of notation from hidden Markov Models (HMM), expectation maximization (EM), and SGD. It is, without a doubt, an excellent paper that addresses the crucial issue of linear optimization speed for lengthy time series, marking a pioneering effort in the field. The relevance of your work to the increasing data resolution trend, leading to larger datasets, further highlights its importance. However, I would like to offer some constructive suggestions for further enhancement. Please find my comments below; I hope you find them helpful. My primary concern revolves around the exclusive use of epochs to quantify optimization effort. I recommend considering the inclusion of time until convergence, in addition to epochs, as a metric for measuring complexity. Sole reliance on epochs may slightly favor your method, as one full numerical gradient evaluation, equating to the complexity of one epoch, might be faster than one epoch comprising several batch gradient evaluations. In the end, estimation time matters; thus, I believe it should also be reported in your simulation experiments and the application. Therefore, I would suggest adding time to convergence to the results. 
 
-Second, while your simulation scenarios and the real data application paint a sufficiently detailed picture of the method’s performance in a proof-of-concept manner, what I missed is the performance results when fitting inhomogeneous HMMs with covariates affecting the state process. Typically, as these models are less stable than homogeneous models, they are more difficult to fit and often tend to converge to local minima when choosing suboptimal starting values. As such, it would be intriguing to see if a stochastic optimization approach performs worse or indeed better than established methods as it could be less prone to converge to local minima. I don’t expect you to extend your simulations to such models in this contribution, but I would propose to comment on this in the discussion, as you already refer to more complex models. Besides that, I only have some minor comments: 
+I hope this message finds you well. I recently had the opportunity to review your paper titled “Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models”. I would like to express my appreciation for the substantial contributions you have made. Your paper is exceptionally well-written, offering a concise yet comprehensive overview of the stochastic gradient descent (SGD) literature and presenting an elegant marriage of notation from hidden Markov Models (HMM), expectation maximization (EM), and SGD. It is, without a doubt, an excellent paper that addresses the crucial issue of linear optimization speed for lengthy time series, marking a pioneering effort in the field. The relevance of your work to the increasing data resolution trend, leading to larger datasets, further highlights its importance. However, I would like to offer some constructive suggestions for further enhancement. Please find my comments below; I hope you find them helpful.
+
+\begin{itemize}
+    \item \textit{Thank you very much for these kind words! We greatly appreciate the time and effort that you clearly took in evaluating the manuscript, and hope that it advances the current literature. Your comments are insightful and have helped improve the manuscript. We hope that our responses and edits to the manuscript address all of the comments given. We have uploaded two versions of the paper: one with all black font, and one with red font where significant changes have been made.}
+\end{itemize}
+
+My primary concern revolves around the exclusive use of epochs to quantify optimization effort. I recommend considering the inclusion of time until convergence, in addition to epochs, as a metric for measuring complexity. Sole reliance on epochs may slightly favor your method, as one full numerical gradient evaluation, equating to the complexity of one epoch, might be faster than one epoch comprising several batch gradient evaluations. In the end, estimation time matters; thus, I believe it should also be reported in your simulation experiments and the application. Therefore, I would suggest adding time to convergence to the results. 
+
+\begin{itemize}
+    \item \textit{We have added the computation time in all of the main text figures associated with the case study (Figs. 6--7) and one of the main simulation study figure (Fig. 3). The results are similar. Due to concerns regarding manuscript length, we placed other simulation study figures that included computation time in Supplement A. Here, again, the results are similar.}
+\end{itemize}
+
+Second, while your simulation scenarios and the real data application paint a sufficiently detailed picture of the method’s performance in a proof-of-concept manner, what I missed is the performance results when fitting inhomogeneous HMMs with covariates affecting the state process. Typically, as these models are less stable than homogeneous models, they are more difficult to fit and often tend to converge to local minima when choosing suboptimal starting values. As such, it would be intriguing to see if a stochastic optimization approach performs worse or indeed better than established methods as it could be less prone to converge to local minima. I don’t expect you to extend your simulations to such models in this contribution, but I would propose to comment on this in the discussion, as you already refer to more complex models.
+
+\begin{itemize}
+    \item \textit{Thank you for this comment- it is an excellent candidate for future work. We have taken note of this suggestion and have addressed this in the discussion  (lines 617-623).}
+\end{itemize}
 
 page 12: Please provide an explanation for keeping the expected number of transitions constant, as this seems unconventional.
 
+\begin{itemize}
+    \item \textit{Our goal was to induce a high degree of sequential dependence while virtually guaranteeing that each hidden state was visited at least once in the simulated time series. We have clarified this in the main text (lines 390-394).}
+\end{itemize}
+
 Regarding your simulation experiments, I did not really understand if your baseline is a vanilla EM with full BFGS optimization in the M step or if this refers to direct numerical maximum likelihood estimation using BFGS. Please clarify this.
 
-page 3, line 6: I find it confusing that you use η (i) with one and η (i,j) with two superscripts to denote the transformed parameters for δ and Γ. I propose using different letters here to subsequently summarise them in one vector η.
+\begin{itemize}
+    \item \textit{We agree that this is ambiguous in the main text. The baseline is direct numerical maximum likelihood estimation, and we have clarified this in the text (lines 410-412).}
+\end{itemize}
 
-page 3, equation 3: You should avoid using capital letters X and Y in the equation for the likelihood (random variable notation). This is rather unusual, as xt and yt are treated as fixed realizations here.
+page 3, line 6: I find it confusing that you use $\eta^{(i)}$ with one and $\eta^{(i,j)}$ with two superscripts to denote the transformed parameters for $\delta$ and $\Gamma$. I propose using different letters here to subsequently summarize them in one vector $\eta$.
+
+\begin{itemize}
+    \item \textit{This is a good suggestion. We have switched the re-parameterized $\bfdelta$ parameters to $\bfnu \in \bbR^N$ and the re-parameterized $\bfGamma$ parameters are $\bfeta \in \bbR^{N \times N}$. We now we write the entire set of parameters as $\bfphi = \{\bftheta,\bfeta,\bfnu\}$}.    
+\end{itemize}
+
+page 3, equation 3: You should avoid using capital letters $X$ and $Y$ in the equation for the likelihood (random variable notation). This is rather unusual, as $x_t$ and $y_t$ are treated as fixed realizations here.
+
+\begin{itemize}
+    \item \textit{Thank you for pointing this out. We have addressed this point in the main text throughout section 2.}
+\end{itemize}
 
 page 6, algorithm 3, line 5: The colon after “do” is inconsistent with the remaining algorithms, in which you don’t use a colon.
 
+\begin{itemize}
+    \item \textit{We have addressed this point in the main text.}
+\end{itemize}
+
 page 8: It is rather distracting to the reader that the theorem is broken after point one.
 
+\begin{itemize}
+    \item \textit{Apologies for the issue with readability. Theorem 1 in the revised manuscript should be easier to read.}
+\end{itemize}
+
 page 11 line 9: Please note that the original source (Schmidt et al.) uses the squared norm in this context.
+
+\begin{itemize}
+    \item \textit{Thank you for catching the typo. We have addressed this point in the main text (line 337).}  
+\end{itemize}
 
 Once again, thank you for your valuable contribution to the field. I believe that addressing these suggestions would further elevate the impact of your work. I look forward to seeing its continued development.
 

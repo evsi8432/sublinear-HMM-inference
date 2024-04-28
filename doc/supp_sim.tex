@@ -18,6 +18,7 @@
 
 \begin{document}
 
+\raggedbottom
 %\bibliographystyle{natbib}
 
 \def\spacingset#1{\renewcommand{\baselinestretch}%
@@ -27,7 +28,7 @@
 
 \if0\blind
 {
-    \title{Variance-reduced stochastic optimization for efficient inference of hidden Markov models: Supplement A: Simulation Study}
+    \title{Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models: Supplement A: Simulation Study}
     
     \author{
       \textbf{Evan Sidrow} \\
@@ -91,21 +92,30 @@
 \newpage
 \spacingset{1.75} % DON'T change the spacing!
 
-\section{Simulation study results, $T = 10^{3}$}
+\section{Simulation Study Results, $T = 10^{3}$}
 
-Below are results for the experiments with $T=10^{3}$. They are analogous to Figure 3 and Figure 4 in the main text.
+The pages that follow present results for the experiments with $T=10^{3}$. They are analogous to Figure 3 and Figure 4 in the main text.
+
+\newpage
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/boxplots_sim_T_1000.png}
-    \caption{Box plots showing epochs to converge (top) and the maximum log-likelihood minus the log-likelihood at convergence (all divided by $T$, bottom) for each optimization algorithm. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. Blue corresponds to SAGA and orange corresponds to SVRG. Results are shown for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (left), $N=3$ and $d=6$ (left-middle), $N=6$ and $d=3$ (right-middle), and $N=6$ and $d=6$ (right). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The y-axis of the bottom row is on a log-scale.}
+    \caption{Box plots showing time to terminate (top), epochs to terminate (middle), and maximum log-likelihood minus log-likelihood at termination (all over $T$, bottom) for each optimization algorithm in the simulation study. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. Each box plot summarizes results from all five data sets and all five parameter initializations per data set. FE corresponds to $\{P = \texttt{False}, M = T\}$, PE1 corresponds to $\{P = \texttt{True}, M = T\}$, and PE2 corresponds to $\{P = \texttt{False}, M = 10T\}$. Results are shown for all simulation studies with $T=10^{3}$. The y-axis of the bottom row is on a log-scale.}
     \label{fig:boxplots_sim}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
-    \includegraphics[width=6.5in]{../plt/scatter_sim_T_1000.png}
-    \caption{Maximum log-likelihood minus the log-likelihood at convergence (all over $T$) versus epochs to converge for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \includegraphics[width=6.5in]{../plt/scatter_sim_T_1000_epoch.png}
+    \caption{Maximum log-likelihood minus the log-likelihood at termination (all over $T$) versus epochs to termination for all simulation studies with $T=10^{3}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. Termination is defined as either convergence or 12 hours of computation time, whichever came first. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale.}
+    \label{fig:scatter_sim}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/scatter_sim_T_1000_time.png}
+    \caption{Maximum log-likelihood minus the log-likelihood at termination (all over $T$) versus time to termination for all simulation studies with $T=10^{3}$, $N=3$ and $d=3$ (top left), $N=3$ and $d=6$ (top right), $N=6$ and $d=3$ (bottom left), and $N=6$ and $d=6$ (bottom left). Termination is defined as either convergence or 12 hours of computation time, whichever came first. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale.}
     \label{fig:scatter_sim}
 \end{figure}
 
@@ -113,72 +123,136 @@ Below are results for the experiments with $T=10^{3}$. They are analogous to Fig
 
 \newpage 
 
-The figures below show the optimality gap vs epoch for each data set of every experiment with $T=10^{3}$ for all nine tested algorithms. They are similar to Figure 2 from the main text. $\texttt{EM-VRSO}$ tended to converge more quickly than BFGS for experiments with $N=3$. BFGS often out-performed $\texttt{EM-VRSO}$ in the long-run (after approximately 100 epochs), but BFGS is a second-order method and this behaviour is expected in the long run on small data sets. Our method is particularly well-suited to fitting HMMs on large and complex data sets. 
+The pages that follow present figures that show the optimality gap vs epoch or time for each data set of every experiment with $T=10^{3}$ for all nine tested algorithms. They are similar to Figure 2 from the main text. $\texttt{EM-VRSO}$ tended to converge more quickly than BFGS for experiments with $N=3$. BFGS often out-performed $\texttt{EM-VRSO}$ in the long-run (after approximately 100 epochs), but BFGS is a second-order method and this behavior is expected in the long run on small data sets. Our method is particularly well-suited to fitting HMMs on large and complex data sets. 
+
+\newpage
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-1000-000.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the first simulated data sets associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the first simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-1000-000.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the first simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-1000-001.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the second simulated data sets associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the second simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-1000-001.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the second simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-1000-002.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the third simulated data sets associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the third simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-1000-002.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the third simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-1000-003.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fourth simulated data sets associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fourth simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-1000-003.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fourth simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-1000-004.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fifth simulated data sets associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fifth simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-1000-004.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fifth simulated data set associated with experiments $T=10^{3}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 
 \newpage
 
-\section{Simulation study results, $T = 10^{5}$}
+\section{Simulation Study Results, $T = 10^{5}$}
 
-The figures below are similar to Figure 2 from the simulation study in the main text. They show the optimality gap vs epoch for each experiment and each of the nine tested algorithms. However, we include all simulated data sets here.
+The pages that follow present figures that are similar to Figure 2 from the simulation study in the main text. They show the optimality gap vs epoch for each experiment and each of the nine tested algorithms. However, here we include all simulated data sets and plot the optimality gap vs time.
+
+\newpage
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-100000-000.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the first simulated data sets associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the first simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-100000-000.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the first simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-100000-001.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the second simulated data sets associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the second simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-100000-001.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the second simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-100000-002.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the third simulated data sets associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the third simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-100000-002.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the third simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-100000-003.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fourth simulated data sets associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fourth simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-100000-003.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fourth simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 %
 \begin{figure}[H]
     \centering
     \includegraphics[width=6.5in]{../plt/log-like_v_epoch_T-100000-004.png}
-    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fifth simulated data sets associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations with the M step, or one gradient step for full-gradient algorithms. The log-likelihood of $\bfphi$ is denoted as $\ell(\bfphi)$ on the y-axis, which is on a log-scale.}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fifth simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. One epoch represents either one full E step, $T$ iterations within the M step, or one gradient step for full-gradient algorithms. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
+\end{figure}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5in]{../plt/log-like_v_time_T-100000-004.png}
+    \caption{Optimally gap between the current log-likelihood and optimal log-likelihood for the fifth simulated data set associated with experiments $T=10^{5}$, $N \in \{3,6\}$ and $d \in \{3,6\}$. The log-likelihood is denoted as $\ell(\bfphi)$, and the maximum log-likelihood across all algorithms and initial values after 12 hours is denoted as $\ell(\bfphi^*)$. The y-axis is on a log-scale. Dots correspond to the point of termination for each algorithm.}
 \end{figure}
 
 \end{document}

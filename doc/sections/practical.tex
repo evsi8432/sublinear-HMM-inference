@@ -1,12 +1,9 @@
-%\section{Practical Considerations}
-
 Algorithm \ref{alg:EM-VRSO} outlines a method to perform the Baum-Welch algorithm with a stochastic E and M step. This section outlines implementation details that improve its practical performance.
 
 \subsection{Line Search for Step Size Selection}
 \label{subsec:est_L}
 
-One drawback of stochastic optimization is that the step size can greatly affect the practical performance of the algorithm. %\citet{Schmidt:2017} suggest using step sizes of $\lambda_F = 1/(16L_F)$ and $\lambda_G = 1/(16L_G)$ for theoretical guarantees within the SAG algorithm, where $L_F$ and $L_G$ are defined in Theorem 1. Similarly, 
-\citet{Defazio:2014} suggest a step size of $\lambda = 1/(3L)$ for SAGA, where $L$ is the Lipschitz constant defined in Theorem 1. However, the Lipschitz constants are rarely known in practice. Therefore, following \citet{Schmidt:2017}, we initialize an estimate of the Lipschitz constant, $\hat L$, and update it if the following inequality does not hold at any step $m$ of the optimization algorithm:
+One drawback of stochastic optimization is that the step size can greatly affect the practical performance of the algorithm. \citet{Defazio:2014} suggest a step size of $\lambda = 1/(3L)$ for SAGA, where $L$ is the Lipschitz constant defined in Theorem 1. However, the Lipschitz constants are rarely known in practice. Therefore, following \citet{Schmidt:2017}, we initialize an estimate of the Lipschitz constant, $\hat L$, and update it if the following inequality does not hold at any step $m$ of the optimization algorithm:
 
 \begin{gather}
     F^{(m+1)}_{t_m}\Big(\bfphi^{(m)} - \frac{1}{\hat L} \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big) \leq F^{(m+1)}_{t_m}\Big(\bfphi^{(m)}\Big) - \frac{1}{2 \hat L} \Big\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)}) \Big\| ^2, \quad \text{where} \nonumber \\
@@ -15,50 +12,36 @@ One drawback of stochastic optimization is that the step size can greatly affect
     \label{ineq:F}
 \end{gather}
 %
-The inequality above is obeyed if $\hat L = L$, so if it is violated, then we double the Lipschitz constant estimate $\hat L$. We also follow \citet{Schmidt:2017} and do not check the inequality if $\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)})\| < 10^{-8}$ due to numerical instability. 
+The inequality above is obeyed if $\hat L = L$, so if it is violated, then we double the Lipschitz constant estimate $\hat L$. We also follow \citet{Schmidt:2017} and do not check the inequality if $\| \nabla F_{t_m}^{(m+1)}(\bfphi^{(m)})\|^2 < 10^{-8}$ due to numerical instability. 
 
-In addition, the Lipschitz constant $L$ is a global quantity, but the algorithm will likely remain in a neighborhood around a local maximum of $F$ later in the optimization algorithm. Within this local neighborhood, a smaller value of $L$ may apply \citep{Schmidt:2017}, so the Lipschitz constant estimate is decreased by a small amount after each parameter update:
-%
-%\begin{equation}
-$\hat L \leftarrow 2^{-1/T} ~ \hat L$.
-%\end{equation}
-%
-Updating $\hat L$ after each parameter update allows the step size of the optimization algorithm to adapt to the smoothness of the objective function close to the optimum value.
-
-%\subsection{Warm Starting}
-
-%If the data set is very large, it can be computational burdensome to initialize the first E step of this algorithm. Therefore, the problem can be treated as an online learning algorithm for the first pass of the data.
-
-%\subsection{Mini-batch sizes}
-
-%Select a mini-batch depending upon the value of the largest diagonal of $\widehat \bfgamma$ since the Markov chain is expected to stay in its current state no longer than $\max_i 1/(1-\widehat \bfgamma_{ii})$ iterations. This is because we would intuitively like to actually update the chain every partial E step.
+In addition, the Lipschitz constant $L$ is a global quantity, but the algorithm will likely remain in a neighborhood around a local maximum of $F$ later in the optimization algorithm. Within this local neighborhood, a smaller value of $L$ may apply \citep{Schmidt:2017}, so the Lipschitz constant estimate is decreased by a small amount after each parameter update: $\hat L \leftarrow 2^{-1/T} ~ \hat L$. Updating $\hat L$ after each parameter update allows the step size of the optimization algorithm to adapt to the smoothness of the objective function close to the optimum value.
 
 \subsection{Multiple Step Sizes}
 
-The optimization problem within the M step of the Baum-Welch algorithm can be written as two separate optimization problems over both $\bftheta$ and $\bfeta$ (recall that $\bfphi = \{\bftheta,\bfeta\}$). In particular, we can rewrite $F_t$ as $F_t(\bfphi \mid \bfgamma_t,  \bfxi_t) = G_t(\bftheta \mid  \bfgamma_t,  \bfxi_t) + H_t(\bfeta \mid  \bfgamma_t,  \bfxi_t)$, where
+The optimization problem within the M step of the Baum-Welch algorithm can be written as separate optimization problems over $\bftheta$, $\bfeta$, and $\bfnu$ (recall that $\bfphi = \{\bftheta,\bfeta,\bfnu\}$). In particular, we can rewrite $F_t$ as $F_t(\bfphi \mid \bfgamma_t,  \bfxi_t) = G_t(\bftheta \mid  \bfgamma_t,  \bfxi_t) + H_t(\bfeta, \bfnu \mid  \bfgamma_t,  \bfxi_t)$, where
 
 \begin{gather}
     G_t(\bftheta \mid  \bfgamma_t,  \bfxi_t) = - \sum_{i=1}^N  \gamma^{(i)}_t \log f^{(i)}(y_t;\theta^{(i)}), \quad t = 1,\ldots,T, \\
     %
-    H_1(\bfeta \mid  \bfgamma_t,  \bfxi_t) = - \sum_{i=1}^N  \gamma^{(i)}_t \log \delta^{(i)}(\bfeta), \\
+    H_1(\bfeta, \bfnu \mid  \bfgamma_1,  \bfxi_1) = - \sum_{i=1}^N  \gamma^{(i)}_1 \log \delta^{(i)}(\bfnu), \\
     %
-    H_t(\bfeta \mid  \bfgamma_t,  \bfxi_t) =  - \sum_{i=1}^N \sum_{j=1}^N  \xi^{(i,j)}_t \log \Gamma^{(i,j)}(\bfeta), \quad t = 2,\ldots,T.
+    H_t(\bfeta, \bfnu \mid \bfgamma_t,  \bfxi_t) =  - \sum_{i=1}^N \sum_{j=1}^N  \xi^{(i,j)}_t \log \Gamma^{(i,j)}(\bfeta), \quad t = 2,\ldots,T.
 \end{gather}
 %
-To this end, let $\widehat \nabla G^{(m)}_{t}$ be equal to the components of $\widehat \nabla F^{(m)}_{t}$ that correspond to $\bftheta$, and let $\widehat \nabla H^{(m)}_{t}$ be equal to the components of $\widehat \nabla F^{(m)}_{t}$ that correspond to $\bfeta$. Likewise, let $\widehat \nabla G^{(m)}$ be equal to the components of $\widehat \nabla F^{(m)}$ that correspond to $\bftheta$, and let $\widehat \nabla H^{(m)}$ be equal to the components of $\widehat \nabla F^{(m)}$ that correspond to $\bfeta$. Then, we can rewrite the gradient step in the stochastic M step of Algorithm \ref{alg:VRSO-PE} as
+To this end, let $\widehat \nabla G^{(m)}_{t}$ be equal to the components of $\widehat \nabla F^{(m)}_{t}$ that correspond to $\bftheta$, and let $\widehat \nabla H^{(m)}_{t}$ be equal to the components of $\widehat \nabla F^{(m)}_{t}$ that correspond to $\bfeta$ and $\bfnu$. Likewise, let $\widehat \nabla G^{(m)}$ be equal to the components of $\widehat \nabla F^{(m)}$ that correspond to $\bftheta$, and let $\widehat \nabla H^{(m)}$ be equal to the components of $\widehat \nabla F^{(m)}$ that correspond to $\bfeta$ and $\bfnu$. Then, we can rewrite the gradient step in the stochastic M step of Algorithm \ref{alg:VRSO-PE} as
 
 \begin{align}
     \bftheta^{(m+1)} &= \bftheta^{(m)} - \lambda_{\bftheta} \left[\nabla G_{t_m}\left(\bftheta^{(m)} ~ \Big | ~ \widehat \bfgamma_{t_m}^{(m+1)}, \widehat \bfxi_{t_m}^{(m+1)}\right) - \widehat \nabla G_{t_m}^{(m)} + \widehat \nabla G^{(m)} \right], \\
     %
-    \bfeta^{(m+1)} &= \bfeta^{(m)} - \lambda_{\bfeta} \left[\nabla H_{t_m}\left(\bfeta^{(m)} ~ \Big | ~ \widehat \bfgamma_{t_m}^{(m+1)}, \widehat \bfxi_{t_m}^{(m+1)}\right) - \widehat \nabla H_{t_m}^{(m)} + \widehat \nabla H^{(m)} \right].
+    \{\bfeta,\bfnu\}^{(m+1)} &= \{\bfeta,\bfnu\}^{(m)} - \lambda_{\bfeta,\bfnu} \left[\nabla H_{t_m}\left(\bfeta^{(m)}, \bfnu^{(m)} ~ \Big | ~ \widehat \bfgamma_{t_m}^{(m+1)}, \widehat \bfxi_{t_m}^{(m+1)}\right) - \widehat \nabla H_{t_m}^{(m)} + \widehat \nabla H^{(m)} \right].
 \end{align}
 %
-where $\lambda_{\bftheta} = \lambda_{\bfeta} = \lambda$. Note that $G_t$ is a function of $\bftheta$ alone and $H_t$ is a function of $\bfeta$ alone for given $\widehat \bfgamma_{t}$ and $\widehat \bfxi_{t}$ and all $t = 1,\ldots,T$. As such, we allow $\lambda_{\bftheta} \neq \lambda_{\bfeta}$ and have each depend upon different Lipschitz constant estimates: $\lambda_{\bftheta} = 1/(3\hat L_G)$ and $\lambda_{\bfeta} = 1/(3\hat L_H)$. The line search described in Section 4.1 can then be used to update the estimates $\hat L_G$ and $\hat L_H$ separately.
+where $\lambda_{\bftheta} = \lambda_{\bfeta,\bfnu} = \lambda$. Note that $G_t$ is a function of only $\bftheta$ and $H_t$ is a function of only $\bfeta$ and $\bfnu$ for given $\widehat \bfgamma_{t}$ and $\widehat \bfxi_{t}$ and all $t = 1,\ldots,T$. As such, we allow $\lambda_{\bftheta} \neq \lambda_{\bfeta,\bfnu}$ and have each depend upon different Lipschitz constant estimates: $\lambda_{\bftheta} = 1/(3\hat L_G)$ and $\lambda_{\bfeta,\bfnu} = 1/(3\hat L_H)$. The line search described in Section 4.1 was then used to update the estimates $\hat L_G$ and $\hat L_H$ separately.
 
 \subsection{Adaptive Step Size for Fixed Lipschitz Constants}
 \label{subsec:L_divider}
 
-Under certain regularity conditions, \citet{Defazio:2014} prove that SAGA converges using a step size of $1/(3L)$ for a given loss function $F$ with Lipschitz constant $L$. We therefore initialize step sizes of $\lambda_{\bftheta} = 1/(3 \hat L_G)$ and $\lambda_{\bfeta} = 1/(3 \hat L_H)$ for all experiments and algorithms. However, for Algorithm \ref{alg:EM-VRSO} with $P = \texttt{True}$, the objective function $F(\cdot \mid \widehat \bfgamma_{t_m}^{(m+1)} ~,~ \widehat \bfxi_{t_m}^{(m+1)}) = G(\cdot \mid \widehat \bfgamma_{t_m}^{(m+1)} ~,~ \widehat \bfxi_{t_m}^{(m+1)}) + H(\cdot \mid \widehat \bfgamma_{t_m}^{(m+1)} ~,~ \widehat \bfxi_{t_m}^{(m+1)})$ itself changes over the course of a single M step as $\widehat \bfgamma_{t_m}^{(m+1)}$ and $\widehat \bfxi_{t_m}^{(m+1)}$ are updated. As a result, more conservative (i.e. smaller) step sizes $\lambda_{\bftheta}$ and $\lambda_{\bfeta}$ may be needed, even if the Lipschitz constant estimates $\hat L_G$ and $\hat L_H$ are accurate. We therefore allow Algorithm \ref{alg:EM-VRSO} to change the step size after each attempt $\ell$ through the M step of the Baum-Welch algorithm. Namely, if the log-likelihood does not decrease after iteration $k$ and attempt $\ell$ through the M step of Algorithm \ref{alg:EM-VRSO} with $P = \texttt{True}$, we halve the step size (as a function of either $\hat L_G$ or $\hat L_H$) for attempt $\ell+1$. For example, if the step sizes are $\lambda_{\bftheta} = 1/(3 \hat L_G)$ and $\lambda_{\bfeta} = 1/(3 \hat L_H)$ for attempt $\ell$ through a given M step, and attempt $\ell$ results in an increase of the log-likelihood, we define new step-sizes $\lambda_{\bftheta} \leftarrow 1/(6 \hat L_G)$ and $\lambda_{\bfeta} \leftarrow 1/(6 \hat L_H)$ for attempt $\ell+1$. We also maintain this halved step size for the remainder of Algorithm \ref{alg:EM-VRSO}.
+Under certain regularity conditions, \citet{Defazio:2014} prove that SAGA converges using a step size of $1/(3L)$ for a given loss function $F$ with Lipschitz constant $L$. We therefore initialize step sizes of $\lambda_{\bftheta} = 1/(3 \hat L_G)$ and $\lambda_{\bfeta,\bfnu} = 1/(3 \hat L_H)$ for all experiments and algorithms. However, for Algorithm \ref{alg:EM-VRSO} with $P = \texttt{True}$, the objective function $F(\cdot \mid \widehat \bfgamma_{t_m}^{(m+1)} ~,~ \widehat \bfxi_{t_m}^{(m+1)}) = G(\cdot \mid \widehat \bfgamma_{t_m}^{(m+1)} ~,~ \widehat \bfxi_{t_m}^{(m+1)}) + H(\cdot \mid \widehat \bfgamma_{t_m}^{(m+1)} ~,~ \widehat \bfxi_{t_m}^{(m+1)})$ itself changes over the course of a single M step as $\widehat \bfgamma_{t_m}^{(m+1)}$ and $\widehat \bfxi_{t_m}^{(m+1)}$ are updated. As a result, more conservative (i.e. smaller) step sizes $\lambda_{\bftheta}$ and $\lambda_{\bfeta,\bfnu}$ may be needed, even if the Lipschitz constant estimates $\hat L_G$ and $\hat L_H$ are accurate. We therefore allow Algorithm \ref{alg:EM-VRSO} to change the step size after each attempt $\ell$ through the M step of the Baum-Welch algorithm. Namely, if the log-likelihood does not decrease after iteration $k$ and attempt $\ell$ through the M step of Algorithm \ref{alg:EM-VRSO} with $P = \texttt{True}$, we halve the step size (as a function of either $\hat L_G$ or $\hat L_H$) for attempt $\ell+1$. For example, if the step sizes are $\lambda_{\bftheta} = 1/(3 \hat L_G)$ and $\lambda_{\bfeta,\bfnu} = 1/(3 \hat L_H)$ for attempt $\ell$ through a given M step, and attempt $\ell$ results in an increase of the log-likelihood, we define new step-sizes $\lambda_{\bftheta} \leftarrow 1/(6 \hat L_G)$ and $\lambda_{\bfeta,\bfnu} \leftarrow 1/(6 \hat L_H)$ for attempt $\ell+1$. We also maintain this halved step size for the remainder of Algorithm \ref{alg:EM-VRSO}.
 
 \subsection{Sampling for SAGA and SVRG Without Replacement}
 \label{subsec:wo_replacement}

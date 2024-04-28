@@ -81,7 +81,7 @@
   \bigskip
   \bigskip
   \begin{center}
-    {\LARGE\bf Variance-reduced stochastic optimization for efficient inference of hidden Markov models: Supplement B: Case Study}
+    {\LARGE\bf Variance-Reduced Stochastic Optimization for Efficient Inference of Hidden Markov Models: Supplement B: Case Study}
   \end{center}
   \medskip
 } \fi
@@ -89,9 +89,9 @@
 \newpage
 \spacingset{1.75} % DON'T change the spacing!
 
-\section{Expanded form of transition probability matrices}
+\section{Expanded Form of Transition Probability Matrices}
 
-The transition matrix at time $t$, $\bfGamma_t$ depended on $E_{t-1}$. The main text represented $\bfGamma_t$ in either block-diagonal form or as a Kronecker product. The full, expanded representation of the $\bfGamma_t$ is
+The transition matrix at time $t$, $\bfGamma_t$, depended on $E_{t-1}$. The main text represented $\bfGamma_t$ in either block-diagonal form or as a Kronecker product. The full, expanded representation of the $\bfGamma_t$ is
 %
 \begin{gather*}
     \bfGamma_t = 
@@ -105,7 +105,7 @@ The transition matrix at time $t$, $\bfGamma_t$ depended on $E_{t-1}$. The main 
         0 & 0 & 0 & 0 & 0 & 0 & \Gamma_{1,1}^{(f,3)} & \Gamma_{1,2}^{(f,3)} & \Gamma_{1,3}^{(f,3)} \\
         0 & 0 & 0 & 0 & 0 & 0 & 0 & \Gamma_{2,2}^{(f,3)} & \Gamma_{2,3}^{(f,3)} \\
         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
-    \end{pmatrix}, \qquad E_{t-1} = 0,  \\
+    \end{pmatrix} \qquad \text{for } E_{t-1} = 0,  \\\\
     %
     \bfGamma_t = 
     \begin{pmatrix}
@@ -118,14 +118,14 @@ The transition matrix at time $t$, $\bfGamma_t$ depended on $E_{t-1}$. The main 
         \Gamma_{3,1}^{(c)} & 0 & 0 & \Gamma_{3,2}^{(c)} & 0 & 0 & \Gamma_{3,3}^{(c)} & 0 & 0 \\
         \Gamma_{3,1}^{(c)} & 0 & 0 & \Gamma_{3,2}^{(c)} & 0 & 0 & \Gamma_{3,3}^{(c)} & 0 & 0 \\
         \Gamma_{3,1}^{(c)} & 0 & 0 & \Gamma_{3,2}^{(c)} & 0 & 0 & \Gamma_{3,3}^{(c)} & 0 & 0 \\
-    \end{pmatrix}, \qquad E_{t-1} = 1.  \\
+    \end{pmatrix} \qquad \text{for } E_{t-1} = 1.  \\
 \end{gather*}
 
-\section{Case study parameter results}
+\section{Parameter Estimates}
 
 The parameters presented here come from a run of \texttt{EM-VRSO} with $A = \text{SAGA}$, $P = \texttt{True}$, and $M=10T$. They represent the parameters with the highest log-likelihood among all random initializations and optimization algorithms in the case study from the main text. 
 
-\begin{table}[H]
+\begin{table}[h]
 \centering
 \begin{tabular}{c|c|lll}
 \multicolumn{1}{l|}{Dive Type} & Parameter Estimate & Descent & Bottom & Ascent \\ \hline
@@ -142,9 +142,11 @@ The parameters presented here come from a run of \texttt{EM-VRSO} with $A = \tex
 \caption{Maximum likelihood parameter estimates from the Killer Whale case study described in the main text. Recall that $D_t$ represents the change in depth in meters at time index $t$ and $E_t \in \{0,1\}$ encodes whether a dive ends at time index $t$. The parameter $\mu$ corresponds to the state-dependent mean of $D_t$, $\sigma$ corresponds to the state-dependent standard deviation of $D_t$, and $p$ corresponds to the state-dependent probability that $E_t=1$.}
 \end{table}
 
-Figure \ref{fig:emission_dist} below shows the estimated densities of change in depth $D_t$ for all dive types and dive durations.
+\newpage
 
-\begin{figure}[H]
+Figure \ref{fig:emission_dist} shows the estimated densities of change in depth $D_t$ for all dive types and dive durations.
+
+\begin{figure}[h]
     \centering
     \includegraphics[width=6.5in]{../plt/emission_dists_K_3_3_nWhales_8.png}
     \caption{State-dependent density of change in depth for dive types 1, 2, and 3 (left to right). Fine-scale state 1 corresponds to descent, fine-scale state 2 corresponds to bottom, and fine-scale state 3 corresponds to ascent. Dive type 1 corresponds to medium-depth dives, dive type 2 corresponds to shallow dives, and dive type 3 corresponds to deep dives.}
@@ -208,7 +210,7 @@ The fine-scale, intra-dive transition probability matrices and initial distribut
 
 Recall that each dive must begin with descent, so all initial distributions are identical. In addition, note that the Markov chains defined by $\hat \bfGamma^{(f,i)}$ above are not ergodic, so stationary distributions do not exist for the fine-scale, intra-dive Markov chains.
 
-\section{Case study decoded dive profiles}
+\section{Decoded Dive Profiles}
 
 The figures below show approximately one hour of dive profiles associated with each of the eight whales used to train the hierarchical HMM in the case study.
 

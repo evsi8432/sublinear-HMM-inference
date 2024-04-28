@@ -1,44 +1,3 @@
-\section{State-Dependent Observation Distributions}
-
-In the following subsections, we show that $F_t$ is convex and Lipschitz-smooth in several common inference settings. This is useful when applying Theorem 1 to HMMs with either Gaussian or Categorical state-dependent distributions. To this end, we show that $-\log f^{(i)}(y_t ; \theta^{(i)})$, $-\log \Gamma^{(i,j)}(\bfeta)$, and $-\log \delta^{(i)}(\bfeta)$ are uniformly Lipschitz-smooth and convex with respect to either $\theta^{(i)}$ or $\bfeta$. Then, $F_t$ is simply a linear combination of these terms, so it must also be convex and uniformly Lipschitz-smooth.
-
-\subsection{Normal State-dependent Observation Distribution}
-
-If $Y_t \in \bbR$ follows a normal distribution whose parameters depend on $X_t = i$, then one may define the parameters as $\theta^{(i)} = \begin{pmatrix} \mu^{(i)} & \rho^{(i)} \end{pmatrix}$, where $\mu^{(i)}$ is the mean of the distribution and $\rho^{(i)}$ is the logarithm of the variance of the distribution. Then:
-
-\begin{gather}
-    f^{(i)}(y_t ; \theta^{(i)}) = \frac{1}{\sqrt{2\pi\exp(\rho^{(i)})}} \exp\left(-\frac{\left(y_t - \mu^{(i)}\right)^2}{2 \exp(\rho^{(i)})}\right), \\
-    %
-    - \log f^{(i)}(y_t ; \theta^{(i)}) = \frac{1}{2}\left[\log(2\pi) + \rho^{(i)} + \left(y_t - \mu^{(i)}\right)^2 \exp(-2\rho^{(i)})\right].
-\end{gather}
-
-In this case, $-\log f^{(i)}(y_t \mid X_t = i ; \theta^{(i)})$ is uniformly Lipschitz-smooth and convex with respect to $\mu^{(i)}$ and it is convex with respect to $\rho^{(i)}$. It is not uniformly Lipschitz-smooth with respect to $\rho^{(i)}$ because its gradient is unbounded as $\rho^{(i)} \to -\infty$. Nonetheless, estimating $\rho^{(i)}$ often works well practice, and we estimate $\rho^{(i)}$ in our simulation and case studies.
-    
-\subsection{Categorical State-dependent Observation Distribution}
-
-If $Y_t \in \{1,\ldots,J\}$ follows a categorical distribution whose parameters depend on $X_t = i$, then one may define the parameters as $\theta^{(i)} = \begin{pmatrix} \theta^{(i,1)} & \theta^{(i,2)} & \cdots & \theta^{(i,J)} \end{pmatrix}$ so that
-
-\begin{gather}
-    f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)}) = \frac{\exp\left(\theta^{(i,j)}\right)}{\sum_{j' = 1}^{J} \exp(\theta^{(i,j')})}, \\
-    %
-    - \log f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)}) = - \theta^{(i,j)} + \log \left(\sum_{j' = 1}^{J} \exp(\theta^{(i,j')})\right),
-\end{gather}
-    
-where $\theta^{(i,1)} = 0$ for identifiability. Then, $-\log f^{(i)}(y_t = j \mid X_t = i ; \theta^{(i)})$ is uniformly Lipschitz-smooth and convex with respect to $\theta^{(i)}$ because the log-sum-exp function is convex and uniformly Lipschitz-smooth.
-
-\subsection{Initial Distribution and Transition Probability Matrix}
-
-When estimating the parameters $\bfeta$, Equation (\ref{eqn:reparam}) gives:
-
-\begin{gather}
-    \Gamma^{(i,j)}(\bfeta) = \frac{\exp(\eta^{(i,j)})}{\sum_{k=1}^N \exp(\eta^{(i,k)})}, \qquad \delta^{(i)}(\bfeta) = \frac{\exp(\eta^{(i)})}{\sum_{k=1}^N \exp(\eta^{(k)})}, \\
-    %
-    - \log \Gamma^{(i,j)}(\bfeta) = - \eta^{(i,j)} + \log \left[\sum_{k=1}^N \exp(\eta^{(i,k)})\right], \\ 
-    -\log \delta^{(i)}(\bfeta) = -\eta^{(i)} + \log \left[\sum_{k=1}^N \exp(\eta^{(k)})\right],
-\end{gather}
-
-Then, both $- \log \Gamma^{(i,j)}(\bfeta)$ and $ - \log \delta^{(i)}(\bfeta)$ are uniformly Lipschitz-smooth and convex with respect to $\bfeta$ because the log-sum-exp function is convex and uniformly Lipschitz-smooth.
-
 \section{Version 2 of \texttt{EM-VRSO}}
 
 For the purposes of readability, we abuse notation and use the shorthand $F(\bfphi \mid \bfgamma(\bfphi'), \bfxi(\bfphi')) \equiv F(\bfphi \mid \bfphi')$ and $F_{t}(\bfphi \mid \bfgamma_{t}(\bfphi'), \bfxi_{t}(\bfphi')) \equiv F_{t}(\bfphi \mid \bfphi')$ in this appendix. Further, we denote $F^*(\bfphi') \equiv \inf_{\bfphi \in \bfPhi} F(\bfphi \mid \bfphi')$.
@@ -100,7 +59,6 @@ Another concern with Algorithm \ref{alg:EM-VRSO-v2} is that $F^{*}(\bfphi_{k})$ 
         F^*(x_0) &= F(y_0^* \mid x_0) > F(y_0^* \mid x) - \epsilon \geq F(y^* \mid x) - \epsilon = F^*(x) - \epsilon,
     \end{align*}
     %
-    %The inequalities above rely on both the continuity of $F$ and the fact that $y^*$ and $y_0^*$ are minimizers of $F$. Therefore, we have found a $\delta$ such that for any arbitrary $x$ and $x_0$ with $|x-x_0| < \delta$, $F^*(x) - \epsilon \leq F^*(x_0) \leq F^*(x) + \epsilon$. But this is precisely the definition of uniform continuity.
     so $|F^*(x) - F^*(x_0)| < \epsilon$.
 \end{proof}
 
@@ -204,10 +162,7 @@ Iteration $k$ of Algorithm \ref{alg:EM-VRSO-v2} corresponds to randomly sampling
     %
     We start with the first condition. Since $\bfphi_{n} \to \bfphi$ and $\bfphi'_{n} \to \bfphi'$,  \ we have that $F(\bfphi_{n} \mid \bfphi'_{n}) \to F(\bfphi \mid \bfphi')$ because $F$ is continuous by condition (7) of Theorem 1. Likewise, $K(\bfphi'_{n}) \to K(\bfphi')$ because $K$ is continuous by Lemma 1. Finally, $F(\bfphi \mid \bfphi') \leq K(\bfphi')$ because for all $n$, $\bfphi_n \in R_{M,\lambda}(\bfphi_n')$, which implies that $F(\bfphi_{n} \mid \bfphi'_{n}) \leq K(\bfphi'_{n})$. Taking the limit of both sides as $n \to \infty$ gives the result.
     
-    We now show the second condition. By way of contradiction, assume that $\bfphi \neq \texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ for any value of $I \in \{1,\ldots,T\}^M$. Then, $\min_I ||\bfphi - \texttt{VRSO-PE}^*(I,\lambda,\bfphi')||$ is strictly positive. 
-    %Because the sequence $\{\bfphi_n\}_{n>1}$ converges to $\bfphi$, there must exist some $N_1$ such that for all $n \geq N_1$, $||\bfphi_{n} - \bfphi|| < \epsilon/2$. Further, since $\{\bfphi'_{n}\}_{n>1}$ converges to $\bfphi'$ and $\texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ is continuous in $\bfphi'$, there must exist some $N_2$ such that for all $n \geq N_2$ and $I \in \{1,\ldots,T\}^M$, $||\texttt{VRSO-PE}^*(I,\lambda,\bfphi'_{n}) - \texttt{VRSO-PE}^*(I,\lambda,\bfphi')|| < \epsilon/2$. Now pick an arbitrary $n > \max\{N_1,N_2\}$. 
-    By assumption, for each $n$, $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$, so $\bfphi_{n} = \texttt{VRSO-PE}^*(I_n,\lambda,\bfphi'_{n})$ for some $I_n \in \{1,\ldots,T\}^M$. %Therefore, $||\bfphi_{n} - \texttt{VRSO-PE}^*(J,\lambda,\bfphi')|| = ||\texttt{VRSO-PE}^*(J,\lambda,\bfphi'_{n}) - \texttt{VRSO-PE}^*(J,\lambda,\bfphi')|| < \epsilon/2$ because $n > N_2$. 
-    Using the triangle inequality, we have:
+    We now show the second condition. By way of contradiction, assume that $\bfphi \neq \texttt{VRSO-PE}^*(I,\lambda,\bfphi')$ for any value of $I \in \{1,\ldots,T\}^M$. Then, $\min_I ||\bfphi - \texttt{VRSO-PE}^*(I,\lambda,\bfphi')||$ is strictly positive. By assumption, for each $n$, $\bfphi_{n} \in R_{M,\lambda}(\bfphi'_{n})$, so $\bfphi_{n} = \texttt{VRSO-PE}^*(I_n,\lambda,\bfphi'_{n})$ for some $I_n \in \{1,\ldots,T\}^M$. Using the triangle inequality, we have:
 
     \begin{align}
         0 < \min_{I}||\bfphi - \texttt{VRSO-PE}^*(I,\lambda,\bfphi')|| &\leq ||\bfphi_{n} - \bfphi|| + ||\bfphi_{n} - \texttt{VRSO-PE}^*(I_n,\lambda,\bfphi')|| \\
@@ -301,7 +256,7 @@ To prove the Theorem more formally, we first prove a useful Lemma.
             %
             &= 
             \begin{cases}
-                \bfdelta(\bfeta^{(0)}) ~ P(y_1;\bftheta^{(0)}), & \text{for } t_m = 1 \\
+                \bfdelta(\bfnu^{(0)}) ~ P(y_1;\bftheta^{(0)}), & \text{for } t_m = 1 \\
                 \bfalpha_{t_m-1}(\bfphi^{(0)}) ~ \bfGamma(\bfeta^{(0)}) ~P(y_{t_m};\bftheta^{(0)}), & \text{for } t_m = 2,\ldots,T
             \end{cases} \nonumber \\
             %
